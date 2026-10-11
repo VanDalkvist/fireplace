@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Салон присутствия — 01: Топологическое поле чувств</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #050505;
+      color: #e5e5e5;
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+    .wrapper {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #0d0d0d;
+      border: 1px solid #1a1a1a;
+      border-radius: 6px;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      background: rgba(217, 32, 39, 0.12);
+      border: 1px solid rgba(217, 32, 39, 0.3);
+      color: #d92027;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .dot {
+      width: 5px;
+      height: 5px;
+      background: #d92027;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #d92027;
+    }
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #050505;
+      border: 1px solid #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.8);
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    .controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #0d0d0d;
+      border: 1px solid #1a1a1a;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    button {
+      background: #141414;
+      border: 1px solid #262626;
+      color: #e5e5e5;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:hover { background: #1f1f1f; border-color: #d92027; color: #fff; }
+    button.active { background: #d92027; border-color: #d92027; color: #fff; }
+    .phrase-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-left: auto;
+    }
+    .chip {
+      background: #111;
+      border: 1px solid #222;
+      color: #888;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .chip:hover { border-color: #d92027; color: #eee; }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+    }
+    .card {
+      background: #090909;
+      border: 1px solid #171717;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #777;
+      line-height: 1.5;
+    }
+    .card strong { display: block; color: #ccc; margin-bottom: 2px; font-size: 11.5px; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="header-bar">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="badge"><span class="dot"></span> ЭКСПЕРИМЕНТ 01</span>
+      <span style="color:#aaa;">ТОПОЛОГИЧЕСКОЕ ПОЛЕ ЧУВСТВ</span>
+    </div>
+    <div style="color:#555;">САЛОН ПРИСУТСТВИЯ • VECTOR FIELD & ISOCLINES • D DORIAN</div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="stage" width="1920" height="1080"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="btnPlay" class="active">⏸ АВТО-ДЕМО</button>
+    <button id="btnAudio">🔊 ЗВУК: ВЫКЛ</button>
+    <button id="btnClear">ОЧИСТИТЬ ПОЛЕ</button>
+    
+    <div class="phrase-chips">
+      <span style="font-size:10px; color:#555;">ДОБАВИТЬ:</span>
+      <button class="chip" onclick="injectFeeling('спокойствие', 'спокойно', 0)">«спокойно»</button>
+      <button class="chip" onclick="injectFeeling('нежность', 'тепло', 2)">«тепло»</button>
+      <button class="chip" onclick="injectFeeling('радость', 'живость', 5)">«живость»</button>
+      <button class="chip" onclick="injectFeeling('усталость', 'устал', 8)">«усталость»</button>
+      <button class="chip" onclick="injectFeeling('тревога', 'тревожно', 11)">«тревожно»</button>
+      <button class="chip" onclick="injectFeeling('растерянность', 'растерян', 14)">«растерян»</button>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="card">
+      <strong>Топологические изолинии</strong>
+      Вместо разрозненных плавающих точек — силовые контуры плотности. Слова чувств выступают гравитационными центрами, плавно деформирующими пространство.
+    </div>
+    <div class="card">
+      <strong>Круг участников и лучи присутствия</strong>
+      По периметру расположены 16 мест участников круга. Каждое слово рождается из места говорящего и соединяется с ним тонким световым вектором.
+    </div>
+    <div class="card">
+      <strong>Процедурный гул D Dorian</strong>
+      Каждое чувство озвучивается через Web Audio API нотой в дорийском ладу (146.83 Hz), а поле непрерывно дышит тихим фоновым аккордом.
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  const cx = W / 2;
+  const cy = H / 2;
+
+  // Seats around the perimeter
+  const SEATS_COUNT = 16;
+  const SEAT_RADIUS = 460;
+  const seats = [];
+  for (let i = 0; i < SEATS_COUNT; i++) {
+    const ang = (i / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
+    seats.push({
+      id: i,
+      x: cx + Math.cos(ang) * SEAT_RADIUS,
+      y: cy + Math.sin(ang) * SEAT_RADIUS,
+      activeTimer: 0
+    });
+  }
+
+  // Feelings dictionary & audio scale
+  const FAMILY_COORDS = {
+    'спокойствие': { x: -160, y: 120, note: 146.83, color: '#4a90e2' },
+    'нежность':    { x: 140,  y: 80,  note: 196.00, color: '#e58e73' },
+    'радость':     { x: 180,  y: -140, note: 220.00, color: '#e5c07b' },
+    'живость':     { x: 40,   y: -190, note: 293.66, color: '#98c379' },
+    'усталость':   { x: -180, y: 190, note: 164.81, color: '#666677' },
+    'грусть':      { x: -220, y: -20, note: 174.61, color: '#5c6370' },
+    'тревога':     { x: -80,  y: -150, note: 130.81, color: '#d92027' },
+    'растерянность':{ x: -120, y: -90, note: 246.94, color: '#c678dd' }
+  };
+
+  // Active word particles
+  let words = [];
+  let t = 0;
+  let isPlaying = true;
+  let audioEnabled = false;
+  let audioCtx = null;
+  let droneOsc = null;
+  let droneGain = null;
+
+  // Web Audio D Dorian
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      droneGain = audioCtx.createGain();
+      droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
+      droneGain.connect(audioCtx.destination);
+
+      // Soft root drone (D3 = 146.83 Hz)
+      droneOsc = audioCtx.createOscillator();
+      droneOsc.type = 'triangle';
+      droneOsc.frequency.setValueAtTime(146.83, audioCtx.currentTime);
+      const droneFilter = audioCtx.createBiquadFilter();
+      droneFilter.type = 'lowpass';
+      droneFilter.frequency.setValueAtTime(320, audioCtx.currentTime);
+      droneOsc.connect(droneFilter);
+      droneFilter.connect(droneGain);
+      droneOsc.start();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    if (audioEnabled) {
+      droneGain.gain.setTargetAtTime(0.08, audioCtx.currentTime, 1.5);
+    } else {
+      droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+    }
+  }
+
+  function playFeelingTone(freq) {
+    if (!audioEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1200, audioCtx.currentTime);
+
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 2.8);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 3.0);
+  }
+
+  // Inject a feeling into the simulation
+  window.injectFeeling = (family, text, seatIdx) => {
+    const seat = seats[seatIdx % SEATS_COUNT];
+    seat.activeTimer = 1.0;
+
+    const targetBase = FAMILY_COORDS[family] || { x: 0, y: 0, note: 146.83, color: '#d92027' };
+    // Small natural jitter around family attractor
+    const tx = cx + targetBase.x + (Math.random() - 0.5) * 60;
+    const ty = cy + targetBase.y + (Math.random() - 0.5) * 60;
+
+    // Check if word already exists to increase weight
+    const existing = words.find(w => w.text === text);
+    if (existing) {
+      existing.count += 1;
+      existing.weight = Math.min(2.8, existing.weight + 0.4);
+      existing.pulse = 1.0;
+    } else {
+      words.push({
+        text: text,
+        family: family,
+        x: seat.x,
+        y: seat.y,
+        targetX: tx,
+        targetY: ty,
+        fromSeatX: seat.x,
+        fromSeatY: seat.y,
+        count: 1,
+        weight: 1.0,
+        age: 0,
+        pulse: 1.0,
+        color: targetBase.color
+      });
+    }
+
+    playFeelingTone(targetBase.note);
+  };
+
+  // Seed with initial words
+  injectFeeling('спокойствие', 'тишина', 0);
+  injectFeeling('нежность', 'тепло', 3);
+  injectFeeling('тревога', 'тревожно', 7);
+  injectFeeling('радость', 'живость', 11);
+
+  // Auto demo driver
+  let demoTimer = 0;
+  const demoSequence = [
+    { family: 'усталость', text: 'устал', seat: 2 },
+    { family: 'нежность', text: 'благодарность', seat: 5 },
+    { family: 'радость', text: 'живость', seat: 8 },
+    { family: 'тревога', text: 'напряжение', seat: 10 },
+    { family: 'спокойствие', text: 'замедление', seat: 13 },
+    { family: 'растерянность', text: 'не знаю', seat: 15 }
+  ];
+  let demoIndex = 0;
+
+  function render(time) {
+    // Background clear
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle center circle boundary
+    ctx.strokeStyle = '#121212';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 320, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 1. TOPOLOGICAL FIELD CONTOUR ISOCLINES (Prompt Motion math)
+    // Draw 7 organic isoclines around active mass centers
+    const isoclineCount = 7;
+    for (let iso = 1; iso <= isoclineCount; iso++) {
+      const radius = 60 + iso * 42;
+      ctx.beginPath();
+      const pointsCount = 90;
+      for (let p = 0; p <= pointsCount; p++) {
+        const theta = (p / pointsCount) * Math.PI * 2;
+        let baseR = radius;
+
+        // Warp radius based on proximity to word masses
+        words.forEach(w => {
+          const dx = Math.cos(theta) * radius - (w.x - cx);
+          const dy = Math.sin(theta) * radius - (w.y - cy);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const influence = Math.exp(-dist / 140) * (35 * w.weight);
+          baseR += influence * Math.sin(theta * 2 + time * 1.2);
+        });
+
+        const px = cx + Math.cos(theta) * baseR;
+        const py = cy + Math.sin(theta) * baseR;
+
+        if (p === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = iso === 3 ? 'rgba(217, 32, 39, 0.22)' : `rgba(255, 255, 255, ${0.03 + (iso / isoclineCount) * 0.04})`;
+      ctx.lineWidth = iso === 3 ? 1.5 : 1;
+      ctx.stroke();
+    }
+
+    // 2. DRAW SEATS (16 participants around the room)
+    seats.forEach((seat) => {
+      // Glow/fade timer
+      const isActive = seat.activeTimer > 0;
+      ctx.beginPath();
+      ctx.arc(seat.x, seat.y, isActive ? 7 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = isActive ? '#d92027' : '#262626';
+      ctx.fill();
+
+      if (isActive) {
+        ctx.strokeStyle = 'rgba(217, 32, 39, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(seat.x, seat.y, 14 * (2 - seat.activeTimer), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // Seat number label
+      ctx.fillStyle = '#444';
+      ctx.font = '500 10px "JetBrains Mono"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const labelDist = SEAT_RADIUS + 22;
+      const ang = (seat.id / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
+      ctx.fillText(`[${(seat.id + 1).toString().padStart(2, '0')}]`, cx + Math.cos(ang) * labelDist, cy + Math.sin(ang) * labelDist);
+    });
+
+    // 3. DRAW WORDS & CONNECTING PRESENCE BEAMS
+    words.forEach((w) => {
+      // Smooth movement towards target
+      w.x += (w.targetX - w.x) * 0.05;
+      w.y += (w.targetY - w.y) * 0.05;
+      w.age += 0.016;
+      if (w.pulse > 0) w.pulse -= 0.02;
+
+      // Subtle breathing drift
+      const driftX = Math.sin(time * 0.8 + w.targetX) * 8;
+      const driftY = Math.cos(time * 0.7 + w.targetY) * 8;
+      const curX = w.x + driftX;
+      const curY = w.y + driftY;
+
+      // Connecting presence beam from participant's seat
+      ctx.strokeStyle = `rgba(217, 32, 39, ${0.12 * Math.min(1, w.weight)})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(w.fromSeatX, w.fromSeatY);
+      ctx.lineTo(curX, curY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Word Typography
+      ctx.save();
+      ctx.translate(curX, curY);
+
+      const fontSize = 16 + (w.weight - 1) * 10;
+      ctx.font = `${w.count > 1 ? '700' : '500'} ${fontSize}px "JetBrains Mono"`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // Soft back plate
+      const textMetrics = ctx.measureText(w.text);
+      const bgW = textMetrics.width + 18;
+      const bgH = fontSize + 12;
+
+      ctx.fillStyle = '#0a0a0c';
+      ctx.fillRect(-bgW / 2, -bgH / 2, bgW, bgH);
+
+      ctx.strokeStyle = w.pulse > 0 ? '#d92027' : '#1f1f28';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-bgW / 2, -bgH / 2, bgW, bgH);
+
+      // Word text
+      ctx.fillStyle = w.count > 1 ? '#ffffff' : '#b0b0be';
+      ctx.fillText(w.text, 0, 0);
+
+      // Multiplier badge if repeated
+      if (w.count > 1) {
+        ctx.fillStyle = '#d92027';
+        ctx.font = '700 10px "JetBrains Mono"';
+        ctx.fillText(`×${w.count}`, bgW / 2 + 10, -bgH / 2 + 4);
+      }
+
+      ctx.restore();
+    });
+
+    // 4. TELEMETRY & CENTER HUB
+    ctx.fillStyle = '#d92027';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '500 11px "JetBrains Mono"';
+    ctx.textAlign = 'left';
+    ctx.fillText(`ПОЛЕ ЧУВСТВ: ${words.length} ЭЛЕМЕНТОВ // КРУГ: ${SEATS_COUNT} МЕСТ`, 40, H - 40);
+
+    ctx.textAlign = 'right';
+    ctx.fillText('САЛОН ПРИСУТСТВИЯ // ТОПОЛОГИЧЕСКИЙ РЕЖИМ', W - 40, H - 40);
+  }
+
+  // Animation Loop
+  let lastTime = performance.now();
+  function tick(now) {
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    t += dt;
+
+    // Decay seat timers
+    seats.forEach(s => {
+      if (s.activeTimer > 0) s.activeTimer = Math.max(0, s.activeTimer - dt * 0.8);
+    });
+
+    // Auto-demo driver
+    if (isPlaying) {
+      demoTimer += dt;
+      if (demoTimer > 3.2) {
+        demoTimer = 0;
+        const item = demoSequence[demoIndex % demoSequence.length];
+        demoIndex++;
+        injectFeeling(item.family, item.text, item.seat);
+      }
+    }
+
+    render(t);
+    requestAnimationFrame(tick);
+  }
+
+  // UI Handlers
+  const btnPlay = document.getElementById('btnPlay');
+  const btnAudio = document.getElementById('btnAudio');
+  const btnClear = document.getElementById('btnClear');
+
+  btnPlay.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    btnPlay.textContent = isPlaying ? '⏸ АВТО-ДЕМО' : '▶ СТАРТ ДЕМО';
+    btnPlay.classList.toggle('active', isPlaying);
+  });
+
+  btnAudio.addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    initAudio();
+    btnAudio.textContent = audioEnabled ? '🔊 ЗВУК: ВКЛ' : '🔈 ЗВУК: ВЫКЛ';
+    btnAudio.classList.toggle('active', audioEnabled);
+  });
+
+  btnClear.addEventListener('click', () => {
+    words = [];
+  });
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

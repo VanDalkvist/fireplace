@@ -1,0 +1,21 @@
+{
+  "name": "salon-presence",
+  "version": "1.0.0",
+  "description": "Салон присутствия и чувств: интерактивные моушен-облака, процедурный Web Audio и визуализация групповой динамики (AI Mindset)",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve -l 4343 ."
+  },
+  "keywords": [
+    "salon-presence",
+    "motion-design",
+    "ai-mindset",
+    "web-audio",
+    "feelings-cloud"
+  ],
+  "author": "Vanya Afanasov <vanya@leatherbags.agency>",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}

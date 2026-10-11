@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Салон присутствия — 03: Швейцарская кинетическая матрица</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: #050505;
+      color: #e5e5e5;
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+    .wrapper {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: #0d0d0d;
+      border: 1px solid #1a1a1a;
+      border-radius: 6px;
+      font-size: 11px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      background: rgba(217, 32, 39, 0.12);
+      border: 1px solid rgba(217, 32, 39, 0.3);
+      color: #d92027;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .dot { width: 5px; height: 5px; background: #d92027; border-radius: 50%; box-shadow: 0 0 6px #d92027; }
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #040405;
+      border: 1px solid #1a1a1a;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.8);
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    .controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #0d0d0d;
+      border: 1px solid #1a1a1a;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    button {
+      background: #141414;
+      border: 1px solid #262626;
+      color: #e5e5e5;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    button:hover { background: #1f1f1f; border-color: #d92027; color: #fff; }
+    button.active { background: #d92027; border-color: #d92027; color: #fff; }
+    .phrase-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-left: auto;
+    }
+    .chip {
+      background: #111;
+      border: 1px solid #222;
+      color: #888;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .chip:hover { border-color: #d92027; color: #eee; }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 10px;
+    }
+    .card {
+      background: #090909;
+      border: 1px solid #171717;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: #777;
+      line-height: 1.5;
+    }
+    .card strong { display: block; color: #ccc; margin-bottom: 2px; font-size: 11.5px; }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="header-bar">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span class="badge"><span class="dot"></span> ЭКСПЕРИМЕНТ 03</span>
+      <span style="color:#aaa;">ШВЕЙЦАРСКАЯ КИНЕТИЧЕСКАЯ МАТРИЦА</span>
+    </div>
+    <div style="color:#555;">САЛОН ПРИСУТСТВИЯ • ADAPTIVE TYPOGRAPHIC MATRIX</div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="stage" width="1920" height="1080"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="btnPlay" class="active">⏸ АВТО-ДЕМО</button>
+    <button id="btnAudio">🔊 ЗВУК: ВЫКЛ</button>
+    
+    <div class="phrase-chips">
+      <span style="font-size:10px; color:#555;">ТАКТ:</span>
+      <button class="chip" onclick="pushToken('спокойствие', 'замедление', 0)">«замедление»</button>
+      <button class="chip" onclick="pushToken('тело', 'тяжесть', 1)">«тяжесть»</button>
+      <button class="chip" onclick="pushToken('нежность', 'тепло', 0)">«тепло»</button>
+      <button class="chip" onclick="pushToken('радость', 'живость', 0)">«живость»</button>
+      <button class="chip" onclick="pushToken('тревога', 'тревожно', 2)">«тревожно»</button>
+      <button class="chip" onclick="pushToken('грусть', 'пустота', 2)">«пустота»</button>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="card">
+      <strong>Адаптивный кинетический кегль</strong>
+      При повторении чувств слова не нагромождаются, а органично расширяют свой вес в модульной сетке (Spring Physics).
+    </div>
+    <div class="card">
+      <strong>3 смысловых спектра</strong>
+      Потоки матрицы разделены на «Ресурс & Контакт», «Тело & Замедление» и «Уязвимость & Границы», создавая чистую читаемость с экрана фасилитатора.
+    </div>
+    <div class="card">
+      <strong>Осциллограф возбуждения группы</strong>
+      Нижняя шкала отображает динамическую кривую эмоционального тонуса комнаты (Group Arousal Index).
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // 3 Spectral Tracks
+  const TRACKS = [
+    { id: 0, title: 'СПЕКТР 01 // РЕСУРС И КОНТАКТ', y: 220, color: '#e5c07b' },
+    { id: 1, title: 'СПЕКТР 02 // ТЕЛО И ЗАМЕДЛЕНИЕ', y: 520, color: '#4a90e2' },
+    { id: 2, title: 'СПЕКТР 03 // УЯЗВИМОСТЬ И ГРАНИЦЫ', y: 820, color: '#d92027' }
+  ];
+
+  // Family to track mapping
+  const FAMILY_TO_TRACK = {
+    'радость': 0, 'живость': 0, 'интерес': 0, 'нежность': 0, 'спокойствие': 0,
+    'тело': 1, 'усталость': 1,
+    'грусть': 2, 'растерянность': 2, 'стыд': 2, 'страх': 2, 'тревога': 2, 'злость': 2
+  };
+
+  // Stored tokens by track
+  const tokens = [[], [], []];
+
+  let t = 0;
+  let isPlaying = true;
+  let audioEnabled = false;
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playSynthHit(freq = 146.83) {
+    if (!audioEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(450, audioCtx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 1.2);
+
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.4);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 1.5);
+  }
+
+  window.pushToken = (family, text, explicitTrack = null) => {
+    const trackId = explicitTrack !== null ? explicitTrack : (FAMILY_TO_TRACK[family] ?? 0);
+    const trackList = tokens[trackId];
+
+    const existing = trackList.find(item => item.text === text);
+    if (existing) {
+      existing.count += 1;
+      existing.targetScale = Math.min(2.4, existing.targetScale + 0.35);
+      existing.springVelocity = 0.8;
+    } else {
+      trackList.push({
+        text: text,
+        family: family,
+        count: 1,
+        scale: 0.2,
+        targetScale: 1.0,
+        springVelocity: 1.2,
+        x: 0,
+        targetX: 0
+      });
+    }
+
+    const noteFreq = trackId === 0 ? 220.0 : (trackId === 1 ? 146.83 : 130.81);
+    playSynthHit(noteFreq);
+  };
+
+  // Seed with initial words
+  pushToken('спокойствие', 'тишина', 0);
+  pushToken('нежность', 'тепло', 0);
+  pushToken('тело', 'дыхание', 1);
+  pushToken('усталость', 'усталость', 1);
+  pushToken('тревога', 'тревожно', 2);
+
+  // Auto demo driver
+  let demoTimer = 0;
+  const demoList = [
+    { f: 'радость', t: 'живость', trk: 0 },
+    { f: 'нежность', t: 'тепло', trk: 0 }, // repeat
+    { f: 'тело', t: 'тяжесть', trk: 1 },
+    { f: 'тревога', t: 'сжатие', trk: 2 },
+    { f: 'спокойствие', t: 'замедление', trk: 0 },
+    { f: 'грусть', t: 'грусть', trk: 2 }
+  ];
+  let demoIdx = 0;
+
+  function render(time) {
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, W, H);
+
+    // Subtle Swiss vertical column guidelines
+    ctx.strokeStyle = '#0e0e12';
+    ctx.lineWidth = 1;
+    for (let x = 120; x < W - 120; x += 140) {
+      ctx.beginPath();
+      ctx.moveTo(x, 100);
+      ctx.lineTo(x, H - 120);
+      ctx.stroke();
+    }
+
+    // DRAW TRACKS
+    TRACKS.forEach((track) => {
+      // Track Header Line
+      ctx.strokeStyle = '#1a1a24';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(120, track.y - 65);
+      ctx.lineTo(W - 120, track.y - 65);
+      ctx.stroke();
+
+      // Track Label
+      ctx.fillStyle = track.color;
+      ctx.font = '700 11px "JetBrains Mono"';
+      ctx.textAlign = 'left';
+      ctx.fillText(track.title, 120, track.y - 75);
+
+      // Render tokens in horizontal layout
+      const list = tokens[track.id];
+      let currentX = 130;
+
+      list.forEach((tok) => {
+        // Spring physics on scale
+        const force = (tok.targetScale - tok.scale) * 0.15;
+        tok.springVelocity = (tok.springVelocity + force) * 0.78;
+        tok.scale += tok.springVelocity;
+
+        const baseFontSize = 26;
+        const currentFontSize = baseFontSize * tok.scale;
+
+        ctx.font = `800 ${currentFontSize}px "Plus Jakarta Sans"`;
+        const textMetrics = ctx.measureText(tok.text);
+        const cardW = textMetrics.width + 36 * tok.scale;
+        const cardH = 50 * tok.scale;
+
+        // Card container
+        ctx.save();
+        ctx.translate(currentX, track.y);
+
+        ctx.fillStyle = tok.count > 1 ? '#111118' : '#09090d';
+        ctx.fillRect(0, -cardH / 2, cardW, cardH);
+
+        ctx.strokeStyle = tok.count > 1 ? track.color : '#1c1c28';
+        ctx.lineWidth = tok.count > 1 ? 2 : 1;
+        ctx.strokeRect(0, -cardH / 2, cardW, cardH);
+
+        // Word text
+        ctx.fillStyle = tok.count > 1 ? '#ffffff' : '#b0b0be';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(tok.text, 18 * tok.scale, 0);
+
+        // Multiplier badge
+        if (tok.count > 1) {
+          ctx.fillStyle = track.color;
+          ctx.font = '700 13px "JetBrains Mono"';
+          ctx.fillText(`×${tok.count}`, cardW - 34 * tok.scale, 0);
+        }
+
+        ctx.restore();
+
+        currentX += cardW + 18;
+      });
+    });
+
+    // BOTTOM GROUP AROUSAL OSCILLOSCOPE
+    const oscY = H - 80;
+    ctx.strokeStyle = '#181822';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(120, oscY);
+    ctx.lineTo(W - 120, oscY);
+    ctx.stroke();
+
+    ctx.fillStyle = '#555';
+    ctx.font = '600 10px "JetBrains Mono"';
+    ctx.textAlign = 'left';
+    ctx.fillText('ТОНУС И ПУЛЬС ГРУППЫ // GROUP AROUSAL', 120, oscY - 10);
+
+    // Live wave
+    ctx.strokeStyle = '#d92027';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 120; x <= W - 120; x += 6) {
+      const norm = (x - 120) / (W - 240);
+      const wave = Math.sin(norm * 14 + time * 3) * Math.cos(norm * 6 + time) * 16;
+      if (x === 120) ctx.moveTo(x, oscY + wave);
+      else ctx.lineTo(x, oscY + wave);
+    }
+    ctx.stroke();
+
+    ctx.fillStyle = '#444';
+    ctx.font = '500 11px "JetBrains Mono"';
+    ctx.textAlign = 'right';
+    ctx.fillText('САЛОН ПРИСУТСТВИЯ // ШВЕЙЦАРСКАЯ МАТРИЦА', W - 120, H - 40);
+  }
+
+  let lastTime = performance.now();
+  function tick(now) {
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    t += dt;
+
+    if (isPlaying) {
+      demoTimer += dt;
+      if (demoTimer > 3.0) {
+        demoTimer = 0;
+        const it = demoList[demoIdx % demoList.length];
+        demoIdx++;
+        pushToken(it.f, it.t, it.trk);
+      }
+    }
+
+    render(t);
+    requestAnimationFrame(tick);
+  }
+
+  const btnPlay = document.getElementById('btnPlay');
+  const btnAudio = document.getElementById('btnAudio');
+
+  btnPlay.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    btnPlay.textContent = isPlaying ? '⏸ АВТО-ДЕМО' : '▶ СТАРТ ДЕМО';
+    btnPlay.classList.toggle('active', isPlaying);
+  });
+
+  btnAudio.addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    initAudio();
+    btnAudio.textContent = audioEnabled ? '🔊 ЗВУК: ВКЛ' : '🔈 ЗВУК: ВЫКЛ';
+    btnAudio.classList.toggle('active', audioEnabled);
+  });
+
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
