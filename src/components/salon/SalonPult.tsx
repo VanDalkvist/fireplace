@@ -7,7 +7,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import type { SessionPhase } from "@/domain/types";
-import { Play, SkipForward, Ban, Sparkles } from "lucide-react";
+import { Play, SkipForward, Ban, Sparkles, Mic, MicOff } from "lucide-react";
 
 interface SalonPultProps {
   open: boolean;
@@ -21,6 +21,9 @@ interface SalonPultProps {
   onTriggerDemoPhrase: () => void;
   onToggleDemoMode: () => void;
   isDemoActive: boolean;
+  isListening?: boolean;
+  onToggleListening?: () => void;
+  isSpeechSupported?: boolean;
 }
 
 export const SalonPult: React.FC<SalonPultProps> = ({
@@ -35,6 +38,9 @@ export const SalonPult: React.FC<SalonPultProps> = ({
   onTriggerDemoPhrase,
   onToggleDemoMode,
   isDemoActive,
+  isListening = false,
+  onToggleListening,
+  isSpeechSupported = true,
 }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -97,15 +103,39 @@ export const SalonPult: React.FC<SalonPultProps> = ({
             </div>
           </div>
 
-          {/* Voice Engine Slot */}
+          {/* Voice Recognition Controls */}
           <div className="space-y-2 border-t border-border/50 pt-4">
             <div className="flex items-center justify-between">
-              <label className="text-muted block">слот распознавания</label>
-              <span className="text-[10px] text-primary">голос live</span>
+              <label className="text-muted block">распознавание речи</label>
+              <span className="text-[10px] text-primary">
+                {isListening ? "● слушает" : "○ выключен"}
+              </span>
             </div>
-            <p className="text-[11px] text-muted/70 leading-relaxed">
-              микрофон слушает речь в комнате и направляет извлеченные леммы в топологическое облако.
-            </p>
+            {isSpeechSupported ? (
+              <Button
+                variant={isListening ? "primary" : "outline"}
+                size="sm"
+                className="w-full text-[11px]"
+                onClick={onToggleListening}
+              >
+                {isListening ? (
+                  <>
+                    <Mic className="w-3.5 h-3.5 mr-1.5" />
+                    остановить микрофон (v)
+                  </>
+                ) : (
+                  <>
+                    <MicOff className="w-3.5 h-3.5 mr-1.5" />
+                    включить микрофон (v)
+                  </>
+                )}
+              </Button>
+            ) : (
+              <p className="text-[10px] text-destructive/80">
+                браузер не поддерживает speech recognition api
+              </p>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -135,6 +165,7 @@ export const SalonPult: React.FC<SalonPultProps> = ({
           <div className="border-t border-border/50 pt-4 text-[10px] text-muted/60 space-y-1">
             <div><kbd className="text-foreground">1..4</kbd> — переключение фаз</div>
             <div><kbd className="text-foreground">space</kbd> — пауза / эстафета</div>
+            <div><kbd className="text-foreground">v</kbd> — микрофон on / off</div>
             <div><kbd className="text-foreground">p</kbd> — передать пас</div>
             <div><kbd className="text-foreground">m</kbd> — включить/выключить звук</div>
             <div><kbd className="text-foreground">tab</kbd> — открыть/закрыть этот пульт</div>

@@ -9,8 +9,12 @@ import {
 import type { SessionState, SessionPhase, FeelingToken, DesireToken } from "@/domain/types";
 import { computeSelectiveEdges } from "@/domain/linking-graph";
 import { DEMO_PHRASES } from "@/domain/demo-script";
+import { defaultLexiconIndex } from "@/domain/lexicon-provider";
+import { extractFeelingsAndDesires } from "@/domain/lexicon-engine";
+import { SalonSpeechEngine } from "@/speech/speech-engine";
 import { SalonAudioEngine } from "@/audio/audio-engine";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
+import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
 import { SeatCircle } from "./salon/SeatCircle";
 import { SalonPult } from "./salon/SalonPult";
@@ -20,6 +24,7 @@ import { IntroDialog } from "./salon/IntroDialog";
 export const SalonExperience: React.FC = () => {
   const [state, setState] = useState<SessionState>(() => createInitialState(12));
   const [isAudioOn, setIsAudioOn] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [volume, setVolume] = useState(0.6);
   const [isPultOpen, setIsPultOpen] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
@@ -27,10 +32,12 @@ export const SalonExperience: React.FC = () => {
     typeof window !== "undefined" && window.location.search.includes("demo=1")
   );
   const [lastPhrase, setLastPhrase] = useState<string>("тишина в начале круга");
+  const [interimPhrase, setInterimPhrase] = useState<string>("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<SalonAudioEngine | null>(null);
   const motionRef = useRef<SalonMotionEngine | null>(null);
+  const speechRef = useRef<SalonSpeechEngine | null>(null);
 
   if (!audioRef.current) audioRef.current = new SalonAudioEngine();
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
@@ -42,6 +49,7 @@ export const SalonExperience: React.FC = () => {
 
   const handleAddFeeling = useCallback((phrase: string, family: string, valence: number = 0) => {
     setLastPhrase(phrase);
+    setInterimPhrase("");
     const speakerId = state.activeSpeakerId ?? 1;
     const newToken: FeelingToken = {
       id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -64,6 +72,7 @@ export const SalonExperience: React.FC = () => {
 
   const handleAddDesire = useCallback((desireText: string) => {
     setLastPhrase(`✦ ${desireText}`);
+    setInterimPhrase("");
     const speakerId = state.activeSpeakerId ?? 1;
     const newToken: DesireToken = {
       id: `desire-${Date.now()}`,
@@ -86,53 +95,65 @@ export const SalonExperience: React.FC = () => {
     if (speakerId !== null && speakerId !== undefined) {
       audioRef.current?.playPass();
       setLastPhrase("пас");
+      setInterimPhrase("");
       setState((prev) => passTurn(prev, speakerId));
     }
   }, [state.activeSpeakerId]);
 
+  const handleSpeechResult = useCallback((phrase: string) => {
+    const res = extractFeelingsAndDesires(phrase, defaultLexiconIndex);
+    if (res.pass) {
+      handlePass();
+      return;
+    }
+    let matched = false;
+    for (const f of res.feelings) {
+      handleAddFeeling(f.form || f.lemma, f.family, f.valence);
+      matched = true;
+    }
+    for (const d of res.desires) {
+      handleAddDesire(d.text);
+      matched = true;
+    }
+    if (!matched) {
+      if (state.phase === "desires") handleAddDesire(phrase);
+      else handleAddFeeling(phrase, "живость", 0);
+    }
+  }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
+
+  if (!speechRef.current) {
+    speechRef.current = new SalonSpeechEngine({
+      onInterimPhrase: (text) => setInterimPhrase(text),
+      onFinalPhrase: (text) => handleSpeechResult(text),
+      onStatusChange: (active) => setIsListening(active),
+    });
+  }
+
+  const handleToggleSpeech = useCallback(() => speechRef.current?.toggle(), []);
+
   const triggerNextTurn = useCallback(() => {
     const item = DEMO_PHRASES[Math.floor(Math.random() * DEMO_PHRASES.length)];
-    if (item.desire) {
-      handleAddDesire(item.desire);
-    } else if (item.family) {
-      handleAddFeeling(item.text, item.family, item.valence);
-    }
+    if (item.desire) handleAddDesire(item.desire);
+    else if (item.family) handleAddFeeling(item.text, item.family, item.valence);
     handleNextSpeaker();
   }, [handleAddDesire, handleAddFeeling, handleNextSpeaker]);
 
-  // Demo automated loop
   useEffect(() => {
     if (!isDemoActive) return;
     const timer = setInterval(() => triggerNextTurn(), 4000);
     return () => clearInterval(timer);
   }, [isDemoActive, triggerNextTurn]);
 
-  // Keyboard hotkeys
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "Tab") {
-        e.preventDefault();
-        setIsPultOpen((prev) => !prev);
-      } else if (e.key === "h" || e.key === "р" || e.key === "?") {
-        setIsIntroOpen((prev) => !prev);
-      } else if (e.key === " ") {
-        e.preventDefault();
-        handleNextSpeaker();
-      } else if (e.key === "p" || e.key === "з") {
-        handlePass();
-      } else if (e.key === "m" || e.key === "ь") {
-        handleAudioToggle();
-      } else if (["1", "2", "3", "4"].includes(e.key)) {
-        const phases: SessionPhase[] = ["silence", "feelings", "desires", "completion"];
-        setState((prev) => setPhase(prev, phases[parseInt(e.key, 10) - 1]));
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleNextSpeaker, handlePass, handleAudioToggle]);
+  useSalonHotkeys({
+    onTogglePult: () => setIsPultOpen((prev) => !prev),
+    onToggleHelp: () => setIsIntroOpen((prev) => !prev),
+    onNextSpeaker: handleNextSpeaker,
+    onPass: handlePass,
+    onToggleAudio: handleAudioToggle,
+    onToggleSpeech: handleToggleSpeech,
+    onSelectPhase: (phase: SessionPhase) => setState((prev) => setPhase(prev, phase)),
+  });
 
-  // Canvas render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -158,7 +179,7 @@ export const SalonExperience: React.FC = () => {
           <SalonHeader
             phase={state.phase}
             isAudioOn={isAudioOn}
-            isListening={state.isListening}
+            isListening={isListening}
             onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
             onAudioToggle={handleAudioToggle}
             onOpenPult={() => setIsPultOpen(true)}
@@ -167,9 +188,12 @@ export const SalonExperience: React.FC = () => {
         </div>
         <div className="flex flex-col items-center gap-4 mb-4">
           <VoiceIndicator
-            isListening={state.isListening}
+            isListening={isListening}
             activeSpeakerNumber={state.activeSpeakerId}
             lastPhraseText={lastPhrase}
+            interimText={interimPhrase}
+            onToggleListening={handleToggleSpeech}
+            isSupported={speechRef.current?.isSupported()}
           />
           <div className="pointer-events-auto">
             <SeatCircle
@@ -200,6 +224,9 @@ export const SalonExperience: React.FC = () => {
           onTriggerDemoPhrase={triggerNextTurn}
           onToggleDemoMode={() => setIsDemoActive((prev) => !prev)}
           isDemoActive={isDemoActive}
+          isListening={isListening}
+          onToggleListening={handleToggleSpeech}
+          isSpeechSupported={speechRef.current?.isSupported()}
         />
         <IntroDialog
           open={isIntroOpen}
