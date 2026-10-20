@@ -1,5 +1,6 @@
 import type { FeelingToken, DesireToken, ConnectionEdge, Participant } from "@/domain/types";
 import { drawPresenceEdge, type NodePosition } from "./graph-renderer";
+import { drawTopologicalIsoclines, drawSeatPresenceRay } from "./field-renderer";
 
 export interface MotionItem {
   token: FeelingToken;
@@ -9,6 +10,8 @@ export interface MotionItem {
   vy: number;
   targetX: number;
   targetY: number;
+  originX: number;
+  originY: number;
   scale: number;
   pulse: number;
 }
@@ -36,7 +39,6 @@ export class SalonMotionEngine {
     const centerY = height / 2;
     const radius = Math.min(width, height) * 0.32;
 
-    // Map speaker ID to angular seat position
     const getSpeakerSeat = (speakerId: number): NodePosition => {
       const idx = participants.findIndex((p) => p.id === speakerId);
       const total = participants.length || 12;
@@ -47,11 +49,9 @@ export class SalonMotionEngine {
       };
     };
 
-    // Sync feelings
     feelings.forEach((token) => {
       if (!this.items.has(token.id)) {
         const origin = getSpeakerSeat(token.speakerId);
-        // Target cluster around center
         const offsetAngle = Math.random() * Math.PI * 2;
         const offsetDist = Math.random() * (radius * 0.45);
         this.items.set(token.id, {
@@ -62,13 +62,14 @@ export class SalonMotionEngine {
           vy: 0,
           targetX: centerX + Math.cos(offsetAngle) * offsetDist,
           targetY: centerY + Math.sin(offsetAngle) * offsetDist,
+          originX: origin.x,
+          originY: origin.y,
           scale: 0.2,
           pulse: 1.0,
         });
       }
     });
 
-    // Sync desires
     desires.forEach((token) => {
       if (!this.lanterns.has(token.id)) {
         const origin = getSpeakerSeat(token.speakerId);
@@ -91,8 +92,22 @@ export class SalonMotionEngine {
     time: number
   ): void {
     ctx.clearRect(0, 0, width, height);
+    const centerX = width / 2;
+    const centerY = height / 2;
 
-    // 1. Draw connection edges first (behind words)
+    // 1. Draw topological field isoclines (breathing presence relief)
+    const fieldNodes = Array.from(this.items.values()).map((it) => ({
+      x: it.x,
+      y: it.y,
+      weight: it.token.intensity,
+    }));
+    drawTopologicalIsoclines(ctx, centerX, centerY, fieldNodes, time);
+
+    // 2. Draw origin rays and connection edges
+    this.items.forEach((item) => {
+      drawSeatPresenceRay(ctx, item.originX, item.originY, item.x, item.y, item.token.intensity);
+    });
+
     edges.forEach((edge) => {
       const src = this.items.get(edge.sourceTokenId);
       const tgt = this.items.get(edge.targetTokenId);
@@ -101,9 +116,8 @@ export class SalonMotionEngine {
       }
     });
 
-    // 2. Render and update feelings
+    // 3. Render and update feelings
     this.items.forEach((item) => {
-      // Spring physics towards target
       const k = 0.04;
       const damp = 0.88;
       item.vx = (item.vx + (item.targetX - item.x) * k) * damp;
@@ -116,7 +130,6 @@ export class SalonMotionEngine {
       ctx.translate(item.x, item.y);
       ctx.scale(item.scale, item.scale);
 
-      // Soft glow
       ctx.shadowColor = item.token.intensity > 1 ? "#ffb266" : "rgba(236,228,214,0.3)";
       ctx.shadowBlur = 8;
 
@@ -129,7 +142,7 @@ export class SalonMotionEngine {
       ctx.restore();
     });
 
-    // 3. Render lanterns of desires
+    // 4. Render lanterns of desires
     this.lanterns.forEach((lantern) => {
       lantern.y += lantern.vy;
       lantern.x += Math.sin(time * 0.003 + lantern.y * 0.01) * 0.3;
@@ -139,7 +152,6 @@ export class SalonMotionEngine {
       ctx.shadowColor = "#ffb266";
       ctx.shadowBlur = 14;
 
-      // Draw lantern light symbol ✨
       ctx.font = "14px 'JetBrains Mono', monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
