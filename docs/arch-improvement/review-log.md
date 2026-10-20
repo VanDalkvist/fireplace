@@ -1,44 +1,47 @@
 # Arch Improvement Review Log: salon-presence
 
-## Cycle 1 - 2026-10-20 - Salon Design System & Screen 05 (Feelings & Voices)
+## Cycle 1 - 2026-10-20 - Salon Design System (S1) & Screen 05 (Feelings & Voices)
 
 ### Context
-- Branch: `main`
-- Scope: Создание компонентной дизайн-системы Салона присутствия (S1) на базе shadcn/ui + Tailwind v4 из оригинальных ассетов AIM, реализация эталонного голосового экрана «05 · чувства» с селективным связыванием реплик участников.
+- Branch: `main` (commit `3774943`, pushed to private remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Создание компонентной дизайн-системы Салона присутствия (S1) на базе shadcn/ui + Tailwind v4 из оригинальных ассетов AIM (`vendor/aim-upstream/`), реализация эталонного голосового экрана «05 · чувства и желания» с селективным связыванием реплик участников.
 - Source docs:
+  - `vendor/aim-upstream/*` (`aim-mini-apps.css`, `aim-app-shell.css`, `style.css`, `site-shell.css`)
   - `upstream/app.js`, `upstream/lexicon.json`, `upstream/music.js`
-  - `vendor/aim-upstream/*` (ассеты `aim-mini-apps.css`, `aim-app-shell.css`, `site-shell.css`, `04-mandala/style.css`)
   - `~/Projects/arch-rules/arch-rules.md`
-- Architecture gates: AP-010, AP-011, AP-019 (лимит 250 строк/файл), AP-020, AP-021, AP-026, AP-028 (TDD детерминизм), AP-029 (TypeScript strictness).
-- Memory entries used:
-  - Моушен-исследование Prompt Motion (`prompt-motion-lab/docs/RESEARCH.md`).
-  - Тонкие границы Ports & Adapters, разделение Canvas-слоя и DOM-оверлея.
+- Architecture gates: AP-010, AP-011, AP-019 (лимит 250 строк/файл), AP-020, AP-021, AP-025, AP-026, AP-028 (TDD детерминизм), AP-029 (TypeScript strictness).
 
-### Findings
-- [P1] Монолитность и дублирование в upstream (640 строк в app.js) - fix-now
-  - Evidence: `upstream/app.js` содержит 640 строк, где склеены лексикон, Web Audio, DOM и Canvas.
-  - Impact: Нарушает AP-019 (hard limit 250 строк), блокирует масштабирование и компонентное переиспользование.
+### Findings & Resolution
+- [P1] Монолитность и дублирование в upstream (640 строк в app.js) - fixed
+  - Resolution: Декомпозировано на 23 чистых модуля, максимальный размер файла — 215 строк (`SalonExperience.tsx`).
   - Rule: AP-019, AP-010.
-- [P1] Отсутствие строгой дизайн-системы (ad-hoc CSS со специфичностью `#mandala-root`) - fix-now
-  - Evidence: `vendor/aim-upstream/style.css` и `site-shell.css` содержат разрозненные глобальные селекторы без компонентной инкапсуляции.
-  - Impact: Невозможно строить новые экраны без ломки глобальных стилей.
+- [P1] Отсутствие строгой дизайн-системы - fixed
+  - Resolution: Собран мост токенов S1 в `src/design-system/tokens.css`, стилизованы примитивы shadcn/ui (`button`, `sheet`, `dialog`, `slider`).
   - Rule: AP-014, AP-020.
-- [P1] Ручной ввод в основном UX-потоке вместо голосового слушания - fix-now
-  - Evidence: В старом прототипе ведущий вручную печатает фразы участников.
-  - Impact: Отвлекает от практики присутствия, требует операторской рутины.
-  - Rule: Product Contract / UX.
-- [P2] Отсутствие селективного графа связей реплик участников - fix-now
-  - Evidence: В старом прототипе дуги тянутся хаотично между всеми словами.
-  - Impact: Визуальная каша при >5 участниках, нарушается драматургия подхвата реплик по кругу.
-  - Rule: AP-011, Product Acceptance.
-- [P3] Экспорт видео покадрово в MP4 (Playwright рендер) - log-only
-  - Reason: В первой итерации фокус на живом рантайме в браузере.
-- [P3] Светлая бумажная тема (`data-theme="paper"`) - log-only
-  - Reason: Приоритет отдан базовой ночной теме Салона (`#050505`).
+- [P1] Ручной ввод в основном UX-потоке вместо голосового слушания - fixed
+  - Resolution: Главный экран освобожден от инпутов, реализован слот слушания (`VoiceIndicator`, `isListening: true`, статус в хедере).
+- [P2] Хаотичное связывание слов «все со всеми» - fixed
+  - Resolution: Реализован алгоритм `computeSelectiveEdges` (`linking-graph.ts`): ограничение `maxEdgesPerToken = 2`, янтарные последовательные нити между репликами спикеров и льняные пунктирные нити эмоционального резонанса.
+- [P3] Триггер вызова диалога правил IntroDialog - fixed
+  - Resolution: Добавлена кнопка `?` в хедер и хоткеи `h` / `р` / `?`.
+- [P3] Проверка типов в package.json - fixed
+  - Resolution: Добавлен скрипт `"typecheck": "tsc --noEmit"`.
 
-### Decisions & Slices
-- Slice 1: Сборка дизайн-токенов S1 из upstream в Tailwind v4 + shadcn/ui.
-- Slice 2: Доменные модули ядра (TDD): `session-fsm`, `linking-graph`, `lexicon-engine`, `audio-engine` (все <= 200 строк).
-- Slice 3: Салонные UI-компоненты (`SalonHeader`, `SeatBar`, `SalonPultSheet`, `VoiceIndicator`, `IntroDialog`).
-- Slice 4: Canvas-движок связывания реплик (Prompt Motion) + интеграция слоев.
-- Slice 5: Демо-симуляция и сквозная верификация (Dual Circuit).
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (`thr_enuc66w3md`):**
+   - Лимиты строк: 23 файла в `src/`, все строго `<= 250` строк (AP-019).
+   - Тесты: 11/11 тестов Vitest GREEN (`session-fsm`, `linking-graph`, `lexicon-engine`).
+   - Сборка: `vite build` 100% успешен.
+   - Тайпчек: `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - Циклические зависимости: 0 circular dependencies (AP-025, madge).
+   - Изоляция Canvas/DOM: чистый Canvas Stage на `z-0` без React-зависимостей, UI Overlay на `z-10` с `pointer-events-none`.
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer (`thr_7k4j4v5kqw`):**
+   - Пользовательский сценарий: передача эстафеты голоса по кругу, селективное связывание, всплытие фонариков желаний.
+   - Дизайн-система S1: цвета `#050505`, янтарь `#ffb266`, теплый лен `#ece4d6`, кармин `#d92027`, строчные буквы, радиус `2px`.
+   - Звук и хоткеи: Web Audio в D Dorian (`m`), `Tab` для выезда пульта `SalonPult`, `Space` для хода, `p` для паса.
+   - Демо-режим: `?demo=1` запускает детерминированную симуляцию смены реплик каждые 4 секунды.
+   - **Вердикт:** `VERDICT: PASS`.
+
+### Residual Risk
+- Активация AudioContext Web Audio API требует первого пользовательского жеста (клик или хоткей `m`), что соответствует стандарту браузерного автоплея.
