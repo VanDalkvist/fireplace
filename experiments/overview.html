@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Салон присутствия — Моушен-облака чувств (AIM Lab)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@600;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #050505;
+      color: #e5e5e5;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 32px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 1120px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-bottom: 1px solid #171717;
+      padding-bottom: 20px;
+    }
+    .tagline {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: #d92027;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+    .description {
+      font-size: 13.5px;
+      color: #888;
+      line-height: 1.6;
+      max-width: 820px;
+    }
+    .nav-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .nav-tab {
+      background: #0f0f0f;
+      border: 1px solid #222;
+      color: #999;
+      padding: 8px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-tab:hover { background: #1a1a1a; color: #fff; border-color: #d92027; }
+    .nav-tab.active { background: #d92027; color: #fff; border-color: #d92027; }
+    .frame-wrapper {
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #1a1a1a;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
+      background: #000;
+    }
+    iframe {
+      width: 100%;
+      height: 720px;
+      border: none;
+      display: block;
+    }
+    .grid-sections {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin-top: 6px;
+    }
+    .section-card {
+      background: #090909;
+      border: 1px solid #161616;
+      border-radius: 6px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .section-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-card p, .section-card li {
+      font-size: 11.5px;
+      color: #888;
+      line-height: 1.6;
+    }
+    .section-card ul {
+      padding-left: 18px;
+    }
+    code {
+      background: #141414;
+      padding: 2px 5px;
+      border-radius: 3px;
+      color: #e58e73;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="tagline">САЛОН ПРИСУТСТВИЯ // 23 ОКТЯБРЯ 2026 // AI MINDSET LAB</div>
+    <h1>Визуализация чувств: 3 моушен-эксперимента</h1>
+    <div class="description">
+      Переосмысление механики «облака чувств» и «фонариков желаний» через методологию <strong>Prompt Motion</strong>: строгая типографика JetBrains Mono, отказ от шаблонных неоновых частиц, детерминированные векторные поля и процедурный Web Audio звук в дорийском ладу (D Dorian).
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchExp('experiments/01-topological-field/index.html', this)">
+        <span>01</span> Топологическое поле (Изолинии & Лучи)
+      </button>
+      <button class="nav-tab" onclick="switchExp('experiments/02-orbital-resonance/index.html', this)">
+        <span>02</span> Орбитальный резонанс (Круг & Фонарики)
+      </button>
+      <button class="nav-tab" onclick="switchExp('experiments/03-swiss-kinetic-matrix/index.html', this)">
+        <span>03</span> Швейцарская кинетическая матрица
+      </button>
+      <button class="nav-tab" onclick="switchExp('upstream/index.html', this)" style="margin-left: auto; border-color: #333; color: #777;">
+        📦 Оригинал Саши (Upstream)
+      </button>
+    </div>
+  </header>
+
+  <div class="frame-wrapper">
+    <iframe id="mainFrame" src="experiments/01-topological-field/index.html"></iframe>
+  </div>
+
+  <div class="grid-sections">
+    <div class="section-card">
+      <h3>🌐 Эксперимент 01: Топологическое поле</h3>
+      <p>Эмоциональный ландшафт группы как непрерывное силовое поле:</p>
+      <ul>
+        <li>Векторные изолинии (isoclines) динамически изгибаются вокруг центров концентрации чувств.</li>
+        <li>16 участников по периметру соединены с центром тонкими лучами присутствия.</li>
+        <li>Повторы одного чувства увеличивают его гравитационную массу.</li>
+      </ul>
+    </div>
+
+    <div class="section-card">
+      <h3>🪐 Эксперимент 02: Орбитальный резонанс</h3>
+      <p>Концентрические слои с пространством тишины в центре:</p>
+      <ul>
+        <li>4 смысловых квадранта (энергия, тепло, уязвимость, границы).</li>
+        <li>Фонарики желаний (✨) всплывают к центру под чистый колокольный звон Web Audio (пентатоника).</li>
+        <li>«Пас» оставляет деликатную темную точку и запускает такт тишины.</li>
+      </ul>
+    </div>
+
+    <div class="section-card">
+      <h3>📐 Эксперимент 03: Швейцарская матрица</h3>
+      <p>Адаптивная кинетическая типографика в дизайне AI Mindset:</p>
+      <ul>
+        <li>3 горизонтальных трека («Ресурс & Контакт», «Тело & Замедление», «Уязвимость & Границы»).</li>
+        <li>Пружинная динамика (Springs): повторяющиеся чувства плавно увеличивают кегль и получают бейдж <code>×N</code>.</li>
+        <li>Фоновый осциллограф общего тонуса и возбуждения комнаты.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchExp(src, btn) {
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('mainFrame').src = src;
+  }
+</script>
+
+</body>
+</html>
