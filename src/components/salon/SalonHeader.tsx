@@ -10,6 +10,7 @@ interface SalonHeaderProps {
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
   onOpenPult: () => void;
+  onOpenHelp?: () => void;
 }
 
 const PHASES: { id: SessionPhase; label: string }[] = [
@@ -26,6 +27,7 @@ export const SalonHeader: React.FC<SalonHeaderProps> = ({
   onPhaseSelect,
   onAudioToggle,
   onOpenPult,
+  onOpenHelp,
 }) => {
   return (
     <header className="flex items-center justify-between gap-4 border-b border-border/60 bg-background/80 px-6 py-3 backdrop-blur-sm select-none">
@@ -84,6 +86,16 @@ export const SalonHeader: React.FC<SalonHeaderProps> = ({
           <Sliders className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">пульт</span>
         </button>
+
+        {onOpenHelp && (
+          <button
+            onClick={onOpenHelp}
+            title="правила круга (h)"
+            className="px-2 py-1 text-xs border border-border text-muted hover:text-foreground hover:border-muted rounded-[2px] transition-colors cursor-pointer"
+          >
+            ?
+          </button>
+        )}
       </div>
     </header>
   );

@@ -114,6 +114,8 @@ export const SalonExperience: React.FC = () => {
       if (e.key === "Tab") {
         e.preventDefault();
         setIsPultOpen((prev) => !prev);
+      } else if (e.key === "h" || e.key === "р" || e.key === "?") {
+        setIsIntroOpen((prev) => !prev);
       } else if (e.key === " ") {
         e.preventDefault();
         handleNextSpeaker();
@@ -160,6 +162,7 @@ export const SalonExperience: React.FC = () => {
             onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
             onAudioToggle={handleAudioToggle}
             onOpenPult={() => setIsPultOpen(true)}
+            onOpenHelp={() => setIsIntroOpen(true)}
           />
         </div>
         <div className="flex flex-col items-center gap-4 mb-4">
