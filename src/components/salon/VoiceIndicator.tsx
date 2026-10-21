@@ -59,8 +59,12 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
 
         <span className="text-[11px] font-mono">
           {activeSpeakerNumber
-            ? `участник ${activeSpeakerNumber < 10 ? `0${activeSpeakerNumber}` : activeSpeakerNumber}`
-            : "круг в тишине"}
+            ? `участник ${activeSpeakerNumber < 10 ? `0${activeSpeakerNumber}` : activeSpeakerNumber} ${
+                isListening ? "· слушаю голос..." : "· нажми микрофон (v)"
+              }`
+            : isListening
+            ? "слушаю круг..."
+            : "включить голос (v)"}
         </span>
 
         {isListening ? (

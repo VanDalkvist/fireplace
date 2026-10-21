@@ -205,13 +205,11 @@ export const SalonExperience: React.FC = () => {
         "fixed bottom-3 left-4 right-4 z-10 flex flex-col items-center gap-2 transition-all duration-300",
         isZen && "translate-y-4 opacity-0 pointer-events-none"
       )}>
-        {isListening && (
-          <VoiceIndicator
-            isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
-            lastPhraseText={lastPhrase} interimText={interimPhrase} interimBadge={interimBadge}
-            onToggleListening={() => speechRef.current?.toggle()} isSupported={speechRef.current?.isSupported()}
-          />
-        )}
+        <VoiceIndicator
+          isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
+          lastPhraseText={lastPhrase} interimText={interimPhrase} interimBadge={interimBadge}
+          onToggleListening={() => speechRef.current?.toggle()} isSupported={speechRef.current?.isSupported()}
+        />
         <div className="w-full max-w-[1100px]">
           <SalonControls
             phase={state.phase} isAudioOn={isAudioOn} isListening={isListening} isDemoActive={isDemoActive}
