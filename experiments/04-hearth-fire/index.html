@@ -26,7 +26,7 @@
       max-width: 1100px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
     .header-bar {
       display: flex;
@@ -56,21 +56,21 @@
       background: #ffb266;
       border-radius: 50%;
       box-shadow: 0 0 6px #ffb266;
-      animation: pulse 2s infinite ease-in-out;
+      animation: pulse 2.5s infinite ease-in-out;
     }
     @keyframes pulse {
-      0%, 100% { opacity: 0.4; }
+      0%, 100% { opacity: 0.35; }
       50% { opacity: 1; }
     }
     .canvas-container {
       position: relative;
       width: 100%;
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 16 / 9.4;
       background: #050505;
-      border: 1px solid #1a1612;
+      border: 1px solid #181410;
       border-radius: 4px;
       overflow: hidden;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.95);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.95);
     }
     canvas { width: 100%; height: 100%; display: block; cursor: default; }
     .controls {
@@ -78,7 +78,7 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 8px;
-      padding: 12px 16px;
+      padding: 10px 16px;
       background: #090807;
       border: 1px solid #1a1612;
       border-radius: 2px;
@@ -140,10 +140,10 @@
   <div class="header-bar">
     <div style="display:flex; align-items:center; gap:10px;">
       <span class="badge"><span class="dot"></span> эксперимент 04</span>
-      <span style="font-weight: 600; color:#ece4d6;">цифровой костёр присутствия</span>
-      <span style="color:#605345;">· s1 digital hearth</span>
+      <span style="font-weight: 600; color:#ece4d6;">созерцательный костёр присутствия</span>
+      <span style="color:#605345;">· изометрическая поляна</span>
     </div>
-    <div id="statusLabel" style="color:#ffb266;">02 · круг чувств · место 01</div>
+    <div id="statusLabel" style="color:#ffb266;">02 · круг чувств · тишина у огня</div>
   </div>
 
   <div class="canvas-container">
@@ -155,7 +155,7 @@
       <span>space</span> реплика круга
     </button>
     <button id="btnAutoDemo">
-      <span>▶</span> авто-круг
+      <span>▶</span> медитативный авто-круг
     </button>
     <button id="btnAudio">
       <span>m</span> звук d dorian
@@ -167,7 +167,7 @@
       <button class="phase-btn" data-phase="4">4 выход</button>
     </div>
     <div class="phrase-chips">
-      <span style="font-size:10px; color:#584b3d; margin-right:4px;">подбросить слово:</span>
+      <span style="font-size:10px; color:#584b3d; margin-right:4px;">подбросить в круг:</span>
       <button class="chip" data-text="тревога" data-family="тревога">тревожно</button>
       <button class="chip" data-text="замедление" data-family="спокойствие">замедление</button>
       <button class="chip" data-text="тепло" data-family="нежность">тепло</button>
@@ -178,7 +178,7 @@
   </div>
 
   <div class="info-bar">
-    <kbd>space</kbd> — сказать реплику и передать эстафету · <kbd>клик по стулу</kbd> — переместить фокус говорящего · <kbd>m</kbd> — звук дрона · <kbd>1..4</kbd> — фазы круга
+    <kbd>space</kbd> — сказать реплику · <kbd>клик по стулу</kbd> — сесть на место · <kbd>m</kbd> — звук дрона · <kbd>1..4</kbd> — фазы круга
   </div>
 </div>
 
@@ -189,75 +189,87 @@
   const statusLabel = document.getElementById('statusLabel');
   const btnAudio = document.getElementById('btnAudio');
   const btnNext = document.getElementById('btnNext');
+  const btnAutoDemo = document.getElementById('btnAutoDemo');
 
-  let W, H, cx, cy;
+  const TAU = Math.PI * 2;
   const SEATS_COUNT = 12;
-  const SEAT_RADIUS = 280;
+
+  let W, H, cx, floorCY, floorRx, floorRy, skyTop, skyH;
   let activeSeat = 0;
   let phase = 2; // 1: silence, 2: feelings, 3: desires, 4: completion
 
-  // Simplex-like noise helper
-  function pseudoNoise(x, y, t) {
-    return Math.sin(x * 0.015 + t * 0.8) * Math.cos(y * 0.015 - t * 0.7) +
-           Math.sin((x + y) * 0.02 + t * 1.2) * 0.5;
+  // Resize with True Isometric Clearing Geometry
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = canvas.width = Math.round(rect.width * dpr);
+    H = canvas.height = Math.round(rect.height * dpr);
+
+    cx = W / 2;
+    // Clearing floor is placed in lower 65% of screen, leaving upper 35% for the night sky
+    floorCY = H * 0.63;
+    floorRx = Math.min(W * 0.40, 480 * dpr);
+    floorRy = Math.min(H * 0.20, 140 * dpr);
+
+    skyTop = 40 * dpr;
+    skyH = H * 0.28;
+
+    layoutSeats();
   }
 
-  // Seats definition
+  // Seats placed on the Isometric Clearing Ellipse
   const seats = [];
   function layoutSeats() {
     seats.length = 0;
     for (let i = 0; i < SEATS_COUNT; i++) {
-      const ang = (i / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
+      // Index 0 is bottom center (closest), index 6 is top center (farthest)
+      const ang = (i / SEATS_COUNT) * TAU + Math.PI / 2;
+      const x = cx + Math.cos(ang) * floorRx;
+      const y = floorCY + Math.sin(ang) * floorRy;
+      const depth = (Math.sin(ang) + 1) / 2; // 0 (far) .. 1 (near)
+
       seats.push({
         id: i,
         angle: ang,
-        x: cx + Math.cos(ang) * SEAT_RADIUS,
-        y: cy + Math.sin(ang) * SEAT_RADIUS,
+        x,
+        y,
+        depth,
         pulse: 0,
         spokenCount: 0,
       });
     }
   }
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    W = canvas.width = rect.width * (window.devicePixelRatio || 1);
-    H = canvas.height = rect.height * (window.devicePixelRatio || 1);
-    cx = W / 2;
-    cy = H / 2;
-    layoutSeats();
-  }
   window.addEventListener('resize', resize);
+  resize();
 
-  // Particles (Embers)
-  const EMBER_COUNT = 120;
+  // Embers and Swirling Smoke rising from the hearth into the night sky
+  const EMBER_COUNT = 85;
   const embers = [];
   function createEmber() {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * 45;
+    const ang = Math.random() * TAU;
+    const radX = Math.random() * 45;
+    const radY = Math.random() * 16;
     return {
-      x: cx + Math.cos(angle) * dist,
-      y: cy + Math.sin(angle) * dist,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: -0.6 - Math.random() * 1.4,
-      size: 1.2 + Math.random() * 2.4,
-      life: 0,
-      maxLife: 60 + Math.random() * 120,
-      alpha: 0,
-      seed: Math.random() * 1000,
-      hotness: Math.random()
+      x: cx + Math.cos(ang) * radX,
+      y: floorCY + Math.sin(ang) * radY,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: -0.6 - Math.random() * 1.6,
+      size: 1.1 + Math.random() * 2.2,
+      life: Math.random() * 160,
+      maxLife: 100 + Math.random() * 140,
+      spiralOffset: Math.random() * TAU,
     };
   }
   for (let i = 0; i < EMBER_COUNT; i++) {
-    const e = createEmber();
-    e.life = Math.random() * e.maxLife; // Stagger spawn
-    embers.push(e);
+    embers.push(createEmber());
   }
 
-  // Hearth Nodes (Feelings/Desires), Smooth Silk Ribbon and Flight Sparks
-  const words = [];
-  const flightSparks = [];
-  let desiresCount = 0;
+  // Feelings settled around the clearing, Desires floating in the sky
+  const feelings = []; // Settled feelings beside seats
+  const desires = [];  // Paper lanterns in the night sky
+  const sparks = [];   // Transient sparks: seat -> word (1.2s)
+  let lastSpokenNode = null;
 
   function addWord(text, family, kind = 'feeling', customSeat = null) {
     if (customSeat !== null && customSeat !== undefined) {
@@ -267,69 +279,101 @@
     seat.pulse = 1.0;
     seat.spokenCount++;
 
-    const isDesire = kind === 'desire';
-    const isPass = kind === 'pass';
-    const displayText = isDesire ? '✦ ' + text : text;
-    const textWidth = displayText.length * 8.2 + 22;
+    const now = performance.now();
 
-    let targetX, targetY;
-    if (isDesire) {
-      // Disperse desire lanterns gracefully across the upper night sky via Golden Ratio
-      const k = desiresCount++;
-      const frac = v => v - Math.floor(v);
-      targetX = cx + (frac(0.28 + k * 0.618034) - 0.5) * (W * 0.72);
-      targetY = 60 + frac(0.5 + k * 0.381966) * 90;
-    } else if (!isPass) {
-      // Feelings settle inside the circular hearth radius with comfortable spacing
-      const wordAngle = (activeSeat / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
-      const targetDist = 85 + (Math.random() - 0.5) * 45;
-      targetX = cx + Math.cos(wordAngle) * targetDist;
-      targetY = cy + Math.sin(wordAngle) * targetDist;
-    } else {
-      targetX = seat.x;
-      targetY = seat.y;
+    if (kind === 'pass') {
+      // Pass is marked as a silent ember at the seat
+      seat.hasPassed = true;
+      if (audioOn) playPass();
+      updateStatus();
+      return;
     }
 
-    const newWord = {
-      text: displayText,
-      kind: kind,
-      family: family,
+    if (kind === 'desire') {
+      // Desire: released as a glowing lantern into the upper sky via Golden Ratio
+      const k = desires.length;
+      const frac = v => v - Math.floor(v);
+      const targetX = cx + (frac(0.24 + k * 0.618034) - 0.5) * (floorRx * 2.1);
+      const targetY = skyTop + frac(0.42 + k * 0.381966) * skyH;
+      const displayText = '✦ ' + text;
+
+      const lo = {
+        text: displayText,
+        seatId: activeSeat,
+        x: seat.x,
+        y: seat.y - 15,
+        targetX,
+        targetY,
+        vx: 0,
+        vy: -1.2,
+        settled: false,
+        born: now,
+        pulse: 1.0,
+      };
+      desires.push(lo);
+
+      // Spark rising from seat to sky
+      sparks.push({
+        sx: seat.x, sy: seat.y,
+        tx: targetX, ty: targetY,
+        born: now, duration: 1400,
+        color: '#ffb266'
+      });
+
+      if (audioOn) playBell();
+      updateStatus();
+      return;
+    }
+
+    // Feeling: settles comfortably on the outer clearing perimeter BESIDE the speaker's seat
+    // Check if lemma already exists to avoid clutter
+    let existing = feelings.find(f => f.lemma === text && f.seatId === activeSeat);
+    if (existing) {
+      existing.count++;
+      existing.lastAt = now;
+      existing.pulse = 1.0;
+      lastSpokenNode = existing;
+      if (audioOn) playChime(activeSeat);
+      updateStatus();
+      return;
+    }
+
+    // Offset outward from the seat into the forest fringe
+    const outAngle = seat.angle;
+    const outDist = 34 + (seat.spokenCount % 2) * 18;
+    const targetX = seat.x + Math.cos(outAngle) * outDist;
+    const targetY = seat.y + Math.sin(outAngle) * (outDist * 0.65) - 8;
+
+    const newFeeling = {
+      lemma: text,
+      family: family || 'спокойствие',
       seatId: activeSeat,
       x: seat.x,
       y: seat.y,
+      targetX,
+      targetY,
       vx: 0,
       vy: 0,
-      targetX: targetX,
-      targetY: targetY,
-      width: textWidth,
-      height: 24,
-      born: performance.now(),
-      intensity: 1.0,
-      isDesire: isDesire,
-      isPass: isPass
+      born: now,
+      lastAt: now,
+      pulse: 1.0,
+      count: 1,
+      settled: false,
     };
 
-    words.push(newWord);
+    feelings.push(newFeeling);
 
-    // Spawn smooth transient flight spark from speaker's seat
-    if (!isPass) {
-      flightSparks.push({
-        sx: seat.x,
-        sy: seat.y,
-        tx: targetX,
-        ty: targetY,
-        born: performance.now(),
-        duration: 1250
-      });
-    }
+    // Warm flight spark from seat into the hearth, then settling beside
+    sparks.push({
+      sx: seat.x, sy: seat.y,
+      tx: targetX, ty: targetY,
+      born: now, duration: 1300,
+      color: '#ffb266'
+    });
 
-    // Audio chime
-    if (audioOn) {
-      if (kind === 'desire') playBell();
-      else if (kind === 'pass') playPass();
-      else playChime(activeSeat);
-    }
+    lastSpokenNode = newFeeling;
 
+    if (audioOn) playChime(activeSeat);
     updateStatus();
   }
 
@@ -338,7 +382,7 @@
     statusLabel.textContent = `${phases[phase - 1]} · место ${String(activeSeat + 1).padStart(2, '0')}`;
   }
 
-  // Audio Engine: D Dorian Drone (D3 146.83 Hz)
+  // Audio Engine: Procedural D Dorian Drone (D3 146.83 Hz)
   let audioCtx = null;
   let audioOn = false;
   let droneGain = null;
@@ -349,22 +393,22 @@
     droneGain.gain.setValueAtTime(0, audioCtx.currentTime);
     droneGain.connect(audioCtx.destination);
 
-    // D3 Fundamental
+    // D3 Root Drone
     const osc1 = audioCtx.createOscillator();
     osc1.type = 'triangle';
     osc1.frequency.setValueAtTime(146.83, audioCtx.currentTime);
 
-    // D4 Harmonic
+    // D4 Soft Harmonic
     const osc2 = audioCtx.createOscillator();
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(293.66, audioCtx.currentTime);
 
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(360, audioCtx.currentTime);
+    filter.frequency.setValueAtTime(340, audioCtx.currentTime);
 
     const subGain = audioCtx.createGain();
-    subGain.gain.value = 0.5;
+    subGain.gain.value = 0.4;
     osc2.connect(subGain);
     subGain.connect(filter);
     osc1.connect(filter);
@@ -388,18 +432,18 @@
 
   function playChime(seatIdx) {
     if (!audioCtx || !audioOn) return;
-    const notes = [146.83, 164.81, 174.61, 196.0, 220.0, 246.94, 261.63, 293.66]; // D Dorian scale
+    const notes = [146.83, 164.81, 174.61, 196.0, 220.0, 246.94, 261.63, 293.66];
     const freq = notes[seatIdx % notes.length] * 2;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
     gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.2);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
     osc.start();
-    osc.stop(audioCtx.currentTime + 3.2);
+    osc.stop(audioCtx.currentTime + 3.4);
   }
 
   function playBell() {
@@ -407,7 +451,7 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 chime
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
     gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 4.5);
     osc.connect(gain);
@@ -421,7 +465,7 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(110.0, audioCtx.currentTime); // Soft low gong
+    osc.frequency.setValueAtTime(110.0, audioCtx.currentTime);
     gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 2.0);
     osc.connect(gain);
@@ -433,51 +477,96 @@
   btnAudio.addEventListener('click', toggleAudio);
 
   // Render Loop
-  let lastTime = 0;
   function render(time) {
     const t = time * 0.001;
+    const now = performance.now();
     ctx.clearRect(0, 0, W, H);
 
-    // 1. Dark warm background
+    // 1. Deep Midnight Background
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Central Hearth Glow (Breathing core ~8s rhythm)
-    const breath = Math.sin(t * 0.75) * 0.18 + Math.sin(t * 1.6) * 0.06;
-    const coreRadius = 110 * (1.0 + breath);
+    // 2. Isometric Clearing Rings (Perspective Ellipses on Ground)
+    ctx.save();
+    for (let k = 1; k <= 3; k++) {
+      const rx = floorRx * (0.35 + k * 0.22);
+      const ry = floorRy * (0.35 + k * 0.22);
+      ctx.strokeStyle = k === 2 ? 'rgba(217, 32, 39, 0.08)' : 'rgba(236, 228, 214, 0.025)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, floorCY, rx, ry, 0, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.restore();
 
-    const hearthGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreRadius * 1.8);
-    hearthGrad.addColorStop(0.0, 'rgba(236, 228, 214, 0.45)'); // Hot linen core
-    hearthGrad.addColorStop(0.25, 'rgba(255, 178, 102, 0.28)'); // Amber glow
-    hearthGrad.addColorStop(0.65, 'rgba(217, 32, 39, 0.12)');  // Carmine embers edge
-    hearthGrad.addColorStop(1.0, 'rgba(5, 5, 5, 0.0)');
+    // 3. Central Firepit & Glowing Hearth (Warmth Radiating on Ground)
+    const breath = Math.sin(t * 0.75) * 0.12 + Math.sin(t * 1.5) * 0.05;
+    const fireRadiusX = 135 * (1.0 + breath);
+    const fireRadiusY = 48 * (1.0 + breath);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    const hearthGrad = ctx.createRadialGradient(cx, floorCY, 0, cx, floorCY, fireRadiusX);
+    hearthGrad.addColorStop(0.0, 'rgba(255, 236, 210, 0.40)'); // White-hot heart
+    hearthGrad.addColorStop(0.28, 'rgba(255, 178, 102, 0.25)'); // Amber flame
+    hearthGrad.addColorStop(0.68, 'rgba(217, 32, 39, 0.10)');  // Deep embers
+    hearthGrad.addColorStop(1.0, 'rgba(5, 5, 5, 0.0)');
+
     ctx.fillStyle = hearthGrad;
     ctx.beginPath();
-    ctx.arc(cx, cy, coreRadius * 1.8, 0, Math.PI * 2);
+    ctx.ellipse(cx, floorCY, fireRadiusX * 1.4, fireRadiusY * 1.4, 0, 0, TAU);
     ctx.fill();
     ctx.restore();
 
-    // Subtle stone ring of the firepit
-    ctx.strokeStyle = 'rgba(236, 228, 214, 0.04)';
-    ctx.lineWidth = 1;
+    // Firepit stone rim (isometric ellipse)
+    ctx.strokeStyle = 'rgba(255, 178, 102, 0.22)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc(cx, cy, 140, 0, Math.PI * 2);
+    ctx.ellipse(cx, floorCY, 58, 20, 0, 0, TAU);
     ctx.stroke();
 
-    // 3. Transient Flight Sparks from Seats
-    const now = performance.now();
-    for (let i = flightSparks.length - 1; i >= 0; i--) {
-      const sp = flightSparks[i];
+    // 4. Convection Embers rising from hearth into upper night sky
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < embers.length; i++) {
+      const e = embers[i];
+      e.life += 1;
+      if (e.life >= e.maxLife) {
+        Object.assign(e, createEmber());
+      }
+      const p = e.life / e.maxLife;
+      // Gentle spiral convection around the vertical heat plume
+      const swirl = Math.sin(t * 1.8 + e.spiralOffset) * 0.6;
+      e.vx += swirl * 0.04;
+      e.vx *= 0.95;
+      e.x += e.vx;
+      e.y += e.vy;
+
+      const alpha = p < 0.25 ? p / 0.25 : (1.0 - p);
+      const col = p < 0.35
+        ? `rgba(255, 236, 210, ${alpha * 0.85})`
+        : p < 0.7
+        ? `rgba(255, 178, 102, ${alpha * 0.70})`
+        : `rgba(217, 32, 39, ${alpha * 0.45})`;
+
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.size * (1 - p * 0.35), 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 5. Transient Flight Sparks from Seats
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const sp = sparks[i];
       const elapsed = now - sp.born;
       if (elapsed >= sp.duration) {
-        flightSparks.splice(i, 1);
+        sparks.splice(i, 1);
         continue;
       }
       const q = elapsed / sp.duration;
       const ease = 1 - Math.pow(1 - q, 3);
+      // Soft parabolic arc over the hearth
       const midX = (sp.sx + sp.tx) / 2;
       const midY = Math.min(sp.sy, sp.ty) - 45;
       const u = 1 - ease;
@@ -489,255 +578,222 @@
       ctx.shadowColor = '#ffb266';
       ctx.shadowBlur = 8;
       ctx.beginPath();
-      ctx.arc(x, y, 2.2 * (1 - q * 0.5), 0, Math.PI * 2);
+      ctx.arc(x, y, 2.5 * (1 - q * 0.5), 0, TAU);
       ctx.fill();
       ctx.restore();
     }
 
-    // 3b. Physics Tick & Anti-Collision for Feeling Words
-    const feelingWords = words.filter(w => !w.isDesire && !w.isPass);
-    for (let i = 0; i < feelingWords.length; i++) {
-      const w = feelingWords[i];
-      const k = 0.04;
-      const damp = 0.88;
-      w.vx = (w.vx + (w.targetX - w.x) * k) * damp;
-      w.vy = (w.vy + (w.targetY - w.y) * k) * damp;
-      w.x += w.vx;
-      w.y += w.vy;
-    }
+    // 6. Smooth Silk Ribbon Weaving Across Spoken Feelings
+    if (feelings.length >= 2) {
+      for (let i = 0; i < feelings.length - 1; i++) {
+        const p0 = i > 0 ? feelings[i - 1] : feelings[i];
+        const p1 = feelings[i];
+        const p2 = feelings[i + 1];
+        const p3 = i < feelings.length - 2 ? feelings[i + 2] : p2;
 
-    // AABB Damped Separation (prevents words from ever stacking or overlapping)
-    for (let it = 0; it < 3; it++) {
-      for (let i = 0; i < feelingWords.length; i++) {
-        for (let j = i + 1; j < feelingWords.length; j++) {
-          const a = feelingWords[i], b = feelingWords[j];
-          const dx = b.x - a.x, dy = b.y - a.y;
-          const ox = (a.width + b.width) / 2 + 14 - Math.abs(dx);
-          const oy = (a.height + b.height) / 2 + 8 - Math.abs(dy);
-          if (ox > 0 && oy > 0) {
-            if (ox < oy) {
-              const s = (dx >= 0 ? 1 : -1) * ox * 0.28;
-              a.x -= s; b.x += s;
-            } else {
-              const s = (dy >= 0 ? 1 : -1) * oy * 0.28;
-              a.y -= s; b.y += s;
-            }
-          }
-        }
-      }
-    }
-
-    // Physics for Desires
-    const desireWords = words.filter(w => w.isDesire);
-    for (let i = 0; i < desireWords.length; i++) {
-      const d = desireWords[i];
-      const damp = 0.90;
-      d.vx = (d.vx + (d.targetX - d.x) * 0.035) * damp;
-      d.vy = (d.vy + (d.targetY - d.y) * 0.035) * damp;
-      d.x += d.vx;
-      d.y += d.vy;
-    }
-
-    // 3c. Continuous Silk Ribbon (Catmull-Rom Spline with C1 Tangent Continuity)
-    if (feelingWords.length >= 2) {
-      for (let i = 0; i < feelingWords.length - 1; i++) {
-        const p0 = i > 0 ? feelingWords[i - 1] : feelingWords[i];
-        const p1 = feelingWords[i];
-        const p2 = feelingWords[i + 1];
-        const p3 = i < feelingWords.length - 2 ? feelingWords[i + 2] : p2;
-
-        // Catmull-Rom control points guarantee identical incoming & outgoing tangents at each node
+        // Catmull-Rom smooth tangents: ZERO sharp corners, perfect C1 continuity
         const cp1x = p1.x + (p2.x - p0.x) / 6;
         const cp1y = p1.y + (p2.y - p0.y) / 6;
         const cp2x = p2.x - (p3.x - p1.x) / 6;
         const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-        // Subtle breathing wave
-        const wave = Math.sin(t * 1.5 + i * 0.9) * 3;
+        // Subtle thermal breathing wave
+        const wave = Math.sin(t * 1.2 + i * 0.7) * 2.5;
 
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.bezierCurveTo(cp1x, cp1y + wave, cp2x, cp2y - wave, p2.x, p2.y);
 
-        const recency = (i + 1) / feelingWords.length;
+        const recency = (i + 1) / feelings.length;
         if (recency > 0.65) {
           ctx.strokeStyle = `rgba(255, 178, 102, ${0.45 + recency * 0.45})`;
-          ctx.lineWidth = 1.6;
+          ctx.lineWidth = 1.4;
           ctx.shadowColor = '#ffb266';
-          ctx.shadowBlur = 9;
+          ctx.shadowBlur = 8;
         } else if (recency > 0.3) {
           ctx.strokeStyle = `rgba(217, 32, 39, ${0.25 + recency * 0.35})`;
-          ctx.lineWidth = 1.1;
+          ctx.lineWidth = 1.0;
           ctx.shadowColor = '#d92027';
           ctx.shadowBlur = 4;
         } else {
-          ctx.strokeStyle = `rgba(236, 228, 214, ${0.15 + recency * 0.2})`;
+          ctx.strokeStyle = `rgba(236, 228, 214, ${0.12 + recency * 0.18})`;
           ctx.lineWidth = 0.8;
-          ctx.setLineDash([4, 6]);
+          ctx.setLineDash([3, 5]);
         }
         ctx.stroke();
         ctx.restore();
       }
     }
 
-    // 4. Embers Particle Simulation
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < embers.length; i++) {
-      const e = embers[i];
-      e.life++;
-      if (e.life >= e.maxLife) {
-        // Respawn near hearth
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * 38;
-        e.x = cx + Math.cos(angle) * dist;
-        e.y = cy + Math.sin(angle) * dist;
-        e.vx = (Math.random() - 0.5) * 0.5;
-        e.vy = -0.5 - Math.random() * 1.5;
-        e.life = 0;
-        e.maxLife = 70 + Math.random() * 130;
-      }
-
-      const progress = e.life / e.maxLife;
-      // Perlin/Simplex turbulence drift
-      const noise = pseudoNoise(e.x, e.y, t);
-      e.vx += noise * 0.08;
-      e.vx *= 0.94; // Air drag
-      e.x += e.vx;
-      e.y += e.vy;
-
-      // Alpha envelope: fade in quickly, fade out at end
-      const alpha = progress < 0.2
-        ? progress / 0.2
-        : (1.0 - progress);
-
-      // Color transition from hot amber to dark carmine
-      const color = progress < 0.4
-        ? `rgba(255, 236, 210, ${alpha * 0.85})`
-        : progress < 0.75
-        ? `rgba(255, 178, 102, ${alpha * 0.7})`
-        : `rgba(217, 32, 39, ${alpha * 0.45})`;
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.size * (1 - progress * 0.4), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    // 5. Draw Seats Ring (12 positions around hearth)
+    // 7. Draw Seats on the Clearing Ring
     for (let i = 0; i < seats.length; i++) {
       const s = seats[i];
       const isActive = i === activeSeat;
       if (s.pulse > 0) s.pulse -= 0.02;
 
-      // Seat dot
+      // Perspective scaling: far seats are smaller (3px), near seats are larger (5.5px)
+      const baseR = 3.2 + s.depth * 2.4;
+
+      // Seat ember/dot
       ctx.beginPath();
-      ctx.arc(s.x, s.y, isActive ? 6 : 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = isActive ? '#ffb266' : s.spokenCount > 0 ? '#8a745d' : '#282018';
+      ctx.arc(s.x, s.y, isActive ? baseR + 2 : baseR, 0, TAU);
+      ctx.fillStyle = isActive ? '#ffb266' : s.spokenCount > 0 ? '#997c5e' : '#241c14';
       ctx.fill();
 
-      // Active pulsing aura
+      // Active speaker aura
       if (isActive) {
         ctx.save();
-        ctx.strokeStyle = 'rgba(255, 178, 102, 0.4)';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(255, 178, 102, 0.45)';
+        ctx.lineWidth = 1.3;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, 12 + Math.sin(t * 3) * 2, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, baseR + 8 + Math.sin(t * 3) * 1.5, 0, TAU);
         ctx.stroke();
         ctx.restore();
       }
 
+      // Pass indicator: dark quiet bead
+      if (s.hasPassed) {
+        ctx.fillStyle = '#3a2e22';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y - 12, 3, 0, TAU);
+        ctx.fill();
+      }
+
       // Seat label
-      ctx.fillStyle = isActive ? '#ffb266' : '#554738';
+      ctx.fillStyle = isActive ? '#ffb266' : '#524335';
       ctx.font = '10px "JetBrains Mono"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const labelDist = SEAT_RADIUS + 22;
-      const lx = cx + Math.cos(s.angle) * labelDist;
-      const ly = cy + Math.sin(s.angle) * labelDist;
+      const labelDist = 20 + s.depth * 8;
+      const lx = s.x + Math.cos(s.angle) * labelDist;
+      const ly = s.y + Math.sin(s.angle) * (labelDist * 0.6);
       ctx.fillText(`[${String(i + 1).padStart(2, '0')}]`, lx, ly);
     }
 
-    // 6. Draw Words & Desires
-    for (let i = 0; i < words.length; i++) {
-      const w = words[i];
+    // 8. Update and Draw Settled Feelings (BESIDE SEATS, CALM & NO JITTER)
+    for (let i = 0; i < feelings.length; i++) {
+      const f = feelings[i];
+
+      // Smooth arrival to target position, then calm settling
+      if (!f.settled) {
+        f.x += (f.targetX - f.x) * 0.08;
+        f.y += (f.targetY - f.y) * 0.08;
+        if (Math.hypot(f.targetX - f.x, f.targetY - f.y) < 1.5) {
+          f.settled = true;
+        }
+      } else {
+        // Gentle peaceful breathing (no jittering or fighting forces)
+        f.y = f.targetY + Math.sin(t * 0.8 + i) * 1.2;
+      }
 
       ctx.save();
-      ctx.translate(w.x, w.y);
+      ctx.translate(f.x, f.y);
 
-      if (w.isDesire) {
-        const halfW = w.width / 2;
-        ctx.fillStyle = 'rgba(10, 8, 5, 0.88)';
-        ctx.strokeStyle = 'rgba(255, 178, 102, 0.45)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(-halfW, -11, w.width, 22, 2);
-        ctx.fill();
-        ctx.stroke();
+      const label = f.count > 1 ? `${f.lemma} ×${f.count}` : f.lemma;
+      ctx.font = "11.5px 'JetBrains Mono'";
+      const textMetrics = ctx.measureText(label);
+      const bgW = textMetrics.width + 16;
+      const halfW = bgW / 2;
 
-        ctx.font = "12px 'JetBrains Mono'";
-        ctx.fillStyle = '#ffb266';
+      // Clean, calm, readable pill
+      ctx.fillStyle = 'rgba(9, 7, 5, 0.92)';
+      ctx.strokeStyle = f === lastSpokenNode ? 'rgba(255, 178, 102, 0.55)' : 'rgba(236, 228, 214, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(-halfW, -11, bgW, 22, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = f === lastSpokenNode ? '#ffb266' : '#ece4d6';
+      if (f === lastSpokenNode) {
         ctx.shadowColor = '#ffb266';
-        ctx.shadowBlur = 10;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(w.text, 0, 0);
-      } else if (w.isPass) {
-        ctx.fillStyle = '#44362a';
-        ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        // Feeling Word Box with clean margins
-        const halfW = w.width / 2;
-        ctx.fillStyle = '#080706';
-        ctx.fillRect(-halfW, -11, w.width, 22);
-
-        ctx.strokeStyle = 'rgba(255, 178, 102, 0.28)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-halfW, -11, w.width, 22);
-
-        ctx.font = "12px 'JetBrains Mono'";
-        ctx.fillStyle = '#ece4d6';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(w.text, 0, 0);
+        ctx.shadowBlur = 8;
       }
+      ctx.fillText(label, 0, 0);
+
+      ctx.restore();
+    }
+
+    // 9. Update and Draw Desires (LANTERNS FLOATING IN THE NIGHT SKY)
+    for (let i = 0; i < desires.length; i++) {
+      const d = desires[i];
+
+      // Rise smoothly towards the upper sky
+      if (!d.settled) {
+        d.x += (d.targetX - d.x) * 0.04;
+        d.y += (d.targetY - d.y) * 0.04;
+        if (Math.hypot(d.targetX - d.x, d.targetY - d.y) < 4) {
+          d.settled = true;
+        }
+      } else {
+        // Peaceful horizontal drift like stars/lanterns
+        d.x = d.targetX + Math.sin(t * 0.6 + i * 1.4) * 3;
+        d.y = d.targetY + Math.cos(t * 0.5 + i * 1.1) * 2;
+      }
+
+      ctx.save();
+      ctx.translate(d.x, d.y);
+
+      ctx.font = "11.5px 'JetBrains Mono'";
+      const metrics = ctx.measureText(d.text);
+      const bgW = metrics.width + 16;
+      const halfW = bgW / 2;
+
+      // Glowing warm lantern badge
+      ctx.fillStyle = 'rgba(14, 10, 6, 0.90)';
+      ctx.strokeStyle = 'rgba(255, 178, 102, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(-halfW, -11, bgW, 22, 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffb266';
+      ctx.shadowColor = '#ffb266';
+      ctx.shadowBlur = 10;
+      ctx.fillText(d.text, 0, 0);
+
       ctx.restore();
     }
 
     requestAnimationFrame(render);
   }
 
-  // Realistic Organic Circle Journey
-  // Not everyone speaks, some pass, some speak multiple times, some stay silent holding space
-  const REALISTIC_CIRCLE_JOURNEY = [
-    { seat: 0, text: 'замедление', family: 'спокойствие', pause: 4500, p: 2 },
-    { seat: 5, text: 'волнение в груди', family: 'тревога', pause: 6000, p: 2 },
-    { seat: 9, text: 'ком в горле', family: 'тело', pause: 5500, p: 2 },
-    { seat: 2, text: 'пас', kind: 'pass', pause: 3000, p: 2 },
-    { seat: 7, text: 'тепло от ваших слов', family: 'нежность', pause: 6500, p: 2 },
-    { seat: 5, text: 'отпускает напряжение', family: 'спокойствие', pause: 5000, p: 2 }, // Seat 5 speaks again!
-    { seat: 11, text: 'пас', kind: 'pass', pause: 3000, p: 2 },
-    { seat: 3, text: 'сильная усталость', family: 'усталость', pause: 6000, p: 2 },
-    { seat: 8, text: 'растерянность', family: 'растерянность', pause: 7000, p: 2 },
-    { seat: 0, text: 'благодарность за честность', family: 'нежность', pause: 5000, p: 2 }, // Host reflects
-    // Phase 3: Desires
-    { seat: 9, text: 'тишины и выдоха', kind: 'desire', pause: 5500, p: 3 },
-    { seat: 3, text: 'побыть с собой', kind: 'desire', pause: 6000, p: 3 },
-    { seat: 7, text: 'просто помолчать рядом', kind: 'desire', pause: 5500, p: 3 },
-    { seat: 5, text: 'тепла в теле', kind: 'desire', pause: 5000, p: 3 }
-    // Seats 1, 4, 6, 10 never speak. They hold the silence of the circle.
+  // Meditative, Organic Circle Journey (8-10 meaningful utterances with real silence)
+  const MEDITATIVE_CIRCLE_JOURNEY = [
+    { seat: 0, text: 'замедление', family: 'спокойствие', pause: 5000, p: 2 },
+    { seat: 2, text: 'волнение в груди', family: 'тревога', pause: 6000, p: 2 },
+    { seat: 4, text: 'ком в горле', family: 'тело', pause: 5500, p: 2 },
+    { seat: 6, text: 'пас', kind: 'pass', pause: 3500, p: 2 },
+    { seat: 8, text: 'тепло от ваших слов', family: 'нежность', pause: 6500, p: 2 },
+    { seat: 10, text: 'сильная усталость', family: 'усталость', pause: 6000, p: 2 },
+    { seat: 1, text: 'растерянность', family: 'растерянность', pause: 5500, p: 2 },
+    { seat: 5, text: 'благодарность за честность', family: 'нежность', pause: 5500, p: 2 },
+    // Phase 3: Desires rising into the sky
+    { seat: 2, text: 'тишины и выдоха', kind: 'desire', pause: 6000, p: 3 },
+    { seat: 8, text: 'побыть с собой', kind: 'desire', pause: 6000, p: 3 },
+    { seat: 5, text: 'просто помолчать рядом', kind: 'desire', pause: 6000, p: 3 },
+    { seat: 10, text: 'тепла в теле', kind: 'desire', pause: 6000, p: 3 }
   ];
+
   let journeyIdx = 0;
   let autoTimer = null;
-  const btnAutoDemo = document.getElementById('btnAutoDemo');
 
   function triggerNextTurn() {
-    const step = REALISTIC_CIRCLE_JOURNEY[journeyIdx % REALISTIC_CIRCLE_JOURNEY.length];
-    journeyIdx++;
+    if (journeyIdx >= MEDITATIVE_CIRCLE_JOURNEY.length) {
+      // Circle completed peacefully, hold in presence
+      if (autoTimer) clearTimeout(autoTimer);
+      autoTimer = null;
+      btnAutoDemo.classList.remove('active');
+      statusLabel.textContent = '04 · круг завершён · тишина у огня';
+      return;
+    }
+    const step = MEDITATIVE_CIRCLE_JOURNEY[journeyIdx++];
     if (step.p && step.p !== phase) {
       setPhase(step.p);
     }
@@ -749,26 +805,64 @@
       clearTimeout(autoTimer);
       autoTimer = null;
       btnAutoDemo.classList.remove('active');
-      btnAutoDemo.innerHTML = '<span>▶</span> авто-круг';
     } else {
       btnAutoDemo.classList.add('active');
-      btnAutoDemo.innerHTML = '<span>⏹</span> остановить';
-      if (!audioOn) toggleAudio();
       const runStep = () => {
         triggerNextTurn();
-        const currentStep = REALISTIC_CIRCLE_JOURNEY[(journeyIdx - 1) % REALISTIC_CIRCLE_JOURNEY.length];
-        const nextDelay = currentStep.pause || 5000;
-        autoTimer = setTimeout(runStep, nextDelay);
+        if (journeyIdx < MEDITATIVE_CIRCLE_JOURNEY.length) {
+          const pause = MEDITATIVE_CIRCLE_JOURNEY[journeyIdx - 1]?.pause || 5000;
+          autoTimer = setTimeout(runStep, pause);
+        }
       };
       runStep();
     }
   }
 
+  function setPhase(p) {
+    phase = p;
+    document.querySelectorAll('.phase-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.phase, 10) === phase);
+    });
+    updateStatus();
+  }
+
+  // Interactivity
   btnNext.addEventListener('click', triggerNextTurn);
   btnAutoDemo.addEventListener('click', toggleAutoDemo);
 
-  window.addEventListener('keydown', (e) => {
-    if (e.key === ' ') {
+  document.querySelectorAll('.phase-btn').forEach(btn => {
+    btn.addEventListener('click', () => setPhase(parseInt(btn.dataset.phase, 10)));
+  });
+
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      addWord(chip.dataset.text, chip.dataset.family, chip.dataset.kind || 'feeling');
+    });
+  });
+
+  // Click seat to focus
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const scaleY = H / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+
+    for (let i = 0; i < seats.length; i++) {
+      const s = seats[i];
+      if (Math.hypot(clickX - s.x, clickY - s.y) < 28) {
+        activeSeat = i;
+        s.pulse = 1.0;
+        updateStatus();
+        break;
+      }
+    }
+  });
+
+  // Keyboard Hotkeys
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.code === 'Space') {
       e.preventDefault();
       triggerNextTurn();
     } else if (e.key === 'm' || e.key === 'ь') {
@@ -778,46 +872,10 @@
     }
   });
 
-  document.querySelectorAll('.phase-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      setPhase(parseInt(btn.dataset.phase, 10));
-    });
-  });
-
-  function setPhase(p) {
-    phase = p;
-    document.querySelectorAll('.phase-btn').forEach(b => {
-      b.classList.toggle('active', parseInt(b.dataset.phase, 10) === phase);
-    });
-    updateStatus();
-  }
-
-  document.querySelectorAll('.chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      addWord(chip.dataset.text, chip.dataset.family, chip.dataset.kind || 'feeling');
-    });
-  });
-
-  // Seat click selection
-  canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const my = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-    seats.forEach(s => {
-      const d = Math.hypot(mx - s.x, my - s.y);
-      if (d < 25) {
-        activeSeat = s.id;
-        updateStatus();
-      }
-    });
-  });
-
-  // Init
-  resize();
-  updateStatus();
+  // Seed with quiet hearth
   requestAnimationFrame(render);
 })();
 </script>
+
 </body>
 </html>
