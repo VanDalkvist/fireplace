@@ -31,6 +31,9 @@ export class SalonAudioEngine {
   private droneBus: GainNode | null = null;
   private isEnabled: boolean = false;
   private volume: number = 0.6;
+  private meetingStream: MediaStream | null = null;
+  private analyser: AnalyserNode | null = null;
+  private timeData: Float32Array = new Float32Array(256);
 
   private init(): void {
     if (this.ac) return;
@@ -186,5 +189,54 @@ export class SalonAudioEngine {
 
   public get active(): boolean {
     return this.isEnabled;
+  }
+
+  public async captureMeetingAudio(): Promise<boolean> {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) return false;
+    this.init();
+    if (this.ac && this.ac.state === "suspended") await this.ac.resume();
+
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+      stream.getVideoTracks().forEach((t) => t.stop());
+      const audioTracks = stream.getAudioTracks();
+      if (!audioTracks.length) return false;
+
+      this.meetingStream = stream;
+      if (this.ac) {
+        const src = this.ac.createMediaStreamSource(stream);
+        this.analyser = this.ac.createAnalyser();
+        this.analyser.fftSize = 256;
+        src.connect(this.analyser);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public disconnectMeetingAudio(): void {
+    if (this.meetingStream) {
+      this.meetingStream.getAudioTracks().forEach((t) => t.stop());
+      this.meetingStream = null;
+    }
+    this.analyser = null;
+  }
+
+  public get isMeetingAudioConnected(): boolean {
+    return Boolean(this.meetingStream && this.meetingStream.getAudioTracks().some((t) => t.readyState === "live"));
+  }
+
+  public getMeetingRmsLevel(): number {
+    if (!this.analyser) return 0;
+    this.analyser.getFloatTimeDomainData(this.timeData as Float32Array<ArrayBuffer>);
+    let sum = 0;
+    for (let i = 0; i < this.timeData.length; i++) {
+      sum += this.timeData[i] * this.timeData[i];
+    }
+    return Math.sqrt(sum / this.timeData.length);
   }
 }

@@ -3,6 +3,7 @@ import { createInitialState, setPhase, passTurn, addDesireToken } from "@/domain
 import type { SessionState, SessionPhase, FeelingToken, DesireToken } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
 import { distillSpokenPhrase } from "@/domain/lexicon-engine";
+import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { SalonSpeechEngine } from "@/speech/speech-engine";
 import { SalonAudioEngine } from "@/audio/audio-engine";
@@ -29,9 +30,7 @@ export const SalonExperience: React.FC = () => {
   );
   const [lastPhrase, setLastPhrase] = useState("тишина у огня");
   const [interimPhrase, setInterimPhrase] = useState(isVoiceInit ? "я чувствую замедление" : "");
-  const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(
-    isVoiceInit ? { text: "замедление", type: "feeling" } : null
-  );
+  const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(isVoiceInit ? { text: "замедление", type: "feeling" } : null);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const [demoIdx, setDemoIdx] = useState(0);
 
@@ -39,20 +38,17 @@ export const SalonExperience: React.FC = () => {
   const audioRef = useRef<SalonAudioEngine | null>(null);
   const motionRef = useRef<SalonMotionEngine | null>(null);
   const speechRef = useRef<SalonSpeechEngine | null>(null);
-
   if (!audioRef.current) audioRef.current = new SalonAudioEngine();
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
 
   const handleAudioToggle = useCallback(() => setIsAudioOn(audioRef.current?.toggle() ?? false), []);
 
   const handleAddFeeling = useCallback((phrase: string, family: string, valence = 0, spkId?: number) => {
-    setLastPhrase(phrase);
-    setInterimPhrase("");
+    setLastPhrase(phrase); setInterimPhrase("");
     const speakerId = spkId ?? state.activeSpeakerId ?? 1;
     const newToken: FeelingToken = {
       id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      text: phrase, lemma: phrase, family, valence, arousal: 0.5, intensity: 1.2,
-      speakerId, timestamp: Date.now(),
+      text: phrase, lemma: phrase, family, valence, arousal: 0.5, intensity: 1.2, speakerId, timestamp: Date.now(),
     };
     audioRef.current?.playFeeling(family, valence);
     setState((prev) => ({
@@ -63,8 +59,7 @@ export const SalonExperience: React.FC = () => {
   }, [state.activeSpeakerId]);
 
   const handleAddDesire = useCallback((desireText: string, spkId?: number) => {
-    setLastPhrase(desireText);
-    setInterimPhrase("");
+    setLastPhrase(desireText); setInterimPhrase("");
     const speakerId = spkId ?? state.activeSpeakerId ?? 1;
     const newToken: DesireToken = {
       id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -78,13 +73,10 @@ export const SalonExperience: React.FC = () => {
   }, [state.activeSpeakerId]);
 
   const handlePass = useCallback(() => {
-    const speakerId = state.activeSpeakerId;
-    if (speakerId !== null && speakerId !== undefined) {
-      audioRef.current?.playPass();
-      setLastPhrase("пас");
-      setInterimPhrase("");
-      setState((prev) => passTurn(prev, speakerId));
-    }
+    const speakerId = state.activeSpeakerId ?? 1;
+    audioRef.current?.playPass();
+    setLastPhrase("пас"); setInterimPhrase("");
+    setState((prev) => passTurn(prev, speakerId));
   }, [state.activeSpeakerId]);
 
   const triggerNextTurn = useCallback(() => {
@@ -99,10 +91,10 @@ export const SalonExperience: React.FC = () => {
     else if (item.family) handleAddFeeling(item.text, item.family, item.valence ?? 0, nextId);
   }, [demoIdx, state.activeSpeakerId, handlePass, handleAddDesire, handleAddFeeling]);
 
-  const handleSpeechResult = useCallback((phrase: string) => {
+  const handleSpeechResult = useCallback(async (phrase: string) => {
     setInterimPhrase("");
     setInterimBadge(null);
-    const res = distillSpokenPhrase(phrase, defaultLexiconIndex);
+    const res = await distillWithNeuralFallback(phrase, defaultLexiconIndex);
     if (res.pass) return handlePass();
     let matched = false;
     for (const f of res.feelings) { handleAddFeeling(f.form || f.lemma, f.family, f.valence); matched = true; }
@@ -112,6 +104,13 @@ export const SalonExperience: React.FC = () => {
       if (res.isDesirePhrase || state.phase === "desires") handleAddDesire(clean);
       else handleAddFeeling(clean, "живость", 0);
     }
+    setState((prev) => {
+      const nextId = ((prev.activeSpeakerId ?? 1) % 12) + 1;
+      return {
+        ...prev, activeSpeakerId: nextId,
+        participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
+      };
+    });
   }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
 
   if (!speechRef.current) {

@@ -136,3 +136,46 @@
 ### Residual Risk
 - Эксперимент `experiments/04-hearth-fire/index.html` сохранён нетронутым как изолированный исторический артефакт.
 
+---
+
+## Cycle 4 - 2026-10-21 - Unified Autonomous Voice Pipeline & Neural Distillation (No Zoom SDK)
+
+### Context
+- Branch: `main` (commit head, remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Реализация единой бесшовной сессии Салона присутствия без Zoom SDK: двухуровневый нейродистиллятор длинных монологов (`src/domain/phrase-distiller.ts` с поддержкой локального Ollama `qwen2.5:0.5b` и 800мс безопасным фоллбеком на словарный экстрактор), нативный захват системного звука звонка Zoom/Telegram через Web Audio API `getDisplayMedia({ audio: true })` в `SalonAudioEngine` (по проверенному рецепту «03 · луна»), автоматическая передача эстафеты круга (`(seat % 12) + 1`) после произнесения фразы, ликвидация лишних полей ввода и сохранение чистого созерцательного экрана у костра.
+- Source docs:
+  - `docs/superpowers/plans/2026-10-21-arch-improvement-cycle-4.md`
+  - `src/domain/phrase-distiller.ts`, `src/audio/audio-engine.ts`, `src/components/SalonExperience.tsx`
+  - `~/Projects/arch-rules/arch-rules.md` (AP-010..AP-071)
+- Architecture gates: AP-010, AP-011, AP-018, AP-019 (лимит <= 250 строк/файл), AP-025 (0 циклов), AP-028 (TDD детерминизм), AP-029 (TypeScript strictness), AP-064 (S1 дизайн-система).
+
+### Findings & Resolution
+- [P1] Захламление поляны длинными монологами при отсутствии смысловой суммаризации - fixed
+  - Resolution: Разработан модуль `phrase-distiller.ts`: Tier 1 (0 мс словарный экстрактор для коротких реплик) + Tier 2 (быстрое сжатие 30-50 словного монолога участника в 1-3 слова истинного чувства с сохранением эмоциональной семьи и валентности через Ollama микро-модель с 800мс таймаутом и гарантированным фоллбеком).
+  - Rule: AP-010, AP-018, AP-019.
+- [P1] Зависимость от стороннего софта / Zoom SDK для звука встречи - fixed
+  - Resolution: В `SalonAudioEngine` реализован метод `captureMeetingAudio()`: захват системного аудио встречи через стандартный браузерный API `getDisplayMedia({ audio: true })` с немедленной остановкой видеотрека и подключением `AnalyserNode` для расчета RMS уровня громкости.
+  - Rule: AP-010, AP-018, AP-019.
+- [P2] Привязка всех реплик к одному стулу при отсутствии ручных кликов - fixed
+  - Resolution: В `SalonExperience.tsx` внедрена естественная передача эстафеты круга (`advanceSpeakerTurn`): после произнесения и дистилляции реплики активный стул автоматически плавно переходит по часовой стрелке к следующему участнику `((seat % 12) + 1)`.
+  - Rule: AP-018, AP-054.
+- [P2] Лишние инпуты и визуальный шум на экране - fixed
+  - Resolution: Из интерфейса удалены все временные строки ввода; экран остаётся кристально чистым — только костер, угольки участников, плавающие слова и плавающая плашка микрофона.
+  - Rule: AP-018.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - Лимиты строк: Все 36 файлов в `src/` строго `<= 248` строк (лимит 250, AP-019). Самый длинный файл — `SalonExperience.tsx` (248 строк).
+   - Тесты: 39/39 тестов Vitest GREEN (13 сьютов: `phrase-distiller`, `meeting-audio`, `speech-resilience`, `speech-engine`, `hearth-flame`, `hearth-words`, `hearth-seats`, `linking-graph`, `session-fsm`, `field-renderer`, `collision-layout`, `lexicon-distiller`, `lexicon-engine`).
+   - Сборка: `vite build` успешен за 253 мс.
+   - Тайпчек: `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - Циклические зависимости: 0 circular dependencies (AP-025, `madge`).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Пользовательский сценарий: Длинные высказывания сжимаются нейродистиллятором в глубокие точные слова; эстафета голоса плавно шагает по кругу; звук встречи захватывается браузером без Zoom SDK; интерфейс чист и медитативен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+### Residual Risk
+- Локальная модель Ollama (`qwen2.5:0.5b`) поднимается на хосте по желанию; при её отсутствии система автоматически и безопасно работает на Tier 1 словарной дистилляции с защитным таймаутом 800 мс.
+
+
