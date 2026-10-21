@@ -40,17 +40,16 @@ export async function distillWithNeuralFallback(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const prompt = `Твоя задача — извлечь из высказывания человека сокровенное переживание, глубинное чувство или живую метафору, отбросив бытовые детали (созвоны, дела, преамбулы). Сохрани образность, поэтичность и смысл (не обрезай искусственно до двух слов, если фраза важна целиком).
+    const prompt = `Ты — созерцательный слушатель у костра. Извлеки суть и сокровенное чувство из слов участника, сохранив живую метафору и отбросив бытовой шум. Если человек просто назвал свое состояние, сохрани эту суть.
 
-Текст участника: "${trimmed}"
+Слова участника: "${trimmed}"
 
-Ответь ТОЛЬКО валидным JSON:
-{
-  "phrase": "глубинный смысл или живая метафора",
-  "family": "спокойствие|тревога|усталость|радость|нежность|грусть|живость",
-  "valence": 0.5,
-  "kind": "feeling"
-}`;
+Выведи JSON с полями:
+- phrase (строка: извлеченное чувство или образ участника)
+- family (одно слово из: спокойствие, тревога, усталость, радость, нежность, грусть, живость)
+- valence (число от -1.0 до 1.0)
+
+JSON:`;
 
     const res = await fetch(`${ollamaUrl}/api/generate`, {
       method: "POST",
@@ -70,7 +69,16 @@ export async function distillWithNeuralFallback(
       const data = (await res.json()) as { response?: string };
       if (data.response) {
         const parsed = JSON.parse(data.response) as LlmDistillPayload;
-        if (parsed.phrase) {
+        const phraseClean = (parsed.phrase || "").trim();
+        const isTemplateLeak =
+          phraseClean.includes("глубинный смысл") ||
+          phraseClean.includes("живая метафора") ||
+          phraseClean.includes("извлеченное чувство") ||
+          phraseClean.length === 0;
+
+        const effectivePhrase = isTemplateLeak ? trimmed : phraseClean;
+
+        if (effectivePhrase) {
           const kind = parsed.kind || "feeling";
           if (kind === "pass") {
             return { feelings: [], desires: [], pass: true, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
@@ -78,7 +86,7 @@ export async function distillWithNeuralFallback(
           if (kind === "desire") {
             return {
               feelings: [],
-              desires: [{ text: parsed.phrase, object: parsed.phrase, who: null }],
+              desires: [{ text: effectivePhrase, object: effectivePhrase, who: null }],
               pass: false,
               isDesirePhrase: true,
               neuralDistilled: true,
@@ -88,11 +96,11 @@ export async function distillWithNeuralFallback(
           return {
             feelings: [
               {
-                lemma: parsed.phrase,
+                lemma: effectivePhrase,
                 family: parsed.family || "спокойствие",
                 valence: parsed.valence ?? 0.5,
                 arousal: 0.3,
-                form: parsed.phrase,
+                form: effectivePhrase,
                 intensity: 1,
               },
             ],

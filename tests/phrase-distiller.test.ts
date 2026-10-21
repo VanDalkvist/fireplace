@@ -57,6 +57,27 @@ describe('Neural Phrase Distiller', () => {
     expect(res.fallbackText).toContain("сумбурно");
   });
 
+  it('guards against prompt template leakage and falls back to original phrase', async () => {
+    const fakeLlmResponse = {
+      response: JSON.stringify({
+        phrase: "глубинный смысл или живая метафора",
+        family: "спокойствие",
+        valence: 0.5,
+      })
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => fakeLlmResponse,
+    } as unknown as Response);
+
+    const rawUtterance = "мне очень тепло и уютно у костра";
+    const res = await distillWithNeuralFallback(rawUtterance, defaultLexiconIndex);
+
+    expect(res.feelings[0].lemma).toBe("мне очень тепло и уютно у костра");
+    expect(res.feelings[0].lemma).not.toContain("глубинный смысл");
+  });
+
   it('checks real Ollama status and identifies presence of target model', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
