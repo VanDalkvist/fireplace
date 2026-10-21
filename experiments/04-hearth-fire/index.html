@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Салон присутствия — 04: Созерцательный костёр</title>
+  <title>Салон присутствия — 04: Созерцательный пиксельный костёр</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
@@ -141,9 +141,9 @@
     <div style="display:flex; align-items:center; gap:10px;">
       <span class="badge"><span class="dot"></span> эксперимент 04</span>
       <span style="font-weight: 600; color:#ece4d6;">созерцательный костёр присутствия</span>
-      <span style="color:#605345;">· живое пламя и нити тепла</span>
+      <span style="color:#605345;">· пиксельное пламя и живой диалог</span>
     </div>
-    <div id="statusLabel" style="color:#ffb266;">02 · круг чувств · место 01</div>
+    <div id="statusLabel" style="color:#ffb266;">02 · круг чувств · голос в круге</div>
   </div>
 
   <div class="canvas-container">
@@ -152,10 +152,10 @@
 
   <div class="controls">
     <button id="btnNext" class="active">
-      <span>space</span> реплика круга
+      <span>space</span> реплика в круге (рандом)
     </button>
     <button id="btnAutoDemo">
-      <span>▶</span> медитативный авто-круг
+      <span>▶</span> медитативный живой круг
     </button>
     <button id="btnAudio">
       <span>m</span> звук d dorian
@@ -167,7 +167,7 @@
       <button class="phase-btn" data-phase="4">4 выход</button>
     </div>
     <div class="phrase-chips">
-      <span style="font-size:10px; color:#584b3d; margin-right:4px;">подбросить в круг:</span>
+      <span style="font-size:10px; color:#584b3d; margin-right:4px;">назвать:</span>
       <button class="chip" data-text="тревога" data-family="тревога">тревожно</button>
       <button class="chip" data-text="замедление" data-family="спокойствие">замедление</button>
       <button class="chip" data-text="тепло" data-family="нежность">тепло</button>
@@ -178,7 +178,7 @@
   </div>
 
   <div class="info-bar">
-    <kbd>space</kbd> — сказать реплику и протянуть нить · <kbd>клик по стулу</kbd> — сесть на место · <kbd>m</kbd> — звук дрона · <kbd>1..4</kbd> — фазы круга
+    <kbd>space</kbd> — реплика случайного участника · нить тепла соединяет говорящих · <kbd>клик по стулу</kbd> — сесть на место · <kbd>m</kbd> — звук дрона
   </div>
 </div>
 
@@ -196,6 +196,7 @@
 
   let W, H, cx, floorCY, floorRx, floorRy, skyTop, skyH;
   let activeSeat = 0;
+  let lastSpeakerSeat = null;
   let phase = 2; // 1: silence, 2: feelings, 3: desires, 4: completion
 
   // True Isometric Geometry
@@ -241,76 +242,166 @@
   resize();
 
   // =========================================================================
-  // REALISTIC CAMPFIRE SIMULATION: Flame Tongues, Burning Logs & Sparks
+  // PIXELATED CAMPFIRE (Classic Retro Pixel Fire Simulation)
   // =========================================================================
 
-  // Burning Charred Logs (resting on ash bed)
-  const logs = [
-    { a: -0.65, len: 75, w: 9 },
-    { a: 0.95, len: 70, w: 8 },
-    { a: 2.35, len: 78, w: 9 },
-    { a: 3.85, len: 72, w: 8 }
+  const FIRE_W = 48;
+  const FIRE_H = 38;
+  const fireBuffer = document.createElement('canvas');
+  fireBuffer.width = FIRE_W;
+  fireBuffer.height = FIRE_H;
+  const fireCtx = fireBuffer.getContext('2d');
+  const fireImg = fireCtx.createImageData(FIRE_W, FIRE_H);
+  const firePixels = fireImg.data;
+  const fireHeat = new Uint8Array(FIRE_W * FIRE_H);
+
+  // 37-color blackbody fire palette (0 = transparent black, 36 = white-hot core)
+  const FIRE_PALETTE = [
+    [0, 0, 0, 0],
+    [7, 7, 7, 180],
+    [31, 7, 7, 230],
+    [47, 15, 7, 255],
+    [71, 15, 7, 255],
+    [87, 23, 7, 255],
+    [103, 31, 7, 255],
+    [119, 31, 7, 255],
+    [143, 39, 7, 255],
+    [159, 47, 7, 255],
+    [175, 63, 7, 255],
+    [191, 71, 7, 255],
+    [199, 71, 7, 255],
+    [223, 79, 7, 255],
+    [223, 87, 7, 255],
+    [223, 87, 7, 255],
+    [215, 95, 7, 255],
+    [215, 103, 15, 255],
+    [207, 111, 15, 255],
+    [207, 119, 15, 255],
+    [207, 127, 15, 255],
+    [207, 135, 23, 255],
+    [199, 135, 23, 255],
+    [199, 143, 23, 255],
+    [199, 151, 31, 255],
+    [191, 159, 31, 255],
+    [191, 159, 31, 255],
+    [191, 167, 39, 255],
+    [191, 167, 39, 255],
+    [191, 175, 47, 255],
+    [183, 175, 47, 255],
+    [183, 183, 47, 255],
+    [183, 183, 55, 255],
+    [207, 207, 111, 255],
+    [223, 223, 159, 255],
+    [239, 239, 199, 255],
+    [255, 255, 255, 255]
   ];
 
-  // Upward buoyant flame particles
-  const FLAME_COUNT = 45;
-  const flameParticles = [];
-  function createFlameParticle() {
-    const spreadX = (Math.random() - 0.5) * 36;
-    const spreadY = (Math.random() - 0.5) * 12;
-    return {
-      x: cx + spreadX,
-      y: floorCY + spreadY,
-      vx: (Math.random() - 0.5) * 0.6,
-      vy: -1.2 - Math.random() * 2.2,
-      size: 14 + Math.random() * 16,
-      life: 0,
-      maxLife: 28 + Math.random() * 32,
-      swaySeed: Math.random() * 10,
-    };
-  }
-  for (let i = 0; i < FLAME_COUNT; i++) {
-    const p = createFlameParticle();
-    p.life = Math.random() * p.maxLife;
-    flameParticles.push(p);
+  function updatePixelFire() {
+    // Heat source at bottom rows: centered campfire teepee shape
+    const center = FIRE_W / 2;
+    for (let x = 0; x < FIRE_W; x++) {
+      const dist = Math.abs(x - center);
+      const rowIdx1 = (FIRE_H - 1) * FIRE_W + x;
+      const rowIdx2 = (FIRE_H - 2) * FIRE_W + x;
+      if (dist < 10) {
+        // Core fire
+        fireHeat[rowIdx1] = 36;
+        fireHeat[rowIdx2] = Math.random() < 0.85 ? 36 : 34;
+      } else if (dist < 16) {
+        // Tapered edge of campfire
+        fireHeat[rowIdx1] = Math.random() < 0.6 ? 32 : 18;
+        fireHeat[rowIdx2] = Math.random() < 0.4 ? 26 : 10;
+      } else {
+        fireHeat[rowIdx1] = 0;
+        fireHeat[rowIdx2] = 0;
+      }
+    }
+
+    // Propagate heat upwards with wind turbulence and cooling
+    for (let y = 0; y < FIRE_H - 2; y++) {
+      for (let x = 0; x < FIRE_W; x++) {
+        const fromIdx = (y + 1) * FIRE_W + x;
+        const heat = fireHeat[fromIdx];
+        if (heat === 0) {
+          fireHeat[y * FIRE_W + x] = 0;
+        } else {
+          const decay = Math.floor(Math.random() * 2.8);
+          // Natural upward chimney pull towards center
+          const drift = (Math.floor(Math.random() * 3) - 1);
+          const toX = Math.min(FIRE_W - 1, Math.max(0, x + drift));
+          const toIdx = y * FIRE_W + toX;
+          fireHeat[toIdx] = Math.max(0, heat - decay);
+        }
+      }
+    }
+
+    // Render heat buffer into ImageData
+    for (let i = 0; i < FIRE_W * FIRE_H; i++) {
+      const h = fireHeat[i];
+      const col = FIRE_PALETTE[h] || FIRE_PALETTE[0];
+      const pxIdx = i * 4;
+      firePixels[pxIdx] = col[0];
+      firePixels[pxIdx + 1] = col[1];
+      firePixels[pxIdx + 2] = col[2];
+      firePixels[pxIdx + 3] = col[3];
+    }
+    fireCtx.putImageData(fireImg, 0, 0);
   }
 
-  // Micro-embers caught in the thermal chimney
-  const EMBER_COUNT = 70;
-  const embers = [];
-  function createEmber() {
-    const ang = Math.random() * TAU;
-    const radX = Math.random() * 30;
-    const radY = Math.random() * 10;
+  // Pixelated Micro-Embers (Crisp square pixel particles)
+  const EMBER_COUNT = 55;
+  const pixelEmbers = [];
+  function createPixelEmber() {
     return {
-      x: cx + Math.cos(ang) * radX,
-      y: floorCY + Math.sin(ang) * radY,
+      x: cx + (Math.random() - 0.5) * 44,
+      y: floorCY - 10 + (Math.random() - 0.5) * 14,
       vx: (Math.random() - 0.5) * 0.4,
-      vy: -0.8 - Math.random() * 1.8,
-      size: 1.0 + Math.random() * 2.0,
-      life: Math.random() * 140,
-      maxLife: 90 + Math.random() * 120,
-      sway: Math.random() * TAU,
+      vy: -0.8 - Math.random() * 1.6,
+      size: Math.random() < 0.6 ? 2 : 3,
+      life: Math.random() * 120,
+      maxLife: 80 + Math.random() * 120,
+      color: Math.random() < 0.5 ? '#ffcc54' : '#ff9a2b'
     };
   }
   for (let i = 0; i < EMBER_COUNT; i++) {
-    embers.push(createEmber());
+    pixelEmbers.push(createPixelEmber());
   }
 
   // =========================================================================
-  // NODES, PROGRESSIVE THREADS & SPARKS
+  // NODES & CONNECTING THREADS (Previous Speaker -> New Speaker)
   // =========================================================================
 
-  const feelings = []; // Settled beside seats
-  const desires = [];  // Floating lanterns
+  const feelings = []; // Words beside seats
+  const desires = [];  // Sky lanterns
   const sparks = [];   // Transient sparks: seat -> word (1.2s)
-  const segments = []; // Animated growing spline segments between feelings
+  const threads = [];  // Progressive threads connecting previous speaker to current speaker
   let lastSpokenNode = null;
 
-  function addWord(text, family, kind = 'feeling', customSeat = null) {
-    if (customSeat !== null && customSeat !== undefined) {
-      activeSeat = customSeat;
+  function pickRandomSpeaker(excludeSeat) {
+    // Pick randomly from all participants except the one who just spoke
+    const candidates = [];
+    for (let i = 0; i < SEATS_COUNT; i++) {
+      if (i !== excludeSeat) {
+        // Slight preference for seats across or away from current speaker
+        const dist = Math.abs(i - excludeSeat);
+        if (dist >= 2 && dist <= (SEATS_COUNT - 2)) {
+          candidates.push(i);
+          candidates.push(i); // weight higher
+        } else {
+          candidates.push(i);
+        }
+      }
     }
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  function addWord(text, family, kind = 'feeling', chosenSeat = null) {
+    const prevSpeaker = activeSeat;
+    const speakerSeat = chosenSeat !== null && chosenSeat !== undefined
+      ? chosenSeat
+      : pickRandomSpeaker(prevSpeaker);
+
+    activeSeat = speakerSeat;
     const seat = seats[activeSeat];
     seat.pulse = 1.0;
     seat.spokenCount++;
@@ -320,8 +411,7 @@
     if (kind === 'pass') {
       seat.hasPassed = true;
       if (audioOn) playPass();
-      // Advance to next seat automatically
-      activeSeat = (activeSeat + 1) % SEATS_COUNT;
+      lastSpeakerSeat = activeSeat;
       updateStatus();
       return;
     }
@@ -353,12 +443,12 @@
       });
 
       if (audioOn) playBell();
-      activeSeat = (activeSeat + 1) % SEATS_COUNT;
+      lastSpeakerSeat = activeSeat;
       updateStatus();
       return;
     }
 
-    // Feeling: settles comfortably on the outer clearing perimeter BESIDE the speaker's seat
+    // Feeling word settled beside the speaker's seat
     let existing = feelings.find(f => f.lemma === text && f.seatId === activeSeat);
     if (existing) {
       existing.count++;
@@ -366,12 +456,11 @@
       existing.pulse = 1.0;
       lastSpokenNode = existing;
       if (audioOn) playChime(activeSeat);
-      activeSeat = (activeSeat + 1) % SEATS_COUNT;
+      lastSpeakerSeat = activeSeat;
       updateStatus();
       return;
     }
 
-    // Positioned beside the speaker's chair facing the fire
     const outAngle = seat.angle;
     const outDist = 34 + (seat.spokenCount % 2) * 16;
     const targetX = seat.x + Math.cos(outAngle) * outDist;
@@ -392,19 +481,20 @@
       settled: false,
     };
 
-    // Progressive connecting thread from previous feeling node
-    if (feelings.length > 0) {
-      const prev = feelings[feelings.length - 1];
-      segments.push({
-        source: prev,
+    // PROGRESSIVE CONNECTING THREAD:
+    // Connects PREVIOUS SPEAKER to CURRENT SPEAKER!
+    if (lastSpokenNode) {
+      threads.push({
+        source: lastSpokenNode,
         target: newFeeling,
         born: now,
-        duration: 1200, // 1.2s smooth progressive growth
+        duration: 1300, // 1.3s smooth progressive growth
       });
     }
 
     feelings.push(newFeeling);
 
+    // Warm flight spark from seat to word
     sparks.push({
       sx: seat.x, sy: seat.y,
       tx: targetX, ty: targetY,
@@ -412,15 +502,16 @@
     });
 
     lastSpokenNode = newFeeling;
+    lastSpeakerSeat = activeSeat;
 
     if (audioOn) playChime(activeSeat);
-    activeSeat = (activeSeat + 1) % SEATS_COUNT;
     updateStatus();
   }
 
   function updateStatus() {
     const phases = ['01 · тишина', '02 · круг чувств', '03 · чего хочется', '04 · выход'];
-    statusLabel.textContent = `${phases[phase - 1]} · место ${String(activeSeat + 1).padStart(2, '0')}`;
+    const prevStr = lastSpeakerSeat !== null ? `от [${String(lastSpeakerSeat + 1).padStart(2, '0')}] к ` : '';
+    statusLabel.textContent = `${phases[phase - 1]} · ${prevStr}место [${String(activeSeat + 1).padStart(2, '0')}]`;
   }
 
   // Audio Engine: Procedural D Dorian Drone
@@ -524,7 +615,7 @@
     const now = performance.now();
     ctx.clearRect(0, 0, W, H);
 
-    // 1. Dark warm background
+    // 1. Dark warm clearing background
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, W, H);
 
@@ -541,118 +632,91 @@
     }
     ctx.restore();
 
-    // 3. Central Fire Ground Illumination (flickering warm pool)
-    const flicker = Math.sin(t * 12) * 0.02 + Math.sin(t * 7.5) * 0.03 + Math.sin(t * 1.8) * 0.06;
-    const poolRadiusX = (150 + flicker * 40);
-    const poolRadiusY = (55 + flicker * 15);
+    // 3. Central Fire Ground Illumination (Soft warm light on clearing)
+    const flicker = Math.sin(t * 11) * 0.03 + Math.sin(t * 6.5) * 0.04 + Math.sin(t * 1.5) * 0.06;
+    const poolRadiusX = (155 + flicker * 35);
+    const poolRadiusY = (58 + flicker * 15);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const poolGrad = ctx.createRadialGradient(cx, floorCY, 0, cx, floorCY, poolRadiusX);
-    poolGrad.addColorStop(0.0, 'rgba(255, 236, 200, 0.35)');
-    poolGrad.addColorStop(0.35, 'rgba(255, 178, 102, 0.22)');
-    poolGrad.addColorStop(0.70, 'rgba(180, 50, 15, 0.08)');
+    poolGrad.addColorStop(0.0, 'rgba(255, 225, 180, 0.32)');
+    poolGrad.addColorStop(0.35, 'rgba(255, 160, 80, 0.20)');
+    poolGrad.addColorStop(0.70, 'rgba(160, 40, 10, 0.07)');
     poolGrad.addColorStop(1.0, 'rgba(5, 5, 5, 0.0)');
     ctx.fillStyle = poolGrad;
     ctx.beginPath();
-    ctx.ellipse(cx, floorCY, poolRadiusX * 1.5, poolRadiusY * 1.5, 0, 0, TAU);
+    ctx.ellipse(cx, floorCY, poolRadiusX * 1.4, poolRadiusY * 1.4, 0, 0, TAU);
     ctx.fill();
     ctx.restore();
 
-    // 4. Campfire Fuel: Charred Burning Logs in Isometric Perspective
+    // 4. Pixelated Ash Bed & Charred Logs
     ctx.save();
-    // Ash bed under logs
-    ctx.fillStyle = '#110d0a';
+    ctx.fillStyle = '#0e0b08';
     ctx.beginPath();
-    ctx.ellipse(cx, floorCY, 65, 22, 0, 0, TAU);
+    ctx.ellipse(cx, floorCY + 4, 52, 18, 0, 0, TAU);
     ctx.fill();
 
-    // Logs
-    for (let i = 0; i < logs.length; i++) {
-      const lg = logs[i];
-      const x1 = cx + Math.cos(lg.a) * (lg.len * 0.5);
-      const y1 = floorCY + Math.sin(lg.a) * (lg.len * 0.18);
-      const x2 = cx - Math.cos(lg.a) * (lg.len * 0.5);
-      const y2 = floorCY - Math.sin(lg.a) * (lg.len * 0.18);
+    // Pixel logs
+    const logAngles = [-0.65, 0.85, 2.35, 3.85];
+    for (let i = 0; i < logAngles.length; i++) {
+      const a = logAngles[i];
+      const lx1 = cx + Math.cos(a) * 32;
+      const ly1 = floorCY + 4 + Math.sin(a) * 11;
+      const lx2 = cx - Math.cos(a) * 32;
+      const ly2 = floorCY + 4 - Math.sin(a) * 11;
 
-      ctx.strokeStyle = '#1e1610';
-      ctx.lineWidth = lg.w;
-      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#1a130d';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'square';
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
+      ctx.moveTo(lx1, ly1);
+      ctx.lineTo(lx2, ly2);
       ctx.stroke();
 
-      // Glowing ember crack in the center of log
-      const emberHeat = Math.sin(t * 2 + i * 1.5) * 0.2 + 0.7;
-      ctx.strokeStyle = `rgba(255, 150, 50, ${emberHeat * 0.8})`;
-      ctx.lineWidth = lg.w * 0.35;
+      // Glowing ember pixel veins inside logs
+      ctx.strokeStyle = 'rgba(255, 140, 40, 0.75)';
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.moveTo(cx + (x1 - cx) * 0.3, floorCY + (y1 - floorCY) * 0.3);
-      ctx.lineTo(cx + (x2 - cx) * 0.3, floorCY + (y2 - floorCY) * 0.3);
+      ctx.moveTo(cx + (lx1 - cx) * 0.35, floorCY + 4 + (ly1 - (floorCY + 4)) * 0.35);
+      ctx.lineTo(cx + (lx2 - cx) * 0.35, floorCY + 4 + (ly2 - (floorCY + 4)) * 0.35);
       ctx.stroke();
     }
     ctx.restore();
 
-    // 5. Living Organic Flame Tongues (Additive buoyant particles)
+    // 5. UPDATE & DRAW PIXELATED RETRO CAMPFIRE
+    updatePixelFire();
+
     ctx.save();
+    ctx.imageSmoothingEnabled = false; // Pure crisp pixel art!
+    // Scale pixel fire buffer onto main canvas
+    const pixelScale = 3.6;
+    const pW = FIRE_W * pixelScale;
+    const pH = FIRE_H * pixelScale;
+    const pX = cx - pW / 2;
+    const pY = floorCY - pH + 12;
+
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < flameParticles.length; i++) {
-      const p = flameParticles[i];
-      p.life++;
-      if (p.life >= p.maxLife) {
-        Object.assign(p, createFlameParticle());
-      }
-      const progress = p.life / p.maxLife; // 0..1
-      const sway = Math.sin(t * 6 + p.swaySeed + p.y * 0.05) * 0.7;
-      p.vx = (p.vx + sway * 0.1) * 0.94;
-      p.x += p.vx;
-      p.y += p.vy;
-
-      // Shrink size as flame rises to a pointed tip
-      const curSize = Math.max(1, p.size * (1 - progress * 0.75));
-      const alpha = progress < 0.2 ? progress / 0.2 : (1 - progress);
-
-      // Blackbody color ramp: white-hot -> rich amber -> deep flame red
-      const color = progress < 0.28
-        ? `rgba(255, 250, 235, ${alpha * 0.75})`
-        : progress < 0.65
-        ? `rgba(255, 178, 80, ${alpha * 0.65})`
-        : `rgba(217, 45, 15, ${alpha * 0.40})`;
-
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, curSize, 0, TAU);
-      ctx.fill();
-    }
+    ctx.drawImage(fireBuffer, pX, pY, pW, pH);
     ctx.restore();
 
-    // 6. Micro-embers and Smoke rising into the night sky
+    // 6. Pixelated Micro-Embers (Square retro embers rising into sky)
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < embers.length; i++) {
-      const e = embers[i];
+    for (let i = 0; i < pixelEmbers.length; i++) {
+      const e = pixelEmbers[i];
       e.life++;
       if (e.life >= e.maxLife) {
-        Object.assign(e, createEmber());
+        Object.assign(e, createPixelEmber());
       }
       const p = e.life / e.maxLife;
-      const swirl = Math.sin(t * 2.2 + e.sway) * 0.5;
-      e.vx = (e.vx + swirl * 0.05) * 0.96;
-      e.x += e.vx;
+      e.x += e.vx + (Math.sin(t * 3 + i) * 0.25);
       e.y += e.vy;
 
-      const alpha = p < 0.25 ? p / 0.25 : (1.0 - p);
-      const col = p < 0.4
-        ? `rgba(255, 240, 210, ${alpha * 0.85})`
-        : p < 0.75
-        ? `rgba(255, 178, 102, ${alpha * 0.70})`
-        : `rgba(180, 40, 15, ${alpha * 0.40})`;
-
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.size * (1 - p * 0.35), 0, TAU);
-      ctx.fill();
+      const alpha = p < 0.2 ? p / 0.2 : (1 - p);
+      ctx.fillStyle = e.color;
+      ctx.globalAlpha = alpha * 0.85;
+      // Sharp square pixel block!
+      ctx.fillRect(Math.round(e.x), Math.round(e.y), e.size, e.size);
     }
     ctx.restore();
 
@@ -682,35 +746,36 @@
       ctx.restore();
     }
 
-    // 8. Progressive Translucent Amber Threads Between Feelings (Unified Fire Color)
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const src = seg.source;
-      const tgt = seg.target;
+    // 8. PROGRESSIVE TRANSLUCENT THREADS: Previous Speaker -> Current Speaker
+    for (let i = 0; i < threads.length; i++) {
+      const th = threads[i];
+      const src = th.source;
+      const tgt = th.target;
 
-      const elapsed = now - seg.born;
-      const growth = Math.min(1.0, elapsed / seg.duration); // Smooth growth 0..1
+      const elapsed = now - th.born;
+      const growth = Math.min(1.0, elapsed / th.duration); // Smooth growth 0..1
 
-      // Interpolate current head of the growing thread
+      // Interpolate current leading tip of the growing thread
       const curTgtX = src.x + (tgt.x - src.x) * growth;
       const curTgtY = src.y + (tgt.y - src.y) * growth;
 
-      // Arc bent gracefully around the clearing
+      // Graceful curve arcing across the hearth
       const midX = (src.x + curTgtX) / 2;
-      const midY = (src.y + curTgtY) / 2 - 20;
-      const wave = Math.sin(t * 1.5 + i * 0.8) * 3;
+      const midY = (src.y + curTgtY) / 2 - 22;
+      const wave = Math.sin(t * 1.5 + i * 0.7) * 3;
 
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(src.x, src.y);
       ctx.quadraticCurveTo(midX, midY + wave, curTgtX, curTgtY);
 
-      // Single unified warm translucent firelight tone
-      const alpha = 0.22 + 0.18 * (i / segments.length);
+      // Unified translucent firelight amber tone, NO harsh red
+      const recency = (i + 1) / threads.length;
+      const alpha = 0.20 + 0.16 * recency;
       ctx.strokeStyle = `rgba(255, 185, 115, ${alpha})`;
-      ctx.lineWidth = 1.2;
-      ctx.shadowColor = 'rgba(255, 178, 102, 0.4)';
-      ctx.shadowBlur = 6;
+      ctx.lineWidth = recency > 0.85 ? 1.4 : 1.1;
+      ctx.shadowColor = 'rgba(255, 178, 102, 0.35)';
+      ctx.shadowBlur = 5;
       ctx.stroke();
       ctx.restore();
     }
@@ -755,7 +820,7 @@
       ctx.fillText(`[${String(i + 1).padStart(2, '0')}]`, lx, ly);
     }
 
-    // 10. Update & Render Settled Feelings (BESIDE SEATS, CALM)
+    // 10. Update & Render Settled Feelings (BESIDE SEATS)
     for (let i = 0; i < feelings.length; i++) {
       const f = feelings[i];
       if (!f.settled) {
@@ -796,7 +861,7 @@
       ctx.restore();
     }
 
-    // 11. Update & Render Desires (LANTERNS IN THE NIGHT SKY)
+    // 11. Update & Render Desires (LANTERNS IN THE SKY)
     for (let i = 0; i < desires.length; i++) {
       const d = desires[i];
       if (!d.settled) {
@@ -839,43 +904,45 @@
   }
 
   // =========================================================================
-  // CONTINUOUS EXPANSION & MEDITATIVE DEMO
+  // NATURAL RANDOM CONVERSATION LOOP
   // =========================================================================
 
-  const CIRCLE_VOICES = [
+  const RICH_LEXICON = [
     { text: 'замедление', family: 'спокойствие' },
     { text: 'волнение в груди', family: 'тревога' },
     { text: 'ком в горле', family: 'тело' },
-    { text: 'пас', kind: 'pass' },
     { text: 'тепло от ваших слов', family: 'нежность' },
     { text: 'сильная усталость', family: 'усталость' },
     { text: 'растерянность', family: 'растерянность' },
     { text: 'благодарность за честность', family: 'нежность' },
+    { text: 'отпускает напряжение', family: 'спокойствие' },
+    { text: 'пас', kind: 'pass' },
+    { text: 'живость', family: 'радость' },
+    { text: 'глубокий вдох', family: 'тело' },
+    { text: 'ясность', family: 'спокойствие' },
     { text: 'тишины и выдоха', kind: 'desire' },
     { text: 'побыть с собой', kind: 'desire' },
     { text: 'просто помолчать рядом', kind: 'desire' },
-    { text: 'тепла в теле', kind: 'desire' },
-    { text: 'отпускает напряжение', family: 'спокойствие' },
-    { text: 'живость', family: 'радость' },
-    { text: 'глубокий вдох', family: 'тело' },
-    { text: 'ясность', family: 'спокойствие' }
+    { text: 'тепла в теле', kind: 'desire' }
   ];
 
-  let voiceIdx = 0;
+  let turnCount = 0;
   let autoTimer = null;
 
   function triggerNextTurn() {
-    const item = CIRCLE_VOICES[voiceIdx % CIRCLE_VOICES.length];
-    voiceIdx++;
+    const item = RICH_LEXICON[turnCount % RICH_LEXICON.length];
+    turnCount++;
 
-    // Switch phases naturally as circle progresses
-    if (voiceIdx > 8 && voiceIdx <= 12 && phase !== 3) {
+    // Switch phases naturally as discussion evolves
+    if (turnCount > 8 && turnCount <= 12 && phase !== 3) {
       setPhase(3);
-    } else if (voiceIdx > 12 && phase !== 4) {
+    } else if (turnCount > 12 && phase !== 4) {
       setPhase(4);
     }
 
-    addWord(item.text, item.family, item.kind || 'feeling', activeSeat);
+    // Pick a RANDOM next speaker across the circle!
+    const nextSpeaker = pickRandomSpeaker(activeSeat);
+    addWord(item.text, item.family, item.kind || 'feeling', nextSpeaker);
   }
 
   function toggleAutoDemo() {
@@ -911,11 +978,13 @@
 
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      addWord(chip.dataset.text, chip.dataset.family, chip.dataset.kind || 'feeling');
+      // Manual word: pick random speaker or use active
+      const nextSpeaker = pickRandomSpeaker(activeSeat);
+      addWord(chip.dataset.text, chip.dataset.family, chip.dataset.kind || 'feeling', nextSpeaker);
     });
   });
 
-  // Click seat to set active focus
+  // Click seat to explicitly speak from that seat
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = W / rect.width;
