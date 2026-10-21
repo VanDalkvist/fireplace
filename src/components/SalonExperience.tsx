@@ -1,19 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { createInitialState, setPhase, nextSpeaker, passTurn, addDesireToken } from "@/domain/session-fsm";
+import { createInitialState, setPhase, passTurn, addDesireToken } from "@/domain/session-fsm";
 import type { SessionState, SessionPhase, FeelingToken, DesireToken } from "@/domain/types";
-import { computeSelectiveEdges } from "@/domain/linking-graph";
 import { DEMO_PHRASES } from "@/domain/demo-script";
-import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { extractFeelingsAndDesires } from "@/domain/lexicon-engine";
+import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { SalonSpeechEngine } from "@/speech/speech-engine";
 import { SalonAudioEngine } from "@/audio/audio-engine";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
-import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
-import { SeatCircle } from "./salon/SeatCircle";
+import { SalonControls } from "./salon/SalonControls";
 import { SalonPult } from "./salon/SalonPult";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { IntroDialog } from "./salon/IntroDialog";
+import { cn } from "@/lib/utils";
 
 export const SalonExperience: React.FC = () => {
   const [state, setState] = useState<SessionState>(() => createInitialState(12));
@@ -22,10 +21,11 @@ export const SalonExperience: React.FC = () => {
   const [volume, setVolume] = useState(0.6);
   const [isPultOpen, setIsPultOpen] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
+  const [isZen, setIsZen] = useState(false);
   const [isDemoActive, setIsDemoActive] = useState(() =>
     typeof window !== "undefined" && window.location.search.includes("demo=1")
   );
-  const [lastPhrase, setLastPhrase] = useState("тишина в начале круга");
+  const [lastPhrase, setLastPhrase] = useState("тишина у огня");
   const [interimPhrase, setInterimPhrase] = useState("");
   const [demoIdx, setDemoIdx] = useState(0);
 
@@ -53,17 +53,16 @@ export const SalonExperience: React.FC = () => {
       ...prev, activeSpeakerId: speakerId,
       participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
       feelings: [...prev.feelings, newToken],
-      connections: computeSelectiveEdges(prev.feelings, [newToken], prev.connections),
     }));
   }, [state.activeSpeakerId]);
 
   const handleAddDesire = useCallback((desireText: string, spkId?: number) => {
-    setLastPhrase(`✦ ${desireText}`);
+    setLastPhrase(desireText);
     setInterimPhrase("");
     const speakerId = spkId ?? state.activeSpeakerId ?? 1;
     const newToken: DesireToken = {
-      id: `desire-${Date.now()}`, text: desireText, object: desireText, who: "",
-      speakerId, timestamp: Date.now(),
+      id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      text: desireText, object: desireText, who: "", speakerId, timestamp: Date.now(),
     };
     audioRef.current?.playDesire();
     setState((prev) => ({
@@ -71,8 +70,6 @@ export const SalonExperience: React.FC = () => {
       participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
     }));
   }, [state.activeSpeakerId]);
-
-  const handleNextSpeaker = useCallback(() => setState((prev) => nextSpeaker(prev)), []);
 
   const handlePass = useCallback(() => {
     const speakerId = state.activeSpeakerId;
@@ -83,6 +80,18 @@ export const SalonExperience: React.FC = () => {
       setState((prev) => passTurn(prev, speakerId));
     }
   }, [state.activeSpeakerId]);
+
+  const triggerNextTurn = useCallback(() => {
+    const item = DEMO_PHRASES[demoIdx % DEMO_PHRASES.length];
+    setDemoIdx((prev) => prev + 1);
+    const currId = state.activeSpeakerId ?? 1;
+    const candidates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((id) => id !== currId);
+    const nextId = candidates[Math.floor(Math.random() * candidates.length)];
+
+    if (item.isPass) handlePass();
+    else if (item.desire) handleAddDesire(item.desire, nextId);
+    else if (item.family) handleAddFeeling(item.text, item.family, item.valence ?? 0, nextId);
+  }, [demoIdx, state.activeSpeakerId, handlePass, handleAddDesire, handleAddFeeling]);
 
   const handleSpeechResult = useCallback((phrase: string) => {
     const res = extractFeelingsAndDesires(phrase, defaultLexiconIndex);
@@ -104,43 +113,44 @@ export const SalonExperience: React.FC = () => {
     });
   }
 
-  const handleToggleSpeech = useCallback(() => speechRef.current?.toggle(), []);
-
-  const triggerNextTurn = useCallback(() => {
-    const item = DEMO_PHRASES[demoIdx % DEMO_PHRASES.length];
-    setDemoIdx((prev) => prev + 1);
-    const spkId = item.speakerId || (state.activeSpeakerId ?? 1);
-
-    if (item.isPass) {
-      audioRef.current?.playPass();
-      setLastPhrase("пас");
-      setInterimPhrase("");
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !motionRef.current) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const seatId = motionRef.current.getSeatAtPoint((e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr);
+    if (seatId !== null) {
       setState((prev) => ({
-        ...prev, activeSpeakerId: spkId,
-        participants: prev.participants.map((p) => p.id === spkId ? { ...p, hasPassed: true, isSpeaking: false } : p),
+        ...prev, activeSpeakerId: seatId,
+        participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === seatId })),
       }));
-    } else if (item.desire) {
-      handleAddDesire(item.desire, spkId);
-    } else if (item.family) {
-      handleAddFeeling(item.text, item.family, item.valence, spkId);
     }
-  }, [demoIdx, state.activeSpeakerId, handleAddDesire, handleAddFeeling]);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.code === "Space") { e.preventDefault(); triggerNextTurn(); }
+      else if (e.key === "m" || e.key === "ь") handleAudioToggle();
+      else if (e.key === "h" || e.key === "р") setIsZen((prev) => !prev);
+      else if (e.key === "f" || e.key === "а") {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+        else if (document.exitFullscreen) document.exitFullscreen();
+      } else if (e.key === "Tab") { e.preventDefault(); setIsPultOpen((prev) => !prev); }
+      else if (["1", "2", "3", "4"].includes(e.key)) {
+        const p = (["silence", "feelings", "desires", "completion"] as SessionPhase[])[parseInt(e.key, 10) - 1];
+        if (p) setState((prev) => setPhase(prev, p));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [triggerNextTurn, handleAudioToggle]);
 
   useEffect(() => {
     if (!isDemoActive) return;
-    const timer = setInterval(() => triggerNextTurn(), 4500);
+    const timer = setInterval(() => triggerNextTurn(), 5500);
     return () => clearInterval(timer);
   }, [isDemoActive, triggerNextTurn]);
-
-  useSalonHotkeys({
-    onTogglePult: () => setIsPultOpen((prev) => !prev),
-    onToggleHelp: () => setIsIntroOpen((prev) => !prev),
-    onNextSpeaker: handleNextSpeaker,
-    onPass: handlePass,
-    onToggleAudio: handleAudioToggle,
-    onToggleSpeech: handleToggleSpeech,
-    onSelectPhase: (phase: SessionPhase) => setState((prev) => setPhase(prev, phase)),
-  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -148,59 +158,78 @@ export const SalonExperience: React.FC = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let animId: number;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+
     const render = (time: number) => {
-      const w = (canvas.width = window.innerWidth);
-      const h = (canvas.height = window.innerHeight);
-      motionRef.current?.syncTokens(state.feelings, state.desires, state.participants, w, h);
-      motionRef.current?.render(ctx, w, h, state.connections, time);
+      const w = (canvas.width = Math.round(window.innerWidth * dpr));
+      const h = (canvas.height = Math.round(window.innerHeight * dpr));
+      motionRef.current?.syncTokens(state.feelings, state.desires, state.participants, state.activeSpeakerId, w, h, ctx);
+      motionRef.current?.render(ctx, w, h, state.activeSpeakerId, time);
       animId = requestAnimationFrame(render);
     };
+
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
-  }, [state.feelings, state.desires, state.connections, state.participants]);
+  }, [state.feelings, state.desires, state.participants, state.activeSpeakerId]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
-      <canvas ref={canvasRef} className="absolute inset-0 z-0 block w-full h-full" />
-      <div className="relative z-10 w-full h-full pointer-events-none flex flex-col justify-between">
-        <div className="pointer-events-auto">
-          <SalonHeader
-            phase={state.phase} isAudioOn={isAudioOn} isListening={isListening}
-            onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
-            onAudioToggle={handleAudioToggle} onOpenPult={() => setIsPultOpen(true)}
-            onOpenHelp={() => setIsIntroOpen(true)}
-          />
-        </div>
-        <div className="flex flex-col items-center gap-4 mb-4">
+      <canvas ref={canvasRef} onClick={handleCanvasClick} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
+
+      {/* Floating Header */}
+      <div className={cn(
+        "fixed top-3 left-4 right-4 z-10 transition-all duration-300",
+        isZen && "-translate-y-4 opacity-0 pointer-events-none"
+      )}>
+        <SalonHeader
+          phase={state.phase} isListening={isListening} isZen={isZen}
+          onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
+          onToggleZen={() => setIsZen((prev) => !prev)}
+          onOpenPult={() => setIsPultOpen(true)} onOpenHelp={() => setIsIntroOpen(true)}
+        />
+      </div>
+
+      {/* Floating Bottom HUD */}
+      <div className={cn(
+        "fixed bottom-3 left-4 right-4 z-10 flex flex-col items-center gap-2 transition-all duration-300",
+        isZen && "translate-y-4 opacity-0 pointer-events-none"
+      )}>
+        {isListening && (
           <VoiceIndicator
             isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
             lastPhraseText={lastPhrase} interimText={interimPhrase}
-            onToggleListening={handleToggleSpeech} isSupported={speechRef.current?.isSupported()}
+            onToggleListening={() => speechRef.current?.toggle()} isSupported={speechRef.current?.isSupported()}
           />
-          <div className="pointer-events-auto">
-            <SeatCircle
-              participants={state.participants} activeSpeakerId={state.activeSpeakerId}
-              onSelectSpeaker={(id) => setState((prev) => ({
-                ...prev, activeSpeakerId: id,
-                participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === id }))
-              }))}
-            />
-          </div>
+        )}
+        <div className="w-full max-w-[1100px]">
+          <SalonControls
+            phase={state.phase} isAudioOn={isAudioOn} isDemoActive={isDemoActive}
+            onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
+            onAudioToggle={handleAudioToggle} onTriggerTurn={triggerNextTurn}
+            onToggleDemo={() => setIsDemoActive((prev) => !prev)}
+            onAddPhrase={(text, family, kind) => {
+              if (kind === "pass") handlePass();
+              else if (kind === "desire") handleAddDesire(text);
+              else handleAddFeeling(text, family);
+            }}
+          />
         </div>
-        <SalonPult
-          open={isPultOpen} onOpenChange={setIsPultOpen} volume={volume}
-          onVolumeChange={(v) => { setVolume(v); audioRef.current?.setVolume(v); }}
-          phase={state.phase} onPhaseChange={(p) => setState((prev) => setPhase(prev, p))}
-          onNextSpeaker={handleNextSpeaker} onPass={handlePass} onTriggerDemoPhrase={triggerNextTurn}
-          onToggleDemoMode={() => setIsDemoActive((prev) => !prev)} isDemoActive={isDemoActive}
-          isListening={isListening} onToggleListening={handleToggleSpeech}
-          isSpeechSupported={speechRef.current?.isSupported()}
-        />
-        <IntroDialog
-          open={isIntroOpen} onOpenChange={setIsIntroOpen}
-          onEnterCircle={() => { setIsIntroOpen(false); if (!isAudioOn) handleAudioToggle(); }}
-        />
       </div>
+
+      <SalonPult
+        open={isPultOpen} onOpenChange={setIsPultOpen} volume={volume}
+        onVolumeChange={(v) => { setVolume(v); audioRef.current?.setVolume(v); }}
+        phase={state.phase} onPhaseChange={(p) => setState((prev) => setPhase(prev, p))}
+        onNextSpeaker={() => setState((prev) => ({ ...prev, activeSpeakerId: ((prev.activeSpeakerId ?? 1) % 12) + 1 }))}
+        onPass={handlePass} onTriggerDemoPhrase={triggerNextTurn}
+        onToggleDemoMode={() => setIsDemoActive((prev) => !prev)} isDemoActive={isDemoActive}
+        isListening={isListening} onToggleListening={() => speechRef.current?.toggle()}
+        isSpeechSupported={speechRef.current?.isSupported()}
+      />
+      <IntroDialog
+        open={isIntroOpen} onOpenChange={setIsIntroOpen}
+        onEnterCircle={() => { setIsIntroOpen(false); if (!isAudioOn) handleAudioToggle(); }}
+      />
     </div>
   );
 };
