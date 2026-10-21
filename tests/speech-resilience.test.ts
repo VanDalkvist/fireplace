@@ -107,4 +107,18 @@ describe("SalonSpeechEngine Resilience & Watchdog", () => {
 
     expect(mockRecognition.start).toHaveBeenCalledTimes(1); // not restarted
   });
+
+  it("dispatches informative error callback when service-not-allowed or not-allowed occurs", () => {
+    let capturedError = "";
+    const engine = new SalonSpeechEngine({
+      onError: (msg) => { capturedError = msg; },
+    });
+    engine.start();
+
+    mockRecognition.onerror?.({
+      error: "service-not-allowed",
+    } as Parameters<NonNullable<typeof mockRecognition.onerror>>[0]);
+
+    expect(capturedError).toContain("распознавания");
+  });
 });

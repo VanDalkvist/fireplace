@@ -13,6 +13,7 @@ interface VoiceIndicatorProps {
   lastPhraseText?: string;
   interimText?: string;
   interimBadge?: InterimBadge | null;
+  errorMessage?: string | null;
   onToggleListening?: () => void;
   isSupported?: boolean;
 }
@@ -23,6 +24,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   lastPhraseText,
   interimText,
   interimBadge,
+  errorMessage,
   onToggleListening,
   isSupported = true,
 }) => {
@@ -74,7 +76,19 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
         )}
       </button>
 
-      {interimText ? (
+      {errorMessage ? (
+        <div className="flex items-center gap-2 px-3 py-1 bg-destructive/15 border border-destructive/50 rounded-[2px] text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
+          <span>{errorMessage}</span>
+          <a
+            href="http://127.0.0.1:4343/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-foreground ml-1 font-semibold text-primary"
+          >
+            открыть в Chrome ↗
+          </a>
+        </div>
+      ) : interimText ? (
         <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary/90 italic max-w-sm text-center truncate animate-pulse pointer-events-none">
           <span>«{interimText}…»</span>
           {interimBadge && (

@@ -12,6 +12,12 @@ export interface SpeechEngineCallbacks {
   onStatusChange?: (isListening: boolean) => void;
 }
 
+export function isElectron(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = (navigator.userAgent || "").toLowerCase();
+  return ua.includes(" electron/") || Boolean((window as unknown as { process?: { type?: string } }).process);
+}
+
 export class SalonSpeechEngine {
   private recognition: SpeechRecognitionInstanceLike | null = null;
   private isListeningActive = false;
@@ -66,10 +72,16 @@ export class SalonSpeechEngine {
 
       this.recognition.onerror = (ev: SpeechRecognitionErrorEventLike) => {
         if (ev.error === "no-speech") return;
-        if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
-          this.shouldRestart = false;
+        this.shouldRestart = false;
+        let msg = `ошибка распознавания: ${ev.error}`;
+        if (ev.error === "not-allowed") {
+          msg = "микрофон не разрешен в настройках браузера";
+        } else if (ev.error === "service-not-allowed" || ev.error === "network") {
+          msg = isElectron()
+            ? "в окне Electron/Спейса Google Speech заблокирован. Открой в Chrome: http://localhost:4343"
+            : "сервис распознавания речи недоступен (проверь сеть)";
         }
-        this.callbacks.onError?.(ev.error);
+        this.callbacks.onError?.(msg);
       };
 
       this.recognition.onresult = (ev: SpeechRecognitionEventLike) => {

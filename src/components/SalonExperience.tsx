@@ -32,6 +32,7 @@ export const SalonExperience: React.FC = () => {
   const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(
     isVoiceInit ? { text: "замедление", type: "feeling" } : null
   );
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const [demoIdx, setDemoIdx] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -124,7 +125,8 @@ export const SalonExperience: React.FC = () => {
         else setInterimBadge(null);
       },
       onFinalPhrase: (text) => handleSpeechResult(text),
-      onStatusChange: (active) => setIsListening(active),
+      onError: (err) => { setSpeechError(err); setIsListening(false); },
+      onStatusChange: (active) => { setIsListening(active); if (active) setSpeechError(null); },
     });
   }
 
@@ -208,6 +210,7 @@ export const SalonExperience: React.FC = () => {
         <VoiceIndicator
           isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
           lastPhraseText={lastPhrase} interimText={interimPhrase} interimBadge={interimBadge}
+          errorMessage={speechError}
           onToggleListening={() => speechRef.current?.toggle()} isSupported={speechRef.current?.isSupported()}
         />
         <div className="w-full max-w-[1100px]">
@@ -220,7 +223,8 @@ export const SalonExperience: React.FC = () => {
             onAddPhrase={(text, family, kind) => {
               if (kind === "pass") handlePass();
               else if (kind === "desire") handleAddDesire(text);
-              else handleAddFeeling(text, family);
+              else if (family) handleAddFeeling(text, family);
+              else handleSpeechResult(text);
             }}
           />
         </div>

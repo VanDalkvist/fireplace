@@ -37,6 +37,7 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   onToggleDemo,
   onAddPhrase,
 }) => {
+  const [testInput, setTestInput] = React.useState("");
   return (
     <div className="flex flex-col gap-2 p-3 bg-[#090807]/80 backdrop-blur-md border border-primary/20 rounded-[2px] font-mono text-[11px] shadow-2xl select-none">
       <div className="flex items-center flex-wrap gap-2">
@@ -107,6 +108,25 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (testInput.trim()) {
+                onAddPhrase(testInput.trim(), "", phase === "desires" ? "desire" : "feeling");
+                setTestInput("");
+              }
+            }}
+            className="flex items-center gap-1"
+          >
+            <input
+              type="text"
+              value={testInput}
+              onChange={(e) => setTestInput(e.target.value)}
+              placeholder="ввести слово/фразу..."
+              className="w-36 px-2 py-0.5 text-[10px] bg-black/60 border border-border/80 rounded-[2px] text-foreground placeholder:text-muted/50 focus:border-primary/70 focus:outline-none font-mono"
+            />
+          </form>
+
           <span className="text-[10px] text-muted mr-1">в общее поле:</span>
           {QUICK_CHIPS.map((chip) => (
             <button
