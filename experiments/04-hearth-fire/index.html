@@ -254,9 +254,10 @@
     embers.push(e);
   }
 
-  // Hearth Nodes (Feelings/Desires) and Thermal Filaments
+  // Hearth Nodes (Feelings/Desires), Smooth Silk Ribbon and Flight Sparks
   const words = [];
-  const filaments = []; // Connections between consecutive words
+  const flightSparks = [];
+  let desiresCount = 0;
 
   function addWord(text, family, kind = 'feeling', customSeat = null) {
     if (customSeat !== null && customSeat !== undefined) {
@@ -266,40 +267,61 @@
     seat.pulse = 1.0;
     seat.spokenCount++;
 
-    const wordAngle = (activeSeat / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
-    // Word settles slightly inward towards the hearth with natural jitter
-    const targetDist = 110 + (Math.random() - 0.5) * 70;
-    const targetX = cx + Math.cos(wordAngle) * targetDist;
-    const targetY = cy + Math.sin(wordAngle) * targetDist;
+    const isDesire = kind === 'desire';
+    const isPass = kind === 'pass';
+    const displayText = isDesire ? '✦ ' + text : text;
+    const textWidth = displayText.length * 8.2 + 22;
+
+    let targetX, targetY;
+    if (isDesire) {
+      // Disperse desire lanterns gracefully across the upper night sky via Golden Ratio
+      const k = desiresCount++;
+      const frac = v => v - Math.floor(v);
+      targetX = cx + (frac(0.28 + k * 0.618034) - 0.5) * (W * 0.72);
+      targetY = 60 + frac(0.5 + k * 0.381966) * 90;
+    } else if (!isPass) {
+      // Feelings settle inside the circular hearth radius with comfortable spacing
+      const wordAngle = (activeSeat / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
+      const targetDist = 85 + (Math.random() - 0.5) * 45;
+      targetX = cx + Math.cos(wordAngle) * targetDist;
+      targetY = cy + Math.sin(wordAngle) * targetDist;
+    } else {
+      targetX = seat.x;
+      targetY = seat.y;
+    }
 
     const newWord = {
-      text: kind === 'desire' ? '✦ ' + text : text,
+      text: displayText,
       kind: kind,
       family: family,
       seatId: activeSeat,
       x: seat.x,
       y: seat.y,
+      vx: 0,
+      vy: 0,
       targetX: targetX,
       targetY: targetY,
+      width: textWidth,
+      height: 24,
       born: performance.now(),
       intensity: 1.0,
-      isDesire: kind === 'desire',
-      isPass: kind === 'pass'
+      isDesire: isDesire,
+      isPass: isPass
     };
 
-    if (words.length > 0 && kind !== 'pass') {
-      const prev = words[words.length - 1];
-      if (prev.kind !== 'pass') {
-        filaments.push({
-          source: prev,
-          target: newWord,
-          born: performance.now(),
-          heat: 1.0
-        });
-      }
-    }
-
     words.push(newWord);
+
+    // Spawn smooth transient flight spark from speaker's seat
+    if (!isPass) {
+      flightSparks.push({
+        sx: seat.x,
+        sy: seat.y,
+        tx: targetX,
+        ty: targetY,
+        born: performance.now(),
+        duration: 1250
+      });
+    }
 
     // Audio chime
     if (audioOn) {
@@ -445,45 +467,118 @@
     ctx.arc(cx, cy, 140, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 3. Thermal Filaments (Consecutive empathy threads)
+    // 3. Transient Flight Sparks from Seats
     const now = performance.now();
-    for (let i = filaments.length - 1; i >= 0; i--) {
-      const f = filaments[i];
-      const age = (now - f.born) / 1000;
-      f.heat = Math.max(0.08, 1.0 - age / 45); // Cools down slowly over 45s
+    for (let i = flightSparks.length - 1; i >= 0; i--) {
+      const sp = flightSparks[i];
+      const elapsed = now - sp.born;
+      if (elapsed >= sp.duration) {
+        flightSparks.splice(i, 1);
+        continue;
+      }
+      const q = elapsed / sp.duration;
+      const ease = 1 - Math.pow(1 - q, 3);
+      const midX = (sp.sx + sp.tx) / 2;
+      const midY = Math.min(sp.sy, sp.ty) - 45;
+      const u = 1 - ease;
+      const x = u * u * sp.sx + 2 * u * ease * midX + ease * ease * sp.tx;
+      const y = u * u * sp.sy + 2 * u * ease * midY + ease * ease * sp.ty;
 
       ctx.save();
+      ctx.fillStyle = `rgba(255, 178, 102, ${0.9 * (1 - q * 0.7)})`;
+      ctx.shadowColor = '#ffb266';
+      ctx.shadowBlur = 8;
       ctx.beginPath();
-      ctx.moveTo(f.source.x, f.source.y);
-
-      // Arc bent towards the glowing hearth
-      const midX = (f.source.x + f.target.x) / 2;
-      const midY = (f.source.y + f.target.y) / 2;
-      const toCenterX = cx - midX;
-      const toCenterY = cy - midY;
-      const cpX = midX + toCenterX * 0.35;
-      const cpY = midY + toCenterY * 0.35;
-
-      ctx.quadraticCurveTo(cpX, cpY, f.target.x, f.target.y);
-
-      // Amber when fresh, carmine when cooling, subtle linen when settled
-      if (f.heat > 0.6) {
-        ctx.strokeStyle = `rgba(255, 178, 102, ${f.heat * 0.7})`;
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = '#ffb266';
-        ctx.shadowBlur = 8;
-      } else if (f.heat > 0.2) {
-        ctx.strokeStyle = `rgba(217, 32, 39, ${f.heat * 0.5})`;
-        ctx.lineWidth = 1.0;
-        ctx.shadowColor = '#d92027';
-        ctx.shadowBlur = 4;
-      } else {
-        ctx.strokeStyle = `rgba(236, 228, 214, ${f.heat * 0.3})`;
-        ctx.lineWidth = 0.75;
-        ctx.setLineDash([3, 4]);
-      }
-      ctx.stroke();
+      ctx.arc(x, y, 2.2 * (1 - q * 0.5), 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
+    }
+
+    // 3b. Physics Tick & Anti-Collision for Feeling Words
+    const feelingWords = words.filter(w => !w.isDesire && !w.isPass);
+    for (let i = 0; i < feelingWords.length; i++) {
+      const w = feelingWords[i];
+      const k = 0.04;
+      const damp = 0.88;
+      w.vx = (w.vx + (w.targetX - w.x) * k) * damp;
+      w.vy = (w.vy + (w.targetY - w.y) * k) * damp;
+      w.x += w.vx;
+      w.y += w.vy;
+    }
+
+    // AABB Damped Separation (prevents words from ever stacking or overlapping)
+    for (let it = 0; it < 3; it++) {
+      for (let i = 0; i < feelingWords.length; i++) {
+        for (let j = i + 1; j < feelingWords.length; j++) {
+          const a = feelingWords[i], b = feelingWords[j];
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const ox = (a.width + b.width) / 2 + 14 - Math.abs(dx);
+          const oy = (a.height + b.height) / 2 + 8 - Math.abs(dy);
+          if (ox > 0 && oy > 0) {
+            if (ox < oy) {
+              const s = (dx >= 0 ? 1 : -1) * ox * 0.28;
+              a.x -= s; b.x += s;
+            } else {
+              const s = (dy >= 0 ? 1 : -1) * oy * 0.28;
+              a.y -= s; b.y += s;
+            }
+          }
+        }
+      }
+    }
+
+    // Physics for Desires
+    const desireWords = words.filter(w => w.isDesire);
+    for (let i = 0; i < desireWords.length; i++) {
+      const d = desireWords[i];
+      const damp = 0.90;
+      d.vx = (d.vx + (d.targetX - d.x) * 0.035) * damp;
+      d.vy = (d.vy + (d.targetY - d.y) * 0.035) * damp;
+      d.x += d.vx;
+      d.y += d.vy;
+    }
+
+    // 3c. Continuous Silk Ribbon (Catmull-Rom Spline with C1 Tangent Continuity)
+    if (feelingWords.length >= 2) {
+      for (let i = 0; i < feelingWords.length - 1; i++) {
+        const p0 = i > 0 ? feelingWords[i - 1] : feelingWords[i];
+        const p1 = feelingWords[i];
+        const p2 = feelingWords[i + 1];
+        const p3 = i < feelingWords.length - 2 ? feelingWords[i + 2] : p2;
+
+        // Catmull-Rom control points guarantee identical incoming & outgoing tangents at each node
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+        // Subtle breathing wave
+        const wave = Math.sin(t * 1.5 + i * 0.9) * 3;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.bezierCurveTo(cp1x, cp1y + wave, cp2x, cp2y - wave, p2.x, p2.y);
+
+        const recency = (i + 1) / feelingWords.length;
+        if (recency > 0.65) {
+          ctx.strokeStyle = `rgba(255, 178, 102, ${0.45 + recency * 0.45})`;
+          ctx.lineWidth = 1.6;
+          ctx.shadowColor = '#ffb266';
+          ctx.shadowBlur = 9;
+        } else if (recency > 0.3) {
+          ctx.strokeStyle = `rgba(217, 32, 39, ${0.25 + recency * 0.35})`;
+          ctx.lineWidth = 1.1;
+          ctx.shadowColor = '#d92027';
+          ctx.shadowBlur = 4;
+        } else {
+          ctx.strokeStyle = `rgba(236, 228, 214, ${0.15 + recency * 0.2})`;
+          ctx.lineWidth = 0.8;
+          ctx.setLineDash([4, 6]);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // 4. Embers Particle Simulation
@@ -568,24 +663,26 @@
     // 6. Draw Words & Desires
     for (let i = 0; i < words.length; i++) {
       const w = words[i];
-      // Physics interpolation towards target
-      if (w.isDesire) {
-        w.y -= 0.4; // Desires drift up into the night sky
-        w.x += Math.sin(t * 2 + i) * 0.2;
-      } else {
-        w.x += (w.targetX - w.x) * 0.05;
-        w.y += (w.targetY - w.y) * 0.05;
-      }
 
       ctx.save();
       ctx.translate(w.x, w.y);
 
       if (w.isDesire) {
+        const halfW = w.width / 2;
+        ctx.fillStyle = 'rgba(10, 8, 5, 0.88)';
+        ctx.strokeStyle = 'rgba(255, 178, 102, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(-halfW, -11, w.width, 22, 2);
+        ctx.fill();
+        ctx.stroke();
+
         ctx.font = "12px 'JetBrains Mono'";
         ctx.fillStyle = '#ffb266';
         ctx.shadowColor = '#ffb266';
         ctx.shadowBlur = 10;
         ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
         ctx.fillText(w.text, 0, 0);
       } else if (w.isPass) {
         ctx.fillStyle = '#44362a';
@@ -593,17 +690,14 @@
         ctx.arc(0, 0, 4, 0, Math.PI * 2);
         ctx.fill();
       } else {
-        // Feeling Word Box
-        const metrics = ctx.measureText(w.text);
-        const bgW = metrics.width + 16;
-        const bgH = 22;
-
+        // Feeling Word Box with clean margins
+        const halfW = w.width / 2;
         ctx.fillStyle = '#080706';
-        ctx.fillRect(-bgW/2, -bgH/2, bgW, bgH);
+        ctx.fillRect(-halfW, -11, w.width, 22);
 
-        ctx.strokeStyle = 'rgba(255, 178, 102, 0.25)';
+        ctx.strokeStyle = 'rgba(255, 178, 102, 0.28)';
         ctx.lineWidth = 1;
-        ctx.strokeRect(-bgW/2, -bgH/2, bgW, bgH);
+        ctx.strokeRect(-halfW, -11, w.width, 22);
 
         ctx.font = "12px 'JetBrains Mono'";
         ctx.fillStyle = '#ece4d6';
