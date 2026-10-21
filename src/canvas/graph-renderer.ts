@@ -13,38 +13,31 @@ export function drawPresenceEdge(
   time: number
 ): void {
   const dx = targetPos.x - sourcePos.x;
-  const dy = targetPos.y - sourcePos.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 1) return;
+  const dist = Math.hypot(dx, targetPos.y - sourcePos.y);
+  if (dist < 4) return;
 
-  // Arc curvature offset
   const midX = (sourcePos.x + targetPos.x) / 2;
-  const midY = (sourcePos.y + targetPos.y) / 2;
-  const normalX = -dy / dist;
-  const normalY = dx / dist;
-
-  // Breathing wave modulation
-  const wave = Math.sin(time * 0.002 + dist * 0.01) * 12;
-  const curveFactor = Math.min(dist * 0.25, 45) + wave;
-  const cpX = midX + normalX * curveFactor;
-  const cpY = midY + normalY * curveFactor;
+  // Placid upward silk arch with breathing modulation, no sharp turns
+  const arch = Math.min(55, Math.abs(dx) * 0.16 + 18);
+  const breath = Math.sin(time * 0.0015 + midX * 0.008) * 6;
+  const midY = Math.min(sourcePos.y, targetPos.y) - arch + breath;
 
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(sourcePos.x, sourcePos.y);
-  ctx.quadraticCurveTo(cpX, cpY, targetPos.x, targetPos.y);
+  ctx.quadraticCurveTo(midX, midY, targetPos.x, targetPos.y);
 
   if (edge.kind === "sequential") {
-    // Warm presence thread (amber)
-    ctx.strokeStyle = `rgba(255, 178, 102, ${0.35 * edge.strength})`;
-    ctx.lineWidth = 1.5;
+    // Warm presence thread (amber silk)
+    ctx.strokeStyle = `rgba(255, 178, 102, ${0.45 * edge.strength})`;
+    ctx.lineWidth = 1.3;
     ctx.shadowColor = "#ffb266";
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = 8;
   } else {
-    // Subtle resonance link (linen)
-    ctx.strokeStyle = `rgba(236, 228, 214, ${0.2 * edge.strength})`;
-    ctx.lineWidth = 1.0;
-    ctx.setLineDash([3, 4]);
+    // Subtle resonance link (warm linen)
+    ctx.strokeStyle = `rgba(236, 228, 214, ${0.22 * edge.strength})`;
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([4, 6]);
   }
 
   ctx.stroke();

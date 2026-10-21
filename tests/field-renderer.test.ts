@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { drawTopologicalIsoclines, drawSeatPresenceRay } from "../src/canvas/field-renderer";
+import { drawTopologicalIsoclines, drawTransientSpark } from "../src/canvas/field-renderer";
 
 describe("Field Renderer", () => {
   it("draws topological isoclines with warping", () => {
@@ -29,22 +29,32 @@ describe("Field Renderer", () => {
     expect(mockCtx.stroke).toHaveBeenCalled();
   });
 
-  it("draws seat presence ray with dashed stroke", () => {
+  it("animates transient flight spark and expires after duration", () => {
     const mockCtx = {
       save: vi.fn(),
       restore: vi.fn(),
       beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      setLineDash: vi.fn(),
-      stroke: vi.fn(),
-      strokeStyle: "",
-      lineWidth: 1,
+      arc: vi.fn(),
+      fill: vi.fn(),
+      fillStyle: "",
+      shadowColor: "",
+      shadowBlur: 0,
     } as unknown as CanvasRenderingContext2D;
 
-    drawSeatPresenceRay(mockCtx, 100, 100, 400, 300, 1.2);
+    const spark = {
+      seatX: 100,
+      seatY: 100,
+      targetX: 400,
+      targetY: 300,
+      bornTime: 1000,
+      durationMs: 1400,
+    };
 
-    expect(mockCtx.setLineDash).toHaveBeenCalledWith([3, 5]);
-    expect(mockCtx.stroke).toHaveBeenCalled();
+    const alive = drawTransientSpark(mockCtx, spark, 1500);
+    expect(alive).toBe(true);
+    expect(mockCtx.arc).toHaveBeenCalled();
+
+    const expired = drawTransientSpark(mockCtx, spark, 2600);
+    expect(expired).toBe(false);
   });
 });
