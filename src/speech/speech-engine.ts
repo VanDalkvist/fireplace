@@ -18,6 +18,8 @@ export class SalonSpeechEngine {
   private shouldRestart = false;
   private callbacks: SpeechEngineCallbacks;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastInterimText = "";
 
   constructor(callbacks: SpeechEngineCallbacks = {}) {
     this.callbacks = callbacks;
@@ -83,9 +85,20 @@ export class SalonSpeechEngine {
           }
         }
         if (interimText.trim()) {
-          this.callbacks.onInterimPhrase?.(interimText.trim());
+          this.lastInterimText = interimText.trim();
+          this.callbacks.onInterimPhrase?.(this.lastInterimText);
+          if (this.silenceTimer) clearTimeout(this.silenceTimer);
+          this.silenceTimer = setTimeout(() => {
+            if (this.lastInterimText) {
+              const flushed = this.lastInterimText;
+              this.lastInterimText = "";
+              this.callbacks.onFinalPhrase?.(flushed);
+            }
+          }, 1400);
         }
         if (finalText.trim()) {
+          if (this.silenceTimer) clearTimeout(this.silenceTimer);
+          this.lastInterimText = "";
           this.callbacks.onFinalPhrase?.(finalText.trim());
         }
       };
@@ -121,6 +134,8 @@ export class SalonSpeechEngine {
 
   public stop(): void {
     this.shouldRestart = false;
+    this.lastInterimText = "";
+    if (this.silenceTimer) clearTimeout(this.silenceTimer);
     if (this.restartTimer) clearTimeout(this.restartTimer);
     if (this.recognition && this.isListeningActive) {
       try {

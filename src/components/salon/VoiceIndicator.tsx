@@ -2,11 +2,17 @@ import React from "react";
 import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+export interface InterimBadge {
+  text: string;
+  type: "feeling" | "desire" | "pass";
+}
+
 interface VoiceIndicatorProps {
   isListening: boolean;
   activeSpeakerNumber: number | null;
   lastPhraseText?: string;
   interimText?: string;
+  interimBadge?: InterimBadge | null;
   onToggleListening?: () => void;
   isSupported?: boolean;
 }
@@ -16,6 +22,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   activeSpeakerNumber,
   lastPhraseText,
   interimText,
+  interimBadge,
   onToggleListening,
   isSupported = true,
 }) => {
@@ -64,8 +71,13 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
       </button>
 
       {interimText ? (
-        <div className="text-[11px] font-mono text-primary/90 italic max-w-sm text-center truncate animate-pulse pointer-events-none">
-          «{interimText}…»
+        <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary/90 italic max-w-sm text-center truncate animate-pulse pointer-events-none">
+          <span>«{interimText}…»</span>
+          {interimBadge && (
+            <span className="not-italic text-[10px] px-1.5 py-0.2 bg-primary/20 text-primary border border-primary/40 rounded-[2px]">
+              [{interimBadge.text}]
+            </span>
+          )}
         </div>
       ) : lastPhraseText ? (
         <div className="text-[11px] font-mono text-muted/70 italic max-w-sm text-center truncate pointer-events-none">

@@ -1,14 +1,16 @@
 import React from "react";
 import type { SessionPhase } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { Volume2, VolumeX, Play, Pause } from "lucide-react";
+import { Volume2, VolumeX, Play, Pause, Mic, MicOff } from "lucide-react";
 
 interface SalonControlsProps {
   phase: SessionPhase;
   isAudioOn: boolean;
+  isListening?: boolean;
   isDemoActive: boolean;
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
+  onSpeechToggle?: () => void;
   onTriggerTurn: () => void;
   onToggleDemo: () => void;
   onAddPhrase: (text: string, family: string, kind?: 'feeling' | 'desire' | 'pass') => void;
@@ -26,9 +28,11 @@ const QUICK_CHIPS = [
 export const SalonControls: React.FC<SalonControlsProps> = ({
   phase,
   isAudioOn,
+  isListening = false,
   isDemoActive,
   onPhaseSelect,
   onAudioToggle,
+  onSpeechToggle,
   onTriggerTurn,
   onToggleDemo,
   onAddPhrase,
@@ -69,6 +73,21 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
           {isAudioOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
           <span>звук (m)</span>
         </button>
+
+        {onSpeechToggle && (
+          <button
+            onClick={onSpeechToggle}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
+              isListening
+                ? "bg-primary/20 text-primary border-primary font-semibold shadow-sm shadow-primary/20"
+                : "border-border text-muted hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            {isListening ? <Mic className="w-3.5 h-3.5 text-primary" /> : <MicOff className="w-3.5 h-3.5" />}
+            <span>голос (v)</span>
+          </button>
+        )}
 
         <div className="flex gap-1 ml-1">
           {(["silence", "feelings", "desires", "completion"] as SessionPhase[]).map((p, idx) => (

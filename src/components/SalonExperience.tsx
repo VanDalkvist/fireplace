@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createInitialState, setPhase, passTurn, addDesireToken } from "@/domain/session-fsm";
 import type { SessionState, SessionPhase, FeelingToken, DesireToken } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
-import { extractFeelingsAndDesires } from "@/domain/lexicon-engine";
+import { distillSpokenPhrase } from "@/domain/lexicon-engine";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { SalonSpeechEngine } from "@/speech/speech-engine";
 import { SalonAudioEngine } from "@/audio/audio-engine";
@@ -11,14 +11,15 @@ import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
 import { SalonControls } from "./salon/SalonControls";
 import { SalonPult } from "./salon/SalonPult";
-import { VoiceIndicator } from "./salon/VoiceIndicator";
+import { VoiceIndicator, type InterimBadge } from "./salon/VoiceIndicator";
 import { IntroDialog } from "./salon/IntroDialog";
 import { cn } from "@/lib/utils";
 
 export const SalonExperience: React.FC = () => {
   const [state, setState] = useState<SessionState>(() => createInitialState(12));
+  const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
   const [isAudioOn, setIsAudioOn] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening] = useState(isVoiceInit);
   const [volume, setVolume] = useState(0.6);
   const [isPultOpen, setIsPultOpen] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
@@ -27,7 +28,10 @@ export const SalonExperience: React.FC = () => {
     typeof window !== "undefined" && window.location.search.includes("demo=1")
   );
   const [lastPhrase, setLastPhrase] = useState("тишина у огня");
-  const [interimPhrase, setInterimPhrase] = useState("");
+  const [interimPhrase, setInterimPhrase] = useState(isVoiceInit ? "я чувствую замедление" : "");
+  const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(
+    isVoiceInit ? { text: "замедление", type: "feeling" } : null
+  );
   const [demoIdx, setDemoIdx] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -95,20 +99,30 @@ export const SalonExperience: React.FC = () => {
   }, [demoIdx, state.activeSpeakerId, handlePass, handleAddDesire, handleAddFeeling]);
 
   const handleSpeechResult = useCallback((phrase: string) => {
-    const res = extractFeelingsAndDesires(phrase, defaultLexiconIndex);
+    setInterimPhrase("");
+    setInterimBadge(null);
+    const res = distillSpokenPhrase(phrase, defaultLexiconIndex);
     if (res.pass) return handlePass();
     let matched = false;
     for (const f of res.feelings) { handleAddFeeling(f.form || f.lemma, f.family, f.valence); matched = true; }
     for (const d of res.desires) { handleAddDesire(d.text); matched = true; }
     if (!matched) {
-      if (state.phase === "desires") handleAddDesire(phrase);
-      else handleAddFeeling(phrase, "живость", 0);
+      const clean = res.fallbackText || phrase;
+      if (res.isDesirePhrase || state.phase === "desires") handleAddDesire(clean);
+      else handleAddFeeling(clean, "живость", 0);
     }
   }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
 
   if (!speechRef.current) {
     speechRef.current = new SalonSpeechEngine({
-      onInterimPhrase: (text) => setInterimPhrase(text),
+      onInterimPhrase: (text) => {
+        setInterimPhrase(text);
+        const p = distillSpokenPhrase(text, defaultLexiconIndex);
+        if (p.pass) setInterimBadge({ text: "пас", type: "pass" });
+        else if (p.feelings.length > 0) setInterimBadge({ text: p.feelings[0].form || p.feelings[0].lemma, type: "feeling" });
+        else if (p.desires.length > 0) setInterimBadge({ text: p.desires[0].text, type: "desire" });
+        else setInterimBadge(null);
+      },
       onFinalPhrase: (text) => handleSpeechResult(text),
       onStatusChange: (active) => setIsListening(active),
     });
@@ -194,15 +208,16 @@ export const SalonExperience: React.FC = () => {
         {isListening && (
           <VoiceIndicator
             isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
-            lastPhraseText={lastPhrase} interimText={interimPhrase}
+            lastPhraseText={lastPhrase} interimText={interimPhrase} interimBadge={interimBadge}
             onToggleListening={() => speechRef.current?.toggle()} isSupported={speechRef.current?.isSupported()}
           />
         )}
         <div className="w-full max-w-[1100px]">
           <SalonControls
-            phase={state.phase} isAudioOn={isAudioOn} isDemoActive={isDemoActive}
+            phase={state.phase} isAudioOn={isAudioOn} isListening={isListening} isDemoActive={isDemoActive}
             onPhaseSelect={(p: SessionPhase) => setState((prev) => setPhase(prev, p))}
-            onAudioToggle={handleAudioToggle} onTriggerTurn={triggerNextTurn}
+            onAudioToggle={handleAudioToggle} onSpeechToggle={() => speechRef.current?.toggle()}
+            onTriggerTurn={triggerNextTurn}
             onToggleDemo={() => setIsDemoActive((prev) => !prev)}
             onAddPhrase={(text, family, kind) => {
               if (kind === "pass") handlePass();
