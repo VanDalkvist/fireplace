@@ -404,19 +404,34 @@
     return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
-  // Sacred Fire Clearance & Collision-Free Placement in the Clearing
-  function findComfortableHearthSlot(speakerAngle, wordWidth) {
+  // Sacred Fire Clearance & Conversational Gravitational Resonance
+  function findComfortableHearthSlot(speakerAngle, wordWidth, prevWord = null) {
     const baseR = 0.58;
     const halfW = wordWidth / 2;
 
-    let bestX = cx + Math.cos(speakerAngle) * (floorRx * baseR);
-    let bestY = floorCY + Math.sin(speakerAngle) * (floorRy * baseR);
+    // Subtle conversational gravity: pull target angle ~22% towards the word spoken just before
+    let targetBaseAngle = speakerAngle;
+    if (prevWord) {
+      const dx = prevWord.targetX - cx;
+      const dy = prevWord.targetY - floorCY;
+      const prevAngle = Math.atan2(dy / floorRy, dx / floorRx);
+
+      let diff = prevAngle - speakerAngle;
+      while (diff > Math.PI) diff -= TAU;
+      while (diff < -Math.PI) diff += TAU;
+
+      // 22% gentle pull: word remains 78% anchored to speaker, but leans noticeably towards previous speaker
+      targetBaseAngle = speakerAngle + diff * 0.22;
+    }
+
+    let bestX = cx + Math.cos(targetBaseAngle) * (floorRx * baseR);
+    let bestY = floorCY + Math.sin(targetBaseAngle) * (floorRy * baseR);
 
     let attempts = 0;
     while (attempts < 28) {
-      const angleShift = (attempts === 0 ? 0 : (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * 0.20);
-      const testAng = speakerAngle + angleShift;
-      const testR = baseR + ((attempts % 3) - 1) * 0.09;
+      const angleShift = (attempts === 0 ? 0 : (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * 0.18);
+      const testAng = targetBaseAngle + angleShift;
+      const testR = baseR + ((attempts % 3) - 1) * 0.08;
 
       let testX = cx + Math.cos(testAng) * (floorRx * testR);
       let testY = floorCY + Math.sin(testAng) * (floorRy * testR);
@@ -497,7 +512,8 @@
       return;
     }
 
-    const slot = findComfortableHearthSlot(seat.angle, wordWidth);
+    // Slot with conversational gravitational pull towards previous word
+    const slot = findComfortableHearthSlot(seat.angle, wordWidth, lastSpokenWord);
 
     const newWord = {
       text,
@@ -959,6 +975,24 @@
     // 11. Update & Render Shared Words (Centered clearing ring around campfire)
     for (let i = 0; i < words.length; i++) {
       const w = words[i];
+      const speakerSeat = seats[w.seatId];
+      const elapsed = now - w.born;
+
+      // Subtle provenance tether during arrival (first 2.4s):
+      // Clearly anchors the word to its speaker so there is ZERO dissociation,
+      // then gently dissolves away leaving the clearing serene!
+      if (elapsed < 2400 && speakerSeat) {
+        const q = (1 - elapsed / 2400);
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 178, 102, ${q * 0.16})`;
+        ctx.lineWidth = 0.8;
+        ctx.setLineDash([2, 5]);
+        ctx.beginPath();
+        ctx.moveTo(speakerSeat.x, speakerSeat.y);
+        ctx.lineTo(w.x, w.y);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (!w.settled) {
         w.x += (w.targetX - w.x) * 0.06;
