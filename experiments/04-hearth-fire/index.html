@@ -489,7 +489,7 @@
       return;
     }
 
-    ctx.font = "12px 'JetBrains Mono'";
+    ctx.font = "14px 'JetBrains Mono'";
     const textMetrics = ctx.measureText(text);
     const wordWidth = textMetrics.width;
 
@@ -555,10 +555,9 @@
     updateStatus();
   }
 
-  function updateStatus() {
+    function updateStatus() {
     const phases = ['01 · тишина', '02 · круг чувств', '03 · чего хочется', '04 · выход'];
-    const prevStr = lastSpeakerSeat !== null ? `от [${String(lastSpeakerSeat + 1).padStart(2, '0')}] к ` : '';
-    statusLabel.textContent = `${phases[phase - 1]} · ${prevStr}место [${String(activeSeat + 1).padStart(2, '0')}]`;
+    statusLabel.textContent = `${phases[phase - 1]} · голос в круге`;
   }
 
   // Audio Engine: Procedural D Dorian Drone
@@ -932,13 +931,13 @@
       ctx.restore();
     }
 
-    // 10. Draw Seats Ring (Quiet outer circle in isometric perspective)
+    // 10. Draw Seats Ring (Pure glowing ember dots, no text numbers)
     for (let i = 0; i < seats.length; i++) {
       const s = seats[i];
       const isActive = i === activeSeat;
       if (s.pulse > 0) s.pulse -= 0.02;
 
-      const baseR = 3.2 + s.depth * 2.2;
+      const baseR = 3.6 + s.depth * 2.4;
 
       ctx.beginPath();
       ctx.arc(s.x, s.y, isActive ? baseR + 2 : baseR, 0, TAU);
@@ -958,18 +957,9 @@
       if (s.hasPassed) {
         ctx.fillStyle = '#34281d';
         ctx.beginPath();
-        ctx.arc(s.x, s.y - 11, 2.5, 0, TAU);
+        ctx.arc(s.x, s.y - 10, 2.5, 0, TAU);
         ctx.fill();
       }
-
-      ctx.fillStyle = isActive ? '#ffb266' : '#4d3d2f';
-      ctx.font = '9.5px "JetBrains Mono"';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const labelDist = 18 + s.depth * 8;
-      const lx = s.x + Math.cos(s.angle) * labelDist;
-      const ly = s.y + Math.sin(s.angle) * (labelDist * 0.6);
-      ctx.fillText(`[${String(i + 1).padStart(2, '0')}]`, lx, ly);
     }
 
     // 11. Update & Render Shared Words (Centered clearing ring around campfire)
@@ -1008,7 +998,7 @@
       ctx.translate(w.x, w.y);
 
       const label = w.count > 1 ? `${w.text} ×${w.count}` : w.text;
-      ctx.font = "12px 'JetBrains Mono'";
+      ctx.font = "14px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
