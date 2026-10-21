@@ -10,6 +10,8 @@ export interface UseSalonHotkeysOptions {
   onPass: () => void;
   onToggleAudio: () => void;
   onToggleSpeech?: () => void;
+  onToggleInput?: () => void;
+  onAdvanceTurn?: () => void;
   onSelectPhase: (phase: SessionPhase) => void;
 }
 
@@ -22,6 +24,8 @@ export function useSalonHotkeys({
   onPass,
   onToggleAudio,
   onToggleSpeech,
+  onToggleInput,
+  onAdvanceTurn,
   onSelectPhase,
 }: UseSalonHotkeysOptions): void {
   useEffect(() => {
@@ -46,6 +50,12 @@ export function useSalonHotkeys({
         onPass();
       } else if ((e.key === "v" || e.key === "м") && onToggleSpeech) {
         onToggleSpeech();
+      } else if (e.key === "Enter" && onToggleInput) {
+        e.preventDefault();
+        onToggleInput();
+      } else if (e.key === "ArrowRight" && onAdvanceTurn) {
+        e.preventDefault();
+        onAdvanceTurn();
       } else if (["1", "2", "3", "4"].includes(e.key)) {
         const phases: SessionPhase[] = ["silence", "feelings", "desires", "completion"];
         const p = phases[parseInt(e.key, 10) - 1];
@@ -64,6 +74,8 @@ export function useSalonHotkeys({
     onPass,
     onToggleAudio,
     onToggleSpeech,
+    onToggleInput,
+    onAdvanceTurn,
     onSelectPhase,
   ]);
 }

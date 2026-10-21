@@ -8,6 +8,7 @@ export interface NeuralDistillerOptions {
 
 export interface EnrichedDistillationResult extends DistillationResult {
   neuralDistilled?: boolean;
+  engineUsed: "qwen2.5:0.5b" | "lexicon-fallback";
 }
 
 interface LlmDistillPayload {
@@ -27,7 +28,7 @@ export async function distillWithNeuralFallback(
 
   // Short phrases or direct lexicon matches don't need neural processing (Tier 1)
   if (baseResult.pass || (baseResult.feelings.length > 0 && words.length <= 4) || baseResult.desires.length > 0) {
-    return { ...baseResult, neuralDistilled: false };
+    return { ...baseResult, neuralDistilled: false, engineUsed: "lexicon-fallback" };
   }
 
   // Tier 2: Fast micro-LLM distillation for complex, long conversational monologues
@@ -65,7 +66,7 @@ export async function distillWithNeuralFallback(
         if (parsed.phrase) {
           const kind = parsed.kind || "feeling";
           if (kind === "pass") {
-            return { feelings: [], desires: [], pass: true, neuralDistilled: true };
+            return { feelings: [], desires: [], pass: true, neuralDistilled: true, engineUsed: "qwen2.5:0.5b" };
           }
           if (kind === "desire") {
             return {
@@ -74,6 +75,7 @@ export async function distillWithNeuralFallback(
               pass: false,
               isDesirePhrase: true,
               neuralDistilled: true,
+              engineUsed: "qwen2.5:0.5b",
             };
           }
           return {
@@ -90,6 +92,7 @@ export async function distillWithNeuralFallback(
             desires: [],
             pass: false,
             neuralDistilled: true,
+            engineUsed: "qwen2.5:0.5b",
           };
         }
       }
@@ -98,5 +101,21 @@ export async function distillWithNeuralFallback(
     // Graceful degradation to Tier 1 semantic core on timeout or network rejection
   }
 
-  return { ...baseResult, neuralDistilled: false };
+  return { ...baseResult, neuralDistilled: false, engineUsed: "lexicon-fallback" };
+}
+
+export async function checkOllamaStatus(
+  ollamaUrl = "http://127.0.0.1:11434",
+  model = "qwen2.5:0.5b"
+): Promise<{ online: boolean; hasModel: boolean }> {
+  try {
+    const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(600) });
+    if (!res.ok) return { online: false, hasModel: false };
+    const data = (await res.json()) as { models?: Array<{ name: string }> };
+    const models = data.models || [];
+    const hasModel = models.some((m) => m.name.includes(model));
+    return { online: true, hasModel };
+  } catch {
+    return { online: false, hasModel: false };
+  }
 }

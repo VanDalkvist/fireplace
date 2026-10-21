@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { defaultLexiconIndex } from '../src/domain/lexicon-provider';
-import { distillWithNeuralFallback } from '../src/domain/phrase-distiller';
+import { distillWithNeuralFallback, checkOllamaStatus } from '../src/domain/phrase-distiller';
 
 describe('Neural Phrase Distiller', () => {
   beforeEach(() => {
@@ -45,6 +45,7 @@ describe('Neural Phrase Distiller', () => {
     });
 
     expect(res.neuralDistilled).toBe(true);
+    expect(res.engineUsed).toBe("qwen2.5:0.5b");
     expect(res.feelings[0].lemma).toBe("тихая благодарность");
     expect(res.feelings[0].family).toBe("спокойствие");
   });
@@ -59,7 +60,19 @@ describe('Neural Phrase Distiller', () => {
     });
 
     expect(res.neuralDistilled).toBe(false);
+    expect(res.engineUsed).toBe("lexicon-fallback");
     expect(res.fallbackText).toBeDefined();
     expect(res.fallbackText).toContain("сумбурно");
+  });
+
+  it('checks real Ollama status and identifies presence of target model', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ models: [{ name: "qwen2.5:0.5b:latest" }] }),
+    } as unknown as Response);
+
+    const status = await checkOllamaStatus("http://127.0.0.1:11434", "qwen2.5:0.5b");
+    expect(status.online).toBe(true);
+    expect(status.hasModel).toBe(true);
   });
 });

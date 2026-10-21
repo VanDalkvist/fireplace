@@ -8,9 +8,11 @@ interface SalonControlsProps {
   isAudioOn: boolean;
   isListening?: boolean;
   isDemoActive: boolean;
+  engineStatus?: { online: boolean; hasModel: boolean };
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
   onSpeechToggle?: () => void;
+  onInputToggle?: () => void;
   onTriggerTurn: () => void;
   onToggleDemo: () => void;
   onAddPhrase: (text: string, family: string, kind?: 'feeling' | 'desire' | 'pass') => void;
@@ -30,9 +32,11 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   isAudioOn,
   isListening = false,
   isDemoActive,
+  engineStatus,
   onPhaseSelect,
   onAudioToggle,
   onSpeechToggle,
+  onInputToggle,
   onTriggerTurn,
   onToggleDemo,
   onAddPhrase,
@@ -86,6 +90,21 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
           >
             {isListening ? <Mic className="w-3.5 h-3.5 text-primary" /> : <MicOff className="w-3.5 h-3.5" />}
             <span>голос (v)</span>
+          </button>
+        )}
+
+        {onInputToggle && (
+          <button
+            onClick={onInputToggle}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-foreground transition-colors"
+          >
+            <span>текст (enter)</span>
+            <span
+              className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                engineStatus?.hasModel ? "bg-[#34d399]" : "bg-[#ffb266]"
+              )}
+            />
           </button>
         )}
 

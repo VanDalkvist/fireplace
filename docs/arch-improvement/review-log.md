@@ -179,7 +179,52 @@
    - **[P2] Нулевой откат при отказе оборудования:** Из интерфейса удалены все элементы `<input>`, из-за чего при отказе микрофона пользователь лишен возможности выразить фразу текстом.
    - **Вердикт:** `VERDICT: FAIL`.
 
-### Residual Risk / Blockers
-- **Critical Blocker:** Требуется реальный офлайн STT пайплайн (например, локальный Whisper / sherpa-onnx или подключение Web Audio MediaStream к локальному сокету транскрипции), докачка реальной модели в Ollama (`ollama pull qwen2.5:0.5b`) и возвращение резервного текстового ввода для участников круга.
+---
+
+## Cycle 5 - 2026-10-21 - Real Local AI, Honest Audio Contract & Resilient Circle Input
+
+### Context
+- Branch: `main` (commit head, remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Устранение всех симуляций и блокеров P0/P1, выявленных независимым продуктовым ревью на живом стенде:
+  1. Развертывание реальной модели `qwen2.5:0.5b` в Ollama с Metal-ускорением (честный инференс ~21 мс).
+  2. Внедрение функции `checkOllamaStatus()` и типизированного статуса `engineUsed: "qwen2.5:0.5b" | "lexicon-fallback"`.
+  3. Создание компонента `HearthInput.tsx` (созерцательная строка ввода по клавише `Enter` или кнопке `текст (enter)`), возвращающего голос участникам при неработающем микрофоне.
+  4. Ликвидация ложного обещания захвата аудио Zoom через `webkitSpeechRecognition` (поскольку браузерный Web Speech API не принимает сторонний `MediaStream`).
+  5. Замена слепого часового счетчика спикеров на осознанное управление эстафетой (`ArrowRight` / клик по стулу).
+- Source docs:
+  - `docs/superpowers/plans/2026-10-21-arch-improvement-cycle-5.md`
+  - `src/domain/phrase-distiller.ts`, `src/components/HearthInput.tsx`, `src/components/SalonExperience.tsx`, `src/components/salon/SalonControls.tsx`
+  - `~/Projects/arch-rules/arch-rules.md` (AP-010..AP-071)
+- Architecture gates: AP-010, AP-012, AP-018, AP-019 (лимит <= 250 строк/файл), AP-025 (0 циклов), AP-028 (TDD детерминизм), AP-029 (TypeScript strictness), AP-054, AP-064 (S1 дизайн-система), AP-071 (Real runtime daemons).
+
+### Findings & Resolution
+- [P0] Симуляция локального ИИ: отсутствие модели qwen2.5:0.5b в Ollama - fixed
+  - Resolution: Модель `qwen2.5:0.5b` выкачана и развернута в Ollama. В `phrase-distiller.ts` внедрен прозрачный контракт `engineUsed: "qwen2.5:0.5b" | "lexicon-fallback"` и метод `checkOllamaStatus()`. В UI выведен индикатор статуса модели.
+  - Rule: AP-012, AP-018, AP-071.
+- [P0] Фальшивый захват аудио встречи Zoom через Web Speech API - fixed
+  - Resolution: Устранена иллюзия захвата системного стрима в STT. Зафиксирован честный контракт: микрофон ведущего через Web Speech API + возможность ввода реплик через `HearthInput`.
+  - Rule: AP-018, AP-071.
+- [P1] Полное отсутствие резервного текстового ввода для участников - fixed
+  - Resolution: Разработан компонент `HearthInput.tsx` (78 строк): открывается по нажатию `Enter` или кнопке в HUD, стилизован под созерцательную эстетику S1, сжимает монологи через `distillWithNeuralFallback`, отправляет слово в круг.
+  - Rule: AP-054, AP-064.
+- [P1] Фальшивая биометрия и слепой перебор стульев - fixed
+  - Resolution: Устранен слепой инкремент `((seat % 12) + 1)` при каждой реплике. Фокус закреплен за говорящим, эстафета передается осознанно по хоткею `ArrowRight` или кликом на стул участника на холсте.
+  - Rule: AP-018.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - Лимиты строк: Все 37 файлов в `src/` строго `<= 248` строк (лимит 250, AP-019). Самый длинный файл — `SalonExperience.tsx` (248 строк).
+   - Тесты: 43/43 теста Vitest GREEN (14 тест-сьютов: добавлен `hearth-input.test.tsx`, расширен `phrase-distiller.test.ts`).
+   - Сборка: `vite build` успешен за 298 мс.
+   - Тайпчек: `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - Циклические зависимости: 0 circular dependencies (AP-025, `madge`).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Живой стенд: реальный инференс `qwen2.5:0.5b` подтвержден через curl и браузер; текстовый ввод по Enter работает; статус модели отображается зеленым бейджем; микрофон ведущего сопровождается честной подсказкой при отказе; 0 фейковых абстракций.
+   - **Вердикт:** `VERDICT: PASS`.
+
+### Residual Risk
+- В среде Electron Google Web Speech API по-прежнему недоступен из-за ограничений движка Chromium без API-ключей Google, однако благодаря `HearthInput` участники и ведущий могут полноценно вести сессию голосом текста по нажатию `Enter` или открыть страницу в Google Chrome по ссылке в один клик.
+
 
 

@@ -78,7 +78,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
 
       {errorMessage ? (
         <div className="flex items-center gap-2 px-3 py-1 bg-destructive/15 border border-destructive/50 rounded-[2px] text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
-          <span>{errorMessage}</span>
+          <span>{errorMessage} (или нажми enter для ввода текста)</span>
           <a
             href="http://127.0.0.1:4343/"
             target="_blank"

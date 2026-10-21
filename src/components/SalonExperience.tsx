@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { createInitialState, setPhase, passTurn, addDesireToken } from "@/domain/session-fsm";
-import type { SessionState, SessionPhase, FeelingToken, DesireToken } from "@/domain/types";
+import type { SessionState, SessionPhase } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
 import { distillSpokenPhrase } from "@/domain/lexicon-engine";
-import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
+import { distillWithNeuralFallback, checkOllamaStatus } from "@/domain/phrase-distiller";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { SalonSpeechEngine } from "@/speech/speech-engine";
 import { SalonAudioEngine } from "@/audio/audio-engine";
@@ -14,6 +14,7 @@ import { SalonControls } from "./salon/SalonControls";
 import { SalonPult } from "./salon/SalonPult";
 import { VoiceIndicator, type InterimBadge } from "./salon/VoiceIndicator";
 import { IntroDialog } from "./salon/IntroDialog";
+import { HearthInput } from "./HearthInput";
 import { cn } from "@/lib/utils";
 
 export const SalonExperience: React.FC = () => {
@@ -25,9 +26,9 @@ export const SalonExperience: React.FC = () => {
   const [isPultOpen, setIsPultOpen] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
   const [isZen, setIsZen] = useState(false);
-  const [isDemoActive, setIsDemoActive] = useState(() =>
-    typeof window !== "undefined" && window.location.search.includes("demo=1")
-  );
+  const [isInputOpen, setIsInputOpen] = useState(false);
+  const [engineStatus, setEngineStatus] = useState({ online: false, hasModel: false });
+  const [isDemoActive, setIsDemoActive] = useState(() => typeof window !== "undefined" && window.location.search.includes("demo=1"));
   const [lastPhrase, setLastPhrase] = useState("тишина у огня");
   const [interimPhrase, setInterimPhrase] = useState(isVoiceInit ? "я чувствую замедление" : "");
   const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(isVoiceInit ? { text: "замедление", type: "feeling" } : null);
@@ -40,34 +41,33 @@ export const SalonExperience: React.FC = () => {
   const speechRef = useRef<SalonSpeechEngine | null>(null);
   if (!audioRef.current) audioRef.current = new SalonAudioEngine();
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
+  useEffect(() => { checkOllamaStatus().then(setEngineStatus); }, []);
 
   const handleAudioToggle = useCallback(() => setIsAudioOn(audioRef.current?.toggle() ?? false), []);
 
   const handleAddFeeling = useCallback((phrase: string, family: string, valence = 0, spkId?: number) => {
     setLastPhrase(phrase); setInterimPhrase("");
     const speakerId = spkId ?? state.activeSpeakerId ?? 1;
-    const newToken: FeelingToken = {
-      id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      text: phrase, lemma: phrase, family, valence, arousal: 0.5, intensity: 1.2, speakerId, timestamp: Date.now(),
-    };
     audioRef.current?.playFeeling(family, valence);
     setState((prev) => ({
       ...prev, activeSpeakerId: speakerId,
       participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
-      feelings: [...prev.feelings, newToken],
+      feelings: [...prev.feelings, {
+        id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text: phrase, lemma: phrase, family, valence, arousal: 0.5, intensity: 1.2, speakerId, timestamp: Date.now(),
+      }],
     }));
   }, [state.activeSpeakerId]);
 
   const handleAddDesire = useCallback((desireText: string, spkId?: number) => {
     setLastPhrase(desireText); setInterimPhrase("");
     const speakerId = spkId ?? state.activeSpeakerId ?? 1;
-    const newToken: DesireToken = {
-      id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      text: desireText, object: desireText, who: "", speakerId, timestamp: Date.now(),
-    };
     audioRef.current?.playDesire();
     setState((prev) => ({
-      ...addDesireToken(prev, newToken), activeSpeakerId: speakerId,
+      ...addDesireToken(prev, {
+        id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        text: desireText, object: desireText, who: "", speakerId, timestamp: Date.now(),
+      }), activeSpeakerId: speakerId,
       participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
     }));
   }, [state.activeSpeakerId]);
@@ -92,8 +92,7 @@ export const SalonExperience: React.FC = () => {
   }, [demoIdx, state.activeSpeakerId, handlePass, handleAddDesire, handleAddFeeling]);
 
   const handleSpeechResult = useCallback(async (phrase: string) => {
-    setInterimPhrase("");
-    setInterimBadge(null);
+    setInterimPhrase(""); setInterimBadge(null);
     const res = await distillWithNeuralFallback(phrase, defaultLexiconIndex);
     if (res.pass) return handlePass();
     let matched = false;
@@ -104,6 +103,9 @@ export const SalonExperience: React.FC = () => {
       if (res.isDesirePhrase || state.phase === "desires") handleAddDesire(clean);
       else handleAddFeeling(clean, "живость", 0);
     }
+  }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
+
+  const handleAdvanceTurn = useCallback(() => {
     setState((prev) => {
       const nextId = ((prev.activeSpeakerId ?? 1) % 12) + 1;
       return {
@@ -111,7 +113,7 @@ export const SalonExperience: React.FC = () => {
         participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
       };
     });
-  }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
+  }, []);
 
   if (!speechRef.current) {
     speechRef.current = new SalonSpeechEngine({
@@ -123,7 +125,7 @@ export const SalonExperience: React.FC = () => {
         else if (p.desires.length > 0) setInterimBadge({ text: p.desires[0].text, type: "desire" });
         else setInterimBadge(null);
       },
-      onFinalPhrase: (text) => handleSpeechResult(text),
+      onFinalPhrase: handleSpeechResult,
       onError: (err) => { setSpeechError(err); setIsListening(false); },
       onStatusChange: (active) => { setIsListening(active); if (active) setSpeechError(null); },
     });
@@ -144,23 +146,22 @@ export const SalonExperience: React.FC = () => {
   }, []);
 
   useSalonHotkeys({
-    onTogglePult: () => setIsPultOpen((prev) => !prev),
-    onToggleHelp: () => setIsIntroOpen((prev) => !prev),
+    onTogglePult: () => setIsPultOpen((prev) => !prev), onToggleHelp: () => setIsIntroOpen((prev) => !prev),
     onToggleZen: () => setIsZen((prev) => !prev),
     onToggleFullscreen: () => {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
       else if (document.exitFullscreen) document.exitFullscreen();
     },
-    onTriggerTurn: triggerNextTurn,
-    onPass: handlePass,
-    onToggleAudio: handleAudioToggle,
+    onTriggerTurn: triggerNextTurn, onPass: handlePass, onToggleAudio: handleAudioToggle,
     onToggleSpeech: () => speechRef.current?.toggle(),
+    onToggleInput: () => setIsInputOpen((prev) => !prev),
+    onAdvanceTurn: handleAdvanceTurn,
     onSelectPhase: (phase) => setState((prev) => setPhase(prev, phase)),
   });
 
   useEffect(() => {
     if (!isDemoActive) return;
-    const timer = setInterval(() => triggerNextTurn(), 5500);
+    const timer = setInterval(triggerNextTurn, 5500);
     return () => clearInterval(timer);
   }, [isDemoActive, triggerNextTurn]);
 
@@ -189,10 +190,7 @@ export const SalonExperience: React.FC = () => {
       <canvas ref={canvasRef} onClick={handleCanvasClick} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
 
       {/* Floating Header */}
-      <div className={cn(
-        "fixed top-3 left-4 right-4 z-10 transition-all duration-300",
-        isZen && "-translate-y-4 opacity-0 pointer-events-none"
-      )}>
+      <div className={cn("fixed top-3 left-4 right-4 z-10 transition-all duration-300", isZen && "-translate-y-4 opacity-0 pointer-events-none")}>
         <SalonHeader
           phase={state.phase} isListening={isListening} isZen={isZen}
           onPhaseSelect={(p: SessionPhase) => setState((prev) => setPhase(prev, p))}
@@ -202,10 +200,7 @@ export const SalonExperience: React.FC = () => {
       </div>
 
       {/* Floating Bottom HUD */}
-      <div className={cn(
-        "fixed bottom-3 left-4 right-4 z-10 flex flex-col items-center gap-2 transition-all duration-300",
-        isZen && "translate-y-4 opacity-0 pointer-events-none"
-      )}>
+      <div className={cn("fixed bottom-3 left-4 right-4 z-10 flex flex-col items-center gap-2 transition-all duration-300", isZen && "translate-y-4 opacity-0 pointer-events-none")}>
         <VoiceIndicator
           isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
           lastPhraseText={lastPhrase} interimText={interimPhrase} interimBadge={interimBadge}
@@ -215,6 +210,7 @@ export const SalonExperience: React.FC = () => {
         <div className="w-full max-w-[1100px]">
           <SalonControls
             phase={state.phase} isAudioOn={isAudioOn} isListening={isListening} isDemoActive={isDemoActive}
+            engineStatus={engineStatus} onInputToggle={() => setIsInputOpen((prev) => !prev)}
             onPhaseSelect={(p: SessionPhase) => setState((prev) => setPhase(prev, p))}
             onAudioToggle={handleAudioToggle} onSpeechToggle={() => speechRef.current?.toggle()}
             onTriggerTurn={triggerNextTurn}
@@ -229,12 +225,16 @@ export const SalonExperience: React.FC = () => {
         </div>
       </div>
 
+      <HearthInput
+        isOpen={isInputOpen} activeSpeakerId={state.activeSpeakerId ?? 1} engineStatus={engineStatus}
+        onClose={() => setIsInputOpen(false)} onSubmit={handleSpeechResult}
+      />
+
       <SalonPult
         open={isPultOpen} onOpenChange={setIsPultOpen} volume={volume}
         onVolumeChange={(v) => { setVolume(v); audioRef.current?.setVolume(v); }}
         phase={state.phase} onPhaseChange={(p) => setState((prev) => setPhase(prev, p))}
-        onNextSpeaker={() => setState((prev) => ({ ...prev, activeSpeakerId: ((prev.activeSpeakerId ?? 1) % 12) + 1 }))}
-        onPass={handlePass} onTriggerDemoPhrase={triggerNextTurn}
+        onNextSpeaker={handleAdvanceTurn} onPass={handlePass} onTriggerDemoPhrase={triggerNextTurn}
         onToggleDemoMode={() => setIsDemoActive((prev) => !prev)} isDemoActive={isDemoActive}
         isListening={isListening} onToggleListening={() => speechRef.current?.toggle()}
         isSpeechSupported={speechRef.current?.isSupported()}
