@@ -141,7 +141,7 @@
     <div style="display:flex; align-items:center; gap:10px;">
       <span class="badge"><span class="dot"></span> эксперимент 04</span>
       <span style="font-weight: 600; color:#ece4d6;">созерцательный костёр присутствия</span>
-      <span style="color:#605345;">· пиксельное пламя и живой диалог</span>
+      <span style="color:#605345;">· чистая типографика и угасание слов</span>
     </div>
     <div id="statusLabel" style="color:#ffb266;">02 · круг чувств · голос в круге</div>
   </div>
@@ -178,7 +178,7 @@
   </div>
 
   <div class="info-bar">
-    <kbd>space</kbd> — реплика случайного участника · нить тепла соединяет говорящих · <kbd>клик по стулу</kbd> — сесть на место · <kbd>m</kbd> — звук дрона
+    <kbd>space</kbd> — реплика участника · слова мягко угасают со временем (до 10%) без рамок · связи пишутся в хранилище · <kbd>m</kbd> — звук дрона
   </div>
 </div>
 
@@ -242,11 +242,11 @@
   resize();
 
   // =========================================================================
-  // PIXELATED CAMPFIRE (Classic Retro Pixel Fire Simulation)
+  // PIXELATED COZY CAMPFIRE (Warm, muted, atmospheric)
   // =========================================================================
 
-  const FIRE_W = 48;
-  const FIRE_H = 38;
+  const FIRE_W = 46;
+  const FIRE_H = 36;
   const fireBuffer = document.createElement('canvas');
   fireBuffer.width = FIRE_W;
   fireBuffer.height = FIRE_H;
@@ -255,69 +255,65 @@
   const firePixels = fireImg.data;
   const fireHeat = new Uint8Array(FIRE_W * FIRE_H);
 
-  // 37-color blackbody fire palette (0 = transparent black, 36 = white-hot core)
+  // 37-color warm ember palette (reduced blinding white, deeper cozy amber & wine)
   const FIRE_PALETTE = [
     [0, 0, 0, 0],
-    [7, 7, 7, 180],
-    [31, 7, 7, 230],
-    [47, 15, 7, 255],
-    [71, 15, 7, 255],
-    [87, 23, 7, 255],
-    [103, 31, 7, 255],
-    [119, 31, 7, 255],
-    [143, 39, 7, 255],
-    [159, 47, 7, 255],
-    [175, 63, 7, 255],
-    [191, 71, 7, 255],
-    [199, 71, 7, 255],
-    [223, 79, 7, 255],
-    [223, 87, 7, 255],
-    [223, 87, 7, 255],
-    [215, 95, 7, 255],
-    [215, 103, 15, 255],
-    [207, 111, 15, 255],
-    [207, 119, 15, 255],
-    [207, 127, 15, 255],
-    [207, 135, 23, 255],
-    [199, 135, 23, 255],
-    [199, 143, 23, 255],
-    [199, 151, 31, 255],
-    [191, 159, 31, 255],
-    [191, 159, 31, 255],
-    [191, 167, 39, 255],
-    [191, 167, 39, 255],
-    [191, 175, 47, 255],
-    [183, 175, 47, 255],
-    [183, 183, 47, 255],
-    [183, 183, 55, 255],
-    [207, 207, 111, 255],
-    [223, 223, 159, 255],
-    [239, 239, 199, 255],
-    [255, 255, 255, 255]
+    [8, 6, 5, 140],
+    [26, 8, 6, 190],
+    [42, 12, 6, 230],
+    [58, 14, 6, 240],
+    [74, 18, 6, 245],
+    [90, 22, 6, 250],
+    [106, 26, 6, 255],
+    [122, 32, 6, 255],
+    [138, 38, 7, 255],
+    [154, 46, 7, 255],
+    [168, 54, 8, 255],
+    [180, 62, 9, 255],
+    [192, 72, 10, 255],
+    [202, 82, 12, 255],
+    [210, 92, 14, 255],
+    [216, 102, 16, 255],
+    [222, 112, 18, 255],
+    [226, 120, 22, 255],
+    [228, 128, 26, 255],
+    [230, 136, 30, 255],
+    [232, 144, 36, 255],
+    [234, 152, 42, 255],
+    [236, 160, 48, 255],
+    [238, 168, 56, 255],
+    [240, 176, 64, 255],
+    [242, 184, 72, 255],
+    [244, 192, 82, 255],
+    [246, 200, 92, 255],
+    [248, 208, 104, 255],
+    [250, 214, 116, 255],
+    [252, 220, 130, 255],
+    [252, 226, 146, 255],
+    [254, 232, 162, 255],
+    [254, 238, 180, 255],
+    [255, 244, 200, 255],
+    [255, 248, 215, 255]
   ];
 
   function updatePixelFire() {
-    // Heat source at bottom rows: centered campfire teepee shape
     const center = FIRE_W / 2;
     for (let x = 0; x < FIRE_W; x++) {
       const dist = Math.abs(x - center);
       const rowIdx1 = (FIRE_H - 1) * FIRE_W + x;
       const rowIdx2 = (FIRE_H - 2) * FIRE_W + x;
-      if (dist < 10) {
-        // Core fire
+      if (dist < 9) {
         fireHeat[rowIdx1] = 36;
-        fireHeat[rowIdx2] = Math.random() < 0.85 ? 36 : 34;
-      } else if (dist < 16) {
-        // Tapered edge of campfire
-        fireHeat[rowIdx1] = Math.random() < 0.6 ? 32 : 18;
-        fireHeat[rowIdx2] = Math.random() < 0.4 ? 26 : 10;
+        fireHeat[rowIdx2] = Math.random() < 0.8 ? 35 : 32;
+      } else if (dist < 15) {
+        fireHeat[rowIdx1] = Math.random() < 0.55 ? 28 : 14;
+        fireHeat[rowIdx2] = Math.random() < 0.35 ? 20 : 8;
       } else {
         fireHeat[rowIdx1] = 0;
         fireHeat[rowIdx2] = 0;
       }
     }
 
-    // Propagate heat upwards with wind turbulence and cooling
     for (let y = 0; y < FIRE_H - 2; y++) {
       for (let x = 0; x < FIRE_W; x++) {
         const fromIdx = (y + 1) * FIRE_W + x;
@@ -325,8 +321,7 @@
         if (heat === 0) {
           fireHeat[y * FIRE_W + x] = 0;
         } else {
-          const decay = Math.floor(Math.random() * 2.8);
-          // Natural upward chimney pull towards center
+          const decay = Math.floor(Math.random() * 2.9);
           const drift = (Math.floor(Math.random() * 3) - 1);
           const toX = Math.min(FIRE_W - 1, Math.max(0, x + drift));
           const toIdx = y * FIRE_W + toX;
@@ -335,7 +330,6 @@
       }
     }
 
-    // Render heat buffer into ImageData
     for (let i = 0; i < FIRE_W * FIRE_H; i++) {
       const h = fireHeat[i];
       const col = FIRE_PALETTE[h] || FIRE_PALETTE[0];
@@ -349,18 +343,18 @@
   }
 
   // Pixelated Micro-Embers (Crisp square pixel particles)
-  const EMBER_COUNT = 55;
+  const EMBER_COUNT = 45;
   const pixelEmbers = [];
   function createPixelEmber() {
     return {
-      x: cx + (Math.random() - 0.5) * 44,
-      y: floorCY - 10 + (Math.random() - 0.5) * 14,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: -0.8 - Math.random() * 1.6,
-      size: Math.random() < 0.6 ? 2 : 3,
+      x: cx + (Math.random() - 0.5) * 40,
+      y: floorCY - 8 + (Math.random() - 0.5) * 12,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: -0.7 - Math.random() * 1.4,
+      size: Math.random() < 0.7 ? 2 : 3,
       life: Math.random() * 120,
-      maxLife: 80 + Math.random() * 120,
-      color: Math.random() < 0.5 ? '#ffcc54' : '#ff9a2b'
+      maxLife: 75 + Math.random() * 110,
+      color: Math.random() < 0.5 ? '#ffb266' : '#d95a2b'
     };
   }
   for (let i = 0; i < EMBER_COUNT; i++) {
@@ -368,25 +362,53 @@
   }
 
   // =========================================================================
-  // NODES & CONNECTING THREADS (Previous Speaker -> New Speaker)
+  // DATA STRUCTURES: Words, Opacity Aging, LocalStorage Graph (NO LINES)
   // =========================================================================
 
-  const feelings = []; // Words beside seats
-  const desires = [];  // Sky lanterns
-  const sparks = [];   // Transient sparks: seat -> word (1.2s)
-  const threads = [];  // Progressive threads connecting previous speaker to current speaker
+  const feelings = []; // Pure floating words beside seats
+  const desires = [];  // Floating sky words
+  const sparks = [];   // Transient flight sparks: seat -> word (1.2s)
   let lastSpokenNode = null;
 
+  // Persist graph connection into localStorage as data without drawing lines
+  function recordLinkInStorage(srcNode, tgtNode) {
+    try {
+      const key = 'salon_presence_links';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      existing.push({
+        fromSeat: srcNode.seatId,
+        toSeat: tgtNode.seatId,
+        fromWord: srcNode.lemma || srcNode.text,
+        toWord: tgtNode.lemma || tgtNode.text,
+        phase,
+        timestamp: Date.now()
+      });
+      // Cap at last 200 edges
+      if (existing.length > 200) existing.splice(0, existing.length - 200);
+      localStorage.setItem(key, JSON.stringify(existing));
+    } catch (e) {
+      // ignore storage quotas
+    }
+  }
+
+  function agePreviousPhrases() {
+    // Opacity fades by 0.02 with each new utterance; floor is 0.10 (never disappears completely)
+    for (let i = 0; i < feelings.length; i++) {
+      feelings[i].opacity = Math.max(0.10, feelings[i].opacity - 0.02);
+    }
+    for (let i = 0; i < desires.length; i++) {
+      desires[i].opacity = Math.max(0.10, desires[i].opacity - 0.02);
+    }
+  }
+
   function pickRandomSpeaker(excludeSeat) {
-    // Pick randomly from all participants except the one who just spoke
     const candidates = [];
     for (let i = 0; i < SEATS_COUNT; i++) {
       if (i !== excludeSeat) {
-        // Slight preference for seats across or away from current speaker
         const dist = Math.abs(i - excludeSeat);
         if (dist >= 2 && dist <= (SEATS_COUNT - 2)) {
           candidates.push(i);
-          candidates.push(i); // weight higher
+          candidates.push(i);
         } else {
           candidates.push(i);
         }
@@ -407,6 +429,9 @@
     seat.spokenCount++;
 
     const now = performance.now();
+
+    // Age all previous words by 0.02
+    agePreviousPhrases();
 
     if (kind === 'pass') {
       seat.hasPassed = true;
@@ -433,30 +458,45 @@
         vy: -1.0,
         settled: false,
         born: now,
+        opacity: 1.0, // Freshly spoken
       };
+
+      if (lastSpokenNode) {
+        recordLinkInStorage(lastSpokenNode, lo);
+      }
+
       desires.push(lo);
 
       sparks.push({
         sx: seat.x, sy: seat.y,
         tx: targetX, ty: targetY,
-        born: now, duration: 1300
+        born: now, duration: 1200
       });
 
-      if (audioOn) playBell();
+      lastSpokenNode = lo;
       lastSpeakerSeat = activeSeat;
+
+      if (audioOn) playBell();
       updateStatus();
       return;
     }
 
-    // Feeling word settled beside the speaker's seat
+    // Feeling word beside the speaker's seat
     let existing = feelings.find(f => f.lemma === text && f.seatId === activeSeat);
     if (existing) {
       existing.count++;
       existing.lastAt = now;
       existing.pulse = 1.0;
+      existing.opacity = 1.0; // Rekindled with warmth
+
+      if (lastSpokenNode && lastSpokenNode !== existing) {
+        recordLinkInStorage(lastSpokenNode, existing);
+      }
+
       lastSpokenNode = existing;
-      if (audioOn) playChime(activeSeat);
       lastSpeakerSeat = activeSeat;
+
+      if (audioOn) playChime(activeSeat);
       updateStatus();
       return;
     }
@@ -479,26 +519,20 @@
       pulse: 1.0,
       count: 1,
       settled: false,
+      opacity: 1.0, // Initial opacity 1.0
     };
 
-    // PROGRESSIVE CONNECTING THREAD:
-    // Connects PREVIOUS SPEAKER to CURRENT SPEAKER!
+    // Store relationship as data in localStorage (NO visual lines)
     if (lastSpokenNode) {
-      threads.push({
-        source: lastSpokenNode,
-        target: newFeeling,
-        born: now,
-        duration: 1300, // 1.3s smooth progressive growth
-      });
+      recordLinkInStorage(lastSpokenNode, newFeeling);
     }
 
     feelings.push(newFeeling);
 
-    // Warm flight spark from seat to word
     sparks.push({
       sx: seat.x, sy: seat.y,
       tx: targetX, ty: targetY,
-      born: now, duration: 1250
+      born: now, duration: 1200
     });
 
     lastSpokenNode = newFeeling;
@@ -535,10 +569,10 @@
 
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(340, audioCtx.currentTime);
+    filter.frequency.setValueAtTime(320, audioCtx.currentTime);
 
     const subGain = audioCtx.createGain();
-    subGain.gain.value = 0.4;
+    subGain.gain.value = 0.35;
     osc2.connect(subGain);
     subGain.connect(filter);
     osc1.connect(filter);
@@ -554,7 +588,7 @@
     audioOn = !audioOn;
     btnAudio.classList.toggle('active', audioOn);
     if (audioOn) {
-      droneGain.gain.setTargetAtTime(0.08, audioCtx.currentTime, 1.5);
+      droneGain.gain.setTargetAtTime(0.07, audioCtx.currentTime, 1.5);
     } else {
       droneGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
     }
@@ -568,7 +602,7 @@
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.11, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 3.2);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -582,7 +616,7 @@
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.16, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 4.5);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -596,7 +630,7 @@
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(110.0, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.07, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 2.0);
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -607,7 +641,7 @@
   btnAudio.addEventListener('click', toggleAudio);
 
   // =========================================================================
-  // MAIN RENDER LOOP
+  // MAIN RENDER LOOP (Clean, calm, pure typography, no lines, no boxes)
   // =========================================================================
 
   function render(time) {
@@ -619,12 +653,12 @@
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Isometric Clearing Rings on Ground
+    // 2. Isometric Clearing Rings on Ground (subtle atmosphere)
     ctx.save();
     for (let k = 1; k <= 3; k++) {
       const rx = floorRx * (0.35 + k * 0.22);
       const ry = floorRy * (0.35 + k * 0.22);
-      ctx.strokeStyle = k === 2 ? 'rgba(255, 178, 102, 0.06)' : 'rgba(236, 228, 214, 0.025)';
+      ctx.strokeStyle = k === 2 ? 'rgba(255, 178, 102, 0.04)' : 'rgba(236, 228, 214, 0.018)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.ellipse(cx, floorCY, rx, ry, 0, 0, TAU);
@@ -632,42 +666,41 @@
     }
     ctx.restore();
 
-    // 3. Central Fire Ground Illumination (Soft warm light on clearing)
-    const flicker = Math.sin(t * 11) * 0.03 + Math.sin(t * 6.5) * 0.04 + Math.sin(t * 1.5) * 0.06;
-    const poolRadiusX = (155 + flicker * 35);
-    const poolRadiusY = (58 + flicker * 15);
+    // 3. Central Fire Ground Illumination (Soft, warm, muted glow)
+    const flicker = Math.sin(t * 10) * 0.02 + Math.sin(t * 5.5) * 0.03 + Math.sin(t * 1.5) * 0.05;
+    const poolRadiusX = (135 + flicker * 25);
+    const poolRadiusY = (50 + flicker * 10);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const poolGrad = ctx.createRadialGradient(cx, floorCY, 0, cx, floorCY, poolRadiusX);
-    poolGrad.addColorStop(0.0, 'rgba(255, 225, 180, 0.32)');
-    poolGrad.addColorStop(0.35, 'rgba(255, 160, 80, 0.20)');
-    poolGrad.addColorStop(0.70, 'rgba(160, 40, 10, 0.07)');
+    poolGrad.addColorStop(0.0, 'rgba(255, 205, 150, 0.20)'); // softened brightness
+    poolGrad.addColorStop(0.40, 'rgba(215, 120, 50, 0.12)');
+    poolGrad.addColorStop(0.75, 'rgba(120, 30, 10, 0.04)');
     poolGrad.addColorStop(1.0, 'rgba(5, 5, 5, 0.0)');
     ctx.fillStyle = poolGrad;
     ctx.beginPath();
-    ctx.ellipse(cx, floorCY, poolRadiusX * 1.4, poolRadiusY * 1.4, 0, 0, TAU);
+    ctx.ellipse(cx, floorCY, poolRadiusX * 1.35, poolRadiusY * 1.35, 0, 0, TAU);
     ctx.fill();
     ctx.restore();
 
     // 4. Pixelated Ash Bed & Charred Logs
     ctx.save();
-    ctx.fillStyle = '#0e0b08';
+    ctx.fillStyle = '#0d0a08';
     ctx.beginPath();
-    ctx.ellipse(cx, floorCY + 4, 52, 18, 0, 0, TAU);
+    ctx.ellipse(cx, floorCY + 4, 48, 16, 0, 0, TAU);
     ctx.fill();
 
-    // Pixel logs
     const logAngles = [-0.65, 0.85, 2.35, 3.85];
     for (let i = 0; i < logAngles.length; i++) {
       const a = logAngles[i];
-      const lx1 = cx + Math.cos(a) * 32;
-      const ly1 = floorCY + 4 + Math.sin(a) * 11;
-      const lx2 = cx - Math.cos(a) * 32;
-      const ly2 = floorCY + 4 - Math.sin(a) * 11;
+      const lx1 = cx + Math.cos(a) * 30;
+      const ly1 = floorCY + 4 + Math.sin(a) * 10;
+      const lx2 = cx - Math.cos(a) * 30;
+      const ly2 = floorCY + 4 - Math.sin(a) * 10;
 
-      ctx.strokeStyle = '#1a130d';
-      ctx.lineWidth = 7;
+      ctx.strokeStyle = '#16100a';
+      ctx.lineWidth = 6;
       ctx.lineCap = 'square';
       ctx.beginPath();
       ctx.moveTo(lx1, ly1);
@@ -675,8 +708,8 @@
       ctx.stroke();
 
       // Glowing ember pixel veins inside logs
-      ctx.strokeStyle = 'rgba(255, 140, 40, 0.75)';
-      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(235, 120, 35, 0.65)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(cx + (lx1 - cx) * 0.35, floorCY + 4 + (ly1 - (floorCY + 4)) * 0.35);
       ctx.lineTo(cx + (lx2 - cx) * 0.35, floorCY + 4 + (ly2 - (floorCY + 4)) * 0.35);
@@ -684,19 +717,19 @@
     }
     ctx.restore();
 
-    // 5. UPDATE & DRAW PIXELATED RETRO CAMPFIRE
+    // 5. UPDATE & DRAW COZY PIXELATED CAMPFIRE
     updatePixelFire();
 
     ctx.save();
-    ctx.imageSmoothingEnabled = false; // Pure crisp pixel art!
-    // Scale pixel fire buffer onto main canvas
-    const pixelScale = 3.6;
+    ctx.imageSmoothingEnabled = false;
+    const pixelScale = 3.4;
     const pW = FIRE_W * pixelScale;
     const pH = FIRE_H * pixelScale;
     const pX = cx - pW / 2;
-    const pY = floorCY - pH + 12;
+    const pY = floorCY - pH + 10;
 
     ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.88; // cozy, not blinding
     ctx.drawImage(fireBuffer, pX, pY, pW, pH);
     ctx.restore();
 
@@ -709,13 +742,12 @@
         Object.assign(e, createPixelEmber());
       }
       const p = e.life / e.maxLife;
-      e.x += e.vx + (Math.sin(t * 3 + i) * 0.25);
+      e.x += e.vx + (Math.sin(t * 3 + i) * 0.2);
       e.y += e.vy;
 
       const alpha = p < 0.2 ? p / 0.2 : (1 - p);
       ctx.fillStyle = e.color;
-      ctx.globalAlpha = alpha * 0.85;
-      // Sharp square pixel block!
+      ctx.globalAlpha = alpha * 0.75;
       ctx.fillRect(Math.round(e.x), Math.round(e.y), e.size, e.size);
     }
     ctx.restore();
@@ -731,56 +763,22 @@
       const q = elapsed / sp.duration;
       const ease = 1 - Math.pow(1 - q, 3);
       const midX = (sp.sx + sp.tx) / 2;
-      const midY = Math.min(sp.sy, sp.ty) - 40;
+      const midY = Math.min(sp.sy, sp.ty) - 35;
       const u = 1 - ease;
       const x = u * u * sp.sx + 2 * u * ease * midX + ease * ease * sp.tx;
       const y = u * u * sp.sy + 2 * u * ease * midY + ease * ease * sp.ty;
 
       ctx.save();
-      ctx.fillStyle = `rgba(255, 178, 102, ${0.9 * (1 - q * 0.7)})`;
+      ctx.fillStyle = `rgba(255, 178, 102, ${0.85 * (1 - q * 0.7)})`;
       ctx.shadowColor = '#ffb266';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 6;
       ctx.beginPath();
-      ctx.arc(x, y, 2.4 * (1 - q * 0.5), 0, TAU);
+      ctx.arc(x, y, 2.0 * (1 - q * 0.5), 0, TAU);
       ctx.fill();
       ctx.restore();
     }
 
-    // 8. PROGRESSIVE TRANSLUCENT THREADS: Previous Speaker -> Current Speaker
-    for (let i = 0; i < threads.length; i++) {
-      const th = threads[i];
-      const src = th.source;
-      const tgt = th.target;
-
-      const elapsed = now - th.born;
-      const growth = Math.min(1.0, elapsed / th.duration); // Smooth growth 0..1
-
-      // Interpolate current leading tip of the growing thread
-      const curTgtX = src.x + (tgt.x - src.x) * growth;
-      const curTgtY = src.y + (tgt.y - src.y) * growth;
-
-      // Graceful curve arcing across the hearth
-      const midX = (src.x + curTgtX) / 2;
-      const midY = (src.y + curTgtY) / 2 - 22;
-      const wave = Math.sin(t * 1.5 + i * 0.7) * 3;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(src.x, src.y);
-      ctx.quadraticCurveTo(midX, midY + wave, curTgtX, curTgtY);
-
-      // Unified translucent firelight amber tone, NO harsh red
-      const recency = (i + 1) / threads.length;
-      const alpha = 0.20 + 0.16 * recency;
-      ctx.strokeStyle = `rgba(255, 185, 115, ${alpha})`;
-      ctx.lineWidth = recency > 0.85 ? 1.4 : 1.1;
-      ctx.shadowColor = 'rgba(255, 178, 102, 0.35)';
-      ctx.shadowBlur = 5;
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // 9. Draw Seats Ring
+    // 8. Draw Seats Ring
     for (let i = 0; i < seats.length; i++) {
       const s = seats[i];
       const isActive = i === activeSeat;
@@ -790,37 +788,37 @@
 
       ctx.beginPath();
       ctx.arc(s.x, s.y, isActive ? baseR + 2 : baseR, 0, TAU);
-      ctx.fillStyle = isActive ? '#ffb266' : s.spokenCount > 0 ? '#997c5e' : '#241c14';
+      ctx.fillStyle = isActive ? '#ffb266' : s.spokenCount > 0 ? '#8a6e52' : '#221912';
       ctx.fill();
 
       if (isActive) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 178, 102, 0.45)';
-        ctx.lineWidth = 1.3;
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, baseR + 8 + Math.sin(t * 3) * 1.5, 0, TAU);
+        ctx.arc(s.x, s.y, baseR + 7 + Math.sin(t * 3) * 1.2, 0, TAU);
         ctx.stroke();
         ctx.restore();
       }
 
       if (s.hasPassed) {
-        ctx.fillStyle = '#3a2e22';
+        ctx.fillStyle = '#34281d';
         ctx.beginPath();
-        ctx.arc(s.x, s.y - 12, 3, 0, TAU);
+        ctx.arc(s.x, s.y - 11, 2.5, 0, TAU);
         ctx.fill();
       }
 
-      ctx.fillStyle = isActive ? '#ffb266' : '#524335';
-      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillStyle = isActive ? '#ffb266' : '#4d3d2f';
+      ctx.font = '9.5px "JetBrains Mono"';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      const labelDist = 20 + s.depth * 8;
+      const labelDist = 18 + s.depth * 8;
       const lx = s.x + Math.cos(s.angle) * labelDist;
       const ly = s.y + Math.sin(s.angle) * (labelDist * 0.6);
       ctx.fillText(`[${String(i + 1).padStart(2, '0')}]`, lx, ly);
     }
 
-    // 10. Update & Render Settled Feelings (BESIDE SEATS)
+    // 9. Update & Render Settled Feelings (PURE FLOATING TYPOGRAPHY, NO BOX BORDERS, FADING DOWN TO 10%)
     for (let i = 0; i < feelings.length; i++) {
       const f = feelings[i];
       if (!f.settled) {
@@ -830,38 +828,36 @@
           f.settled = true;
         }
       } else {
-        f.y = f.targetY + Math.sin(t * 0.8 + i) * 1.0;
+        f.y = f.targetY + Math.sin(t * 0.75 + i) * 0.8;
       }
 
       ctx.save();
       ctx.translate(f.x, f.y);
 
       const label = f.count > 1 ? `${f.lemma} ×${f.count}` : f.lemma;
-      ctx.font = "11.5px 'JetBrains Mono'";
-      const textMetrics = ctx.measureText(label);
-      const bgW = textMetrics.width + 16;
-      const halfW = bgW / 2;
-
-      ctx.fillStyle = 'rgba(9, 7, 5, 0.92)';
-      ctx.strokeStyle = f === lastSpokenNode ? 'rgba(255, 178, 102, 0.55)' : 'rgba(236, 228, 214, 0.16)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(-halfW, -11, bgW, 22, 2);
-      ctx.fill();
-      ctx.stroke();
-
+      ctx.font = "12px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = f === lastSpokenNode ? '#ffb266' : '#ece4d6';
-      if (f === lastSpokenNode) {
-        ctx.shadowColor = '#ffb266';
-        ctx.shadowBlur = 8;
+
+      const isLatest = f === lastSpokenNode;
+      const alpha = Math.max(0.10, f.opacity);
+
+      // Clean floating typography without UI boxes!
+      if (isLatest) {
+        ctx.fillStyle = `rgba(255, 178, 102, ${alpha})`;
+        ctx.shadowColor = 'rgba(255, 178, 102, 0.65)';
+        ctx.shadowBlur = 10;
+      } else {
+        ctx.fillStyle = `rgba(236, 228, 214, ${alpha * 0.90})`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
       }
+
       ctx.fillText(label, 0, 0);
       ctx.restore();
     }
 
-    // 11. Update & Render Desires (LANTERNS IN THE SKY)
+    // 10. Update & Render Desires (PURE FLOATING SKY TYPOGRAPHY, NO BOXES, FADING DOWN TO 10%)
     for (let i = 0; i < desires.length; i++) {
       const d = desires[i];
       if (!d.settled) {
@@ -871,31 +867,30 @@
           d.settled = true;
         }
       } else {
-        d.x = d.targetX + Math.sin(t * 0.5 + i * 1.3) * 3;
-        d.y = d.targetY + Math.cos(t * 0.4 + i * 1.1) * 2;
+        d.x = d.targetX + Math.sin(t * 0.45 + i * 1.3) * 2.5;
+        d.y = d.targetY + Math.cos(t * 0.35 + i * 1.1) * 1.8;
       }
 
       ctx.save();
       ctx.translate(d.x, d.y);
 
-      ctx.font = "11.5px 'JetBrains Mono'";
-      const metrics = ctx.measureText(d.text);
-      const bgW = metrics.width + 16;
-      const halfW = bgW / 2;
-
-      ctx.fillStyle = 'rgba(14, 10, 6, 0.90)';
-      ctx.strokeStyle = 'rgba(255, 178, 102, 0.45)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(-halfW, -11, bgW, 22, 2);
-      ctx.fill();
-      ctx.stroke();
-
+      ctx.font = "12px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#ffb266';
-      ctx.shadowColor = '#ffb266';
-      ctx.shadowBlur = 10;
+
+      const isLatest = d === lastSpokenNode;
+      const alpha = Math.max(0.10, d.opacity);
+
+      if (isLatest) {
+        ctx.fillStyle = `rgba(255, 178, 102, ${alpha})`;
+        ctx.shadowColor = 'rgba(255, 178, 102, 0.7)';
+        ctx.shadowBlur = 12;
+      } else {
+        ctx.fillStyle = `rgba(255, 195, 130, ${alpha * 0.85})`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 4;
+      }
+
       ctx.fillText(d.text, 0, 0);
       ctx.restore();
     }
@@ -933,14 +928,12 @@
     const item = RICH_LEXICON[turnCount % RICH_LEXICON.length];
     turnCount++;
 
-    // Switch phases naturally as discussion evolves
     if (turnCount > 8 && turnCount <= 12 && phase !== 3) {
       setPhase(3);
     } else if (turnCount > 12 && phase !== 4) {
       setPhase(4);
     }
 
-    // Pick a RANDOM next speaker across the circle!
     const nextSpeaker = pickRandomSpeaker(activeSeat);
     addWord(item.text, item.family, item.kind || 'feeling', nextSpeaker);
   }
@@ -978,13 +971,12 @@
 
   document.querySelectorAll('.chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      // Manual word: pick random speaker or use active
       const nextSpeaker = pickRandomSpeaker(activeSeat);
       addWord(chip.dataset.text, chip.dataset.family, chip.dataset.kind || 'feeling', nextSpeaker);
     });
   });
 
-  // Click seat to explicitly speak from that seat
+  // Click seat to focus
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = W / rect.width;
