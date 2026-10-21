@@ -87,8 +87,8 @@ describe("SalonSpeechEngine Resilience & Watchdog", () => {
     expect(capturedInterim).toBe("чувствую спокойствие");
     expect(capturedFinal).toBe("");
 
-    // Advance time past the 1400ms silence threshold
-    vi.advanceTimersByTime(1500);
+    // Advance time past the 4500ms contemplative silence threshold
+    vi.advanceTimersByTime(4600);
 
     expect(capturedFinal).toBe("чувствую спокойствие");
   });

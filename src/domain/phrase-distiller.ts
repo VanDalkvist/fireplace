@@ -8,7 +8,7 @@ export interface NeuralDistillerOptions {
 
 export interface EnrichedDistillationResult extends DistillationResult {
   neuralDistilled?: boolean;
-  engineUsed: "qwen2.5:0.5b" | "lexicon-fallback";
+  engineUsed: "qwen2.5:1.5b" | "qwen2.5:0.5b" | "lexicon-fallback";
 }
 
 interface LlmDistillPayload {
@@ -23,27 +23,34 @@ export async function distillWithNeuralFallback(
   idx: LexiconIndex,
   options: NeuralDistillerOptions = {}
 ): Promise<EnrichedDistillationResult> {
-  const baseResult = distillSpokenPhrase(rawText, idx);
-  const words = rawText.trim().split(/\s+/);
+  const trimmed = rawText.trim();
+  const lower = trimmed.toLowerCase();
 
-  // Short phrases or direct lexicon matches don't need neural processing (Tier 1)
-  if (baseResult.pass || (baseResult.feelings.length > 0 && words.length <= 4) || baseResult.desires.length > 0) {
-    return { ...baseResult, neuralDistilled: false, engineUsed: "lexicon-fallback" };
+  // Fast-track explicit pass
+  if (lower === "пас" || lower === "я пас" || lower === "пас сегодня") {
+    return { feelings: [], desires: [], pass: true, neuralDistilled: false, engineUsed: "qwen2.5:1.5b" };
   }
 
-  // Tier 2: Fast micro-LLM distillation for complex, long conversational monologues
+  // Pure Neural Routing: everything flows to Qwen to preserve essence, metaphor, and depth
   const ollamaUrl = options.ollamaUrl || "http://127.0.0.1:11434";
-  const model = options.model || "qwen2.5:0.5b";
-  const timeoutMs = options.timeoutMs ?? 800;
+  const model = options.model || "qwen2.5:1.5b";
+  const timeoutMs = options.timeoutMs ?? 2000;
 
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const prompt = `Ты смысловой дистиллятор чувств для Салона присутствия у костра.
-Участник сказал фразу: "${rawText}"
-Сожми её до самого главного соматического чувства или желания (строго 1-3 слова).
-Ответь ТОЛЬКО валидным JSON: {"phrase": "краткое чувство", "family": "спокойствие|усталость|тревога|радость|нежность|грусть", "valence": 0.5, "kind": "feeling"}`;
+    const prompt = `Твоя задача — извлечь из высказывания человека сокровенное переживание, глубинное чувство или живую метафору, отбросив бытовые детали (созвоны, дела, преамбулы). Сохрани образность, поэтичность и смысл (не обрезай искусственно до двух слов, если фраза важна целиком).
+
+Текст участника: "${trimmed}"
+
+Ответь ТОЛЬКО валидным JSON:
+{
+  "phrase": "глубинный смысл или живая метафора",
+  "family": "спокойствие|тревога|усталость|радость|нежность|грусть|живость",
+  "valence": 0.5,
+  "kind": "feeling"
+}`;
 
     const res = await fetch(`${ollamaUrl}/api/generate`, {
       method: "POST",
@@ -54,7 +61,7 @@ export async function distillWithNeuralFallback(
         prompt,
         format: "json",
         stream: false,
-        options: { temperature: 0.1, num_predict: 64 },
+        options: { temperature: 0.15, num_predict: 96 },
       }),
     });
     clearTimeout(timer);
@@ -66,7 +73,7 @@ export async function distillWithNeuralFallback(
         if (parsed.phrase) {
           const kind = parsed.kind || "feeling";
           if (kind === "pass") {
-            return { feelings: [], desires: [], pass: true, neuralDistilled: true, engineUsed: "qwen2.5:0.5b" };
+            return { feelings: [], desires: [], pass: true, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
           }
           if (kind === "desire") {
             return {
@@ -75,16 +82,16 @@ export async function distillWithNeuralFallback(
               pass: false,
               isDesirePhrase: true,
               neuralDistilled: true,
-              engineUsed: "qwen2.5:0.5b",
+              engineUsed: model as "qwen2.5:1.5b",
             };
           }
           return {
             feelings: [
               {
                 lemma: parsed.phrase,
-                family: parsed.family || "живость",
-                valence: parsed.valence ?? 0,
-                arousal: 0.2,
+                family: parsed.family || "спокойствие",
+                valence: parsed.valence ?? 0.5,
+                arousal: 0.3,
                 form: parsed.phrase,
                 intensity: 1,
               },
@@ -92,28 +99,29 @@ export async function distillWithNeuralFallback(
             desires: [],
             pass: false,
             neuralDistilled: true,
-            engineUsed: "qwen2.5:0.5b",
+            engineUsed: model as "qwen2.5:1.5b",
           };
         }
       }
     }
   } catch {
-    // Graceful degradation to Tier 1 semantic core on timeout or network rejection
+    // Graceful degradation only on hard timeout or network disconnection
   }
 
+  const baseResult = distillSpokenPhrase(rawText, idx);
   return { ...baseResult, neuralDistilled: false, engineUsed: "lexicon-fallback" };
 }
 
 export async function checkOllamaStatus(
   ollamaUrl = "http://127.0.0.1:11434",
-  model = "qwen2.5:0.5b"
+  model = "qwen2.5:1.5b"
 ): Promise<{ online: boolean; hasModel: boolean }> {
   try {
     const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(600) });
     if (!res.ok) return { online: false, hasModel: false };
     const data = (await res.json()) as { models?: Array<{ name: string }> };
     const models = data.models || [];
-    const hasModel = models.some((m) => m.name.includes(model));
+    const hasModel = models.some((m) => m.name.includes(model) || m.name.includes("qwen2.5"));
     return { online: true, hasModel };
   } catch {
     return { online: false, hasModel: false };

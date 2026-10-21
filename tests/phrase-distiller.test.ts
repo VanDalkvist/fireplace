@@ -7,27 +7,18 @@ describe('Neural Phrase Distiller', () => {
     vi.restoreAllMocks();
   });
 
-  it('instantly resolves short dictionary feelings via Tier 1 without calling neural endpoint', async () => {
+  it('fast-tracks explicit pass phrases without calling neural endpoint', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const res = await distillWithNeuralFallback("замедление", defaultLexiconIndex);
-
-    expect(res.feelings.length).toBeGreaterThan(0);
-    expect(res.feelings[0].lemma).toBe("замедление");
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it('instantly resolves pass phrases via Tier 1 without calling neural endpoint', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const res = await distillWithNeuralFallback("я пас сегодня", defaultLexiconIndex);
+    const res = await distillWithNeuralFallback("пас", defaultLexiconIndex);
 
     expect(res.pass).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('uses Tier 2 neural distillation for long monologues and extracts concise core feelings', async () => {
+  it('routes utterances to Qwen and extracts rich emotional essence and metaphors', async () => {
     const fakeLlmResponse = {
       response: JSON.stringify({
-        phrase: "тихая благодарность",
+        phrase: "стою на краю тумана и отпускаю всё лишнее",
         family: "спокойствие",
         valence: 0.8,
         kind: "feeling"
@@ -39,14 +30,15 @@ describe('Neural Phrase Distiller', () => {
       json: async () => fakeLlmResponse,
     } as unknown as Response);
 
-    const longUtterance = "Ну у меня сегодня был тяжелейший день, но глядя на вас всех сейчас чувствую тихую благодарность";
-    const res = await distillWithNeuralFallback(longUtterance, defaultLexiconIndex, {
-      ollamaUrl: "http://127.0.0.1:11434"
+    const rawUtterance = "Ну короче я сегодня утром так устал от созвонов, но сейчас сижу у огня и такое ощущение будто стою на краю тумана и отпускаю всё лишнее";
+    const res = await distillWithNeuralFallback(rawUtterance, defaultLexiconIndex, {
+      ollamaUrl: "http://127.0.0.1:11434",
+      model: "qwen2.5:1.5b",
     });
 
     expect(res.neuralDistilled).toBe(true);
-    expect(res.engineUsed).toBe("qwen2.5:0.5b");
-    expect(res.feelings[0].lemma).toBe("тихая благодарность");
+    expect(res.engineUsed).toBe("qwen2.5:1.5b");
+    expect(res.feelings[0].lemma).toBe("стою на краю тумана и отпускаю всё лишнее");
     expect(res.feelings[0].family).toBe("спокойствие");
   });
 

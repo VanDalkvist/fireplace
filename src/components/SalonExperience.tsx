@@ -106,6 +106,7 @@ export const SalonExperience: React.FC = () => {
   }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
 
   const handleAdvanceTurn = useCallback(() => {
+    speechRef.current?.flush();
     setState((prev) => {
       const nextId = ((prev.activeSpeakerId ?? 1) % 12) + 1;
       return {
@@ -138,6 +139,7 @@ export const SalonExperience: React.FC = () => {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const seatId = motionRef.current.getSeatAtPoint((e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr);
     if (seatId !== null) {
+      speechRef.current?.flush();
       setState((prev) => ({
         ...prev, activeSpeakerId: seatId,
         participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === seatId })),
@@ -150,7 +152,7 @@ export const SalonExperience: React.FC = () => {
     onToggleZen: () => setIsZen((prev) => !prev),
     onToggleFullscreen: () => {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-      else if (document.exitFullscreen) document.exitFullscreen();
+      else document.exitFullscreen?.();
     },
     onTriggerTurn: triggerNextTurn, onPass: handlePass, onToggleAudio: handleAudioToggle,
     onToggleSpeech: () => speechRef.current?.toggle(),
@@ -174,13 +176,11 @@ export const SalonExperience: React.FC = () => {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
 
     const render = (time: number) => {
-      const w = (canvas.width = Math.round(window.innerWidth * dpr));
-      const h = (canvas.height = Math.round(window.innerHeight * dpr));
+      const w = (canvas.width = Math.round(window.innerWidth * dpr)), h = (canvas.height = Math.round(window.innerHeight * dpr));
       motionRef.current?.syncTokens(state.feelings, state.desires, state.participants, state.activeSpeakerId, w, h, ctx);
       motionRef.current?.render(ctx, w, h, state.activeSpeakerId, time);
       animId = requestAnimationFrame(render);
     };
-
     animId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animId);
   }, [state.feelings, state.desires, state.participants, state.activeSpeakerId]);

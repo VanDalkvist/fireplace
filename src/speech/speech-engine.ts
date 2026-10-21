@@ -106,7 +106,7 @@ export class SalonSpeechEngine {
               this.lastInterimText = "";
               this.callbacks.onFinalPhrase?.(flushed);
             }
-          }, 1400);
+          }, 4500);
         }
         if (finalText.trim()) {
           if (this.silenceTimer) clearTimeout(this.silenceTimer);
@@ -130,6 +130,15 @@ export class SalonSpeechEngine {
         }
       }
     }, 400);
+  }
+
+  public flush(): void {
+    if (this.silenceTimer) clearTimeout(this.silenceTimer);
+    if (this.lastInterimText.trim()) {
+      const flushed = this.lastInterimText.trim();
+      this.lastInterimText = "";
+      this.callbacks.onFinalPhrase?.(flushed);
+    }
   }
 
   public start(): void {
