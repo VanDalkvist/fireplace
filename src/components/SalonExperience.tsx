@@ -7,6 +7,7 @@ import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { SalonSpeechEngine } from "@/speech/speech-engine";
 import { SalonAudioEngine } from "@/audio/audio-engine";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
+import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
 import { SalonControls } from "./salon/SalonControls";
 import { SalonPult } from "./salon/SalonPult";
@@ -127,24 +128,20 @@ export const SalonExperience: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.code === "Space") { e.preventDefault(); triggerNextTurn(); }
-      else if (e.key === "m" || e.key === "ь") handleAudioToggle();
-      else if (e.key === "h" || e.key === "р") setIsZen((prev) => !prev);
-      else if (e.key === "f" || e.key === "а") {
-        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-        else if (document.exitFullscreen) document.exitFullscreen();
-      } else if (e.key === "Tab") { e.preventDefault(); setIsPultOpen((prev) => !prev); }
-      else if (["1", "2", "3", "4"].includes(e.key)) {
-        const p = (["silence", "feelings", "desires", "completion"] as SessionPhase[])[parseInt(e.key, 10) - 1];
-        if (p) setState((prev) => setPhase(prev, p));
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [triggerNextTurn, handleAudioToggle]);
+  useSalonHotkeys({
+    onTogglePult: () => setIsPultOpen((prev) => !prev),
+    onToggleHelp: () => setIsIntroOpen((prev) => !prev),
+    onToggleZen: () => setIsZen((prev) => !prev),
+    onToggleFullscreen: () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+      else if (document.exitFullscreen) document.exitFullscreen();
+    },
+    onTriggerTurn: triggerNextTurn,
+    onPass: handlePass,
+    onToggleAudio: handleAudioToggle,
+    onToggleSpeech: () => speechRef.current?.toggle(),
+    onSelectPhase: (phase) => setState((prev) => setPhase(prev, phase)),
+  });
 
   useEffect(() => {
     if (!isDemoActive) return;
@@ -183,7 +180,7 @@ export const SalonExperience: React.FC = () => {
       )}>
         <SalonHeader
           phase={state.phase} isListening={isListening} isZen={isZen}
-          onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
+          onPhaseSelect={(p: SessionPhase) => setState((prev) => setPhase(prev, p))}
           onToggleZen={() => setIsZen((prev) => !prev)}
           onOpenPult={() => setIsPultOpen(true)} onOpenHelp={() => setIsIntroOpen(true)}
         />
@@ -204,7 +201,7 @@ export const SalonExperience: React.FC = () => {
         <div className="w-full max-w-[1100px]">
           <SalonControls
             phase={state.phase} isAudioOn={isAudioOn} isDemoActive={isDemoActive}
-            onPhaseSelect={(p) => setState((prev) => setPhase(prev, p))}
+            onPhaseSelect={(p: SessionPhase) => setState((prev) => setPhase(prev, p))}
             onAudioToggle={handleAudioToggle} onTriggerTurn={triggerNextTurn}
             onToggleDemo={() => setIsDemoActive((prev) => !prev)}
             onAddPhrase={(text, family, kind) => {
