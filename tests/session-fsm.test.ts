@@ -3,6 +3,7 @@ import {
   createInitialState,
   advancePhase,
   nextSpeaker,
+  setSpeaker,
   passTurn,
   addFeelingToken,
 } from "../src/domain/session-fsm";
@@ -62,5 +63,13 @@ describe("Session FSM", () => {
     expect(state.feelings.length).toBe(0);
     expect(nextState.feelings.length).toBe(1);
     expect(nextState.feelings[0].text).toBe("спокойствие");
+  });
+
+  it("sets specific speaker across the circle without sequential constraint", () => {
+    let state = createInitialState(12);
+    state = setSpeaker(state, 8);
+    expect(state.activeSpeakerId).toBe(8);
+    expect(state.participants[7].isSpeaking).toBe(true);
+    expect(state.participants[0].isSpeaking).toBe(false);
   });
 });

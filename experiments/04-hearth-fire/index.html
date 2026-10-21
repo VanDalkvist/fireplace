@@ -152,7 +152,10 @@
 
   <div class="controls">
     <button id="btnNext" class="active">
-      <span>space</span> эстафета тепла
+      <span>space</span> реплика круга
+    </button>
+    <button id="btnAutoDemo">
+      <span>▶</span> авто-круг
     </button>
     <button id="btnAudio">
       <span>m</span> звук d dorian
@@ -255,14 +258,17 @@
   const words = [];
   const filaments = []; // Connections between consecutive words
 
-  function addWord(text, family, kind = 'feeling') {
+  function addWord(text, family, kind = 'feeling', customSeat = null) {
+    if (customSeat !== null && customSeat !== undefined) {
+      activeSeat = customSeat;
+    }
     const seat = seats[activeSeat];
     seat.pulse = 1.0;
     seat.spokenCount++;
 
     const wordAngle = (activeSeat / SEATS_COUNT) * Math.PI * 2 - Math.PI / 2;
-    // Word settles slightly inward towards the hearth
-    const targetDist = 120 + (Math.random() - 0.5) * 60;
+    // Word settles slightly inward towards the hearth with natural jitter
+    const targetDist = 110 + (Math.random() - 0.5) * 70;
     const targetX = cx + Math.cos(wordAngle) * targetDist;
     const targetY = cy + Math.sin(wordAngle) * targetDist;
 
@@ -302,8 +308,6 @@
       else playChime(activeSeat);
     }
 
-    // Step seat forward gently
-    activeSeat = (activeSeat + 1) % SEATS_COUNT;
     updateStatus();
   }
 
@@ -613,24 +617,61 @@
     requestAnimationFrame(render);
   }
 
-  // Interactivity
-  const DEMO_PRESETS = [
-    { text: 'спокойствие', family: 'спокойствие' },
-    { text: 'лёгкое волнение', family: 'тревога' },
-    { text: 'тепло внутри', family: 'нежность' },
-    { text: 'усталость дня', family: 'усталость' },
-    { text: 'живость', family: 'живость' },
-    { text: 'быть услышанным', kind: 'desire' }
+  // Realistic Organic Circle Journey
+  // Not everyone speaks, some pass, some speak multiple times, some stay silent holding space
+  const REALISTIC_CIRCLE_JOURNEY = [
+    { seat: 0, text: 'замедление', family: 'спокойствие', pause: 4500, p: 2 },
+    { seat: 5, text: 'волнение в груди', family: 'тревога', pause: 6000, p: 2 },
+    { seat: 9, text: 'ком в горле', family: 'тело', pause: 5500, p: 2 },
+    { seat: 2, text: 'пас', kind: 'pass', pause: 3000, p: 2 },
+    { seat: 7, text: 'тепло от ваших слов', family: 'нежность', pause: 6500, p: 2 },
+    { seat: 5, text: 'отпускает напряжение', family: 'спокойствие', pause: 5000, p: 2 }, // Seat 5 speaks again!
+    { seat: 11, text: 'пас', kind: 'pass', pause: 3000, p: 2 },
+    { seat: 3, text: 'сильная усталость', family: 'усталость', pause: 6000, p: 2 },
+    { seat: 8, text: 'растерянность', family: 'растерянность', pause: 7000, p: 2 },
+    { seat: 0, text: 'благодарность за честность', family: 'нежность', pause: 5000, p: 2 }, // Host reflects
+    // Phase 3: Desires
+    { seat: 9, text: 'тишины и выдоха', kind: 'desire', pause: 5500, p: 3 },
+    { seat: 3, text: 'побыть с собой', kind: 'desire', pause: 6000, p: 3 },
+    { seat: 7, text: 'просто помолчать рядом', kind: 'desire', pause: 5500, p: 3 },
+    { seat: 5, text: 'тепла в теле', kind: 'desire', pause: 5000, p: 3 }
+    // Seats 1, 4, 6, 10 never speak. They hold the silence of the circle.
   ];
-  let demoIdx = 0;
+  let journeyIdx = 0;
+  let autoTimer = null;
+  const btnAutoDemo = document.getElementById('btnAutoDemo');
 
   function triggerNextTurn() {
-    const item = DEMO_PRESETS[demoIdx % DEMO_PRESETS.length];
-    demoIdx++;
-    addWord(item.text, item.family, item.kind || 'feeling');
+    const step = REALISTIC_CIRCLE_JOURNEY[journeyIdx % REALISTIC_CIRCLE_JOURNEY.length];
+    journeyIdx++;
+    if (step.p && step.p !== phase) {
+      setPhase(step.p);
+    }
+    addWord(step.text, step.family, step.kind || 'feeling', step.seat);
+  }
+
+  function toggleAutoDemo() {
+    if (autoTimer) {
+      clearTimeout(autoTimer);
+      autoTimer = null;
+      btnAutoDemo.classList.remove('active');
+      btnAutoDemo.innerHTML = '<span>▶</span> авто-круг';
+    } else {
+      btnAutoDemo.classList.add('active');
+      btnAutoDemo.innerHTML = '<span>⏹</span> остановить';
+      if (!audioOn) toggleAudio();
+      const runStep = () => {
+        triggerNextTurn();
+        const currentStep = REALISTIC_CIRCLE_JOURNEY[(journeyIdx - 1) % REALISTIC_CIRCLE_JOURNEY.length];
+        const nextDelay = currentStep.pause || 5000;
+        autoTimer = setTimeout(runStep, nextDelay);
+      };
+      runStep();
+    }
   }
 
   btnNext.addEventListener('click', triggerNextTurn);
+  btnAutoDemo.addEventListener('click', toggleAutoDemo);
 
   window.addEventListener('keydown', (e) => {
     if (e.key === ' ') {

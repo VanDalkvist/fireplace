@@ -93,6 +93,20 @@ export function passTurn(
   });
 }
 
+export function setSpeaker(
+  state: SessionState,
+  speakerId: number
+): SessionState {
+  return {
+    ...state,
+    activeSpeakerId: speakerId,
+    participants: state.participants.map((p) => ({
+      ...p,
+      isSpeaking: p.id === speakerId,
+    })),
+  };
+}
+
 export function addFeelingToken(
   state: SessionState,
   token: FeelingToken
