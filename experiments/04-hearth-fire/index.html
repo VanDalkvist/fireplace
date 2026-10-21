@@ -141,7 +141,7 @@
     <div style="display:flex; align-items:center; gap:10px;">
       <span class="badge"><span class="dot"></span> эксперимент 04</span>
       <span style="font-weight: 600; color:#ece4d6;">созерцательный очаг присутствия</span>
-      <span style="color:#605345;">· общее пространство круга</span>
+      <span style="color:#605345;">· живой пляшущий огонь</span>
     </div>
     <div id="statusLabel" style="color:#ffb266;">02 · круг чувств · голос в круге</div>
   </div>
@@ -178,7 +178,7 @@
   </div>
 
   <div class="info-bar">
-    <kbd>space</kbd> — реплика попадает в общее поле между людьми и огнём · слова мягко угасают со временем (до 10%) без рамок · <kbd>m</kbd> — звук дрона
+    <kbd>space</kbd> — реплика попадает в общее поле вокруг огня · слова остывают со временем до 10% · <kbd>m</kbd> — звук дрона
   </div>
 </div>
 
@@ -239,52 +239,89 @@
   resize();
 
   // =========================================================================
-  // ORGANIC MEDITATIVE HEARTH (Living 1/f Fluctuation Flame & Glowing Embers)
+  // DYNAMIC LIVING HEARTH (Multi-tongue leaping fire with organic 1/f draft)
   // =========================================================================
 
-  // 1. Organic Bezier Flame Tongues
-  const FLAME_TONGUES = [
-    { baseAngle: -0.25, width: 22, height: 62, speed: 2.1, phase: 0.0, layer: 0 },
-    { baseAngle: 0.18,  width: 24, height: 72, speed: 1.8, phase: 1.4, layer: 1 },
-    { baseAngle: -0.05, width: 28, height: 82, speed: 1.5, phase: 2.7, layer: 2 }, // central tongue
-    { baseAngle: 0.35,  width: 20, height: 58, speed: 2.4, phase: 4.1, layer: 0 },
-    { baseAngle: -0.42, width: 18, height: 50, speed: 2.6, phase: 5.3, layer: 0 },
+  // Burning firewood logs in the firepit (star/teepee formation)
+  const LOGS = [
+    { a: -0.65, len: 64, w: 7, heatPhase: 0.0, speed: 1.6 },
+    { a: 0.85,  len: 62, w: 6.5, heatPhase: 2.1, speed: 2.0 },
+    { a: 2.35,  len: 66, w: 7, heatPhase: 4.2, speed: 1.4 },
+    { a: 3.85,  len: 60, w: 6.5, heatPhase: 1.3, speed: 1.8 }
   ];
 
-  // 2. Soft Volumetric Light Puffs rising through the flame
-  const PUFF_COUNT = 24;
+  // 8 Organic Flame Tongues rooted at different logs & crossing points
+  // They flare up and subside asynchronously, making the flame hop naturally across logs!
+  const TONGUES = [
+    // Central main plumes
+    { relX: -4,  relY: -2, width: 26, baseH: 78, speed: 2.2, phase: 0.0, layer: 'core' },
+    { relX: 6,   relY: 3,  width: 24, baseH: 74, speed: 1.9, phase: 1.8, layer: 'core' },
+    // Left flank tongues
+    { relX: -20, relY: 2,  width: 18, baseH: 58, speed: 2.7, phase: 3.2, layer: 'body' },
+    { relX: -14, relY: -7, width: 16, baseH: 48, speed: 3.1, phase: 5.1, layer: 'mantle' },
+    // Right flank tongues
+    { relX: 18,  relY: 1,  width: 19, baseH: 60, speed: 2.5, phase: 2.4, layer: 'body' },
+    { relX: 13,  relY: -6, width: 15, baseH: 50, speed: 3.3, phase: 4.3, layer: 'mantle' },
+    // Back and front tongues
+    { relX: -2,  relY: -10, width: 20, baseH: 52, speed: 2.1, phase: 0.9, layer: 'mantle' },
+    { relX: 3,   relY: 8,   width: 22, baseH: 42, speed: 2.8, phase: 3.7, layer: 'body' }
+  ];
+
+  // Detaching micro-licks (small tongues breaking off the fire and rising)
+  const LICKS_COUNT = 8;
+  const licks = [];
+  function createLick() {
+    return {
+      x: cx + (Math.random() - 0.5) * 22,
+      y: floorCY - 25 - Math.random() * 20,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: -0.9 - Math.random() * 1.5,
+      size: 4 + Math.random() * 6,
+      life: 0,
+      maxLife: 20 + Math.random() * 25,
+      curlPhase: Math.random() * TAU
+    };
+  }
+  for (let i = 0; i < LICKS_COUNT; i++) {
+    const lk = createLick();
+    lk.life = Math.random() * lk.maxLife;
+    licks.push(lk);
+  }
+
+  // Soft Volumetric Heat Puffs (glowing internal light body)
+  const PUFF_COUNT = 22;
   const flamePuffs = [];
   function createPuff() {
     return {
-      x: cx + (Math.random() - 0.5) * 26,
+      x: cx + (Math.random() - 0.5) * 24,
       y: floorCY + (Math.random() - 0.5) * 8,
       vx: (Math.random() - 0.5) * 0.3,
-      vy: -0.7 - Math.random() * 1.5,
-      size: 16 + Math.random() * 18,
+      vy: -0.7 - Math.random() * 1.4,
+      size: 15 + Math.random() * 18,
       life: Math.random() * 40,
-      maxLife: 35 + Math.random() * 30,
-      hue: Math.random() < 0.6 ? 'amber' : 'carmine'
+      maxLife: 32 + Math.random() * 28,
+      hue: Math.random() < 0.65 ? 'amber' : 'carmine'
     };
   }
   for (let i = 0; i < PUFF_COUNT; i++) {
     flamePuffs.push(createPuff());
   }
 
-  // 3. Gentle Floating Sparks (Dancing in convection air)
+  // Gentle Floating Sparks dancing in convection air
   const SPARK_COUNT = 45;
   const hearthSparks = [];
   function createHearthSpark() {
     const ang = Math.random() * TAU;
-    const rx = Math.random() * 28;
-    const ry = Math.random() * 10;
+    const rx = Math.random() * 26;
+    const ry = Math.random() * 9;
     return {
       x: cx + Math.cos(ang) * rx,
       y: floorCY + Math.sin(ang) * ry,
       vx: (Math.random() - 0.5) * 0.3,
-      vy: -0.6 - Math.random() * 1.6,
+      vy: -0.6 - Math.random() * 1.5,
       size: 1.0 + Math.random() * 1.8,
-      life: Math.random() * 140,
-      maxLife: 80 + Math.random() * 120,
+      life: Math.random() * 130,
+      maxLife: 75 + Math.random() * 115,
       swirl: Math.random() * TAU
     };
   }
@@ -293,11 +330,11 @@
   }
 
   // =========================================================================
-  // SHARED HEARTH WORDS: Placed in the space between people and fire
+  // SHARED HEARTH WORDS: Placed in the clearing ring WITH SACRED FIRE CLEARANCE
   // =========================================================================
 
-  const words = [];   // All spoken words in the shared clearing ring
-  const flightSparks = []; // Transient flight sparks from seat to clearing (1.2s)
+  const words = [];
+  const flightSparks = [];
   let lastSpokenWord = null;
 
   function recordLinkInStorage(srcWord, tgtWord) {
@@ -318,7 +355,6 @@
   }
 
   function agePreviousWords() {
-    // Drop opacity of all earlier words by 0.02 (down to 0.10 floor)
     for (let i = 0; i < words.length; i++) {
       words[i].opacity = Math.max(0.10, words[i].opacity - 0.02);
     }
@@ -331,7 +367,7 @@
         const dist = Math.abs(i - excludeSeat);
         if (dist >= 2 && dist <= (SEATS_COUNT - 2)) {
           candidates.push(i);
-          candidates.push(i); // cross-circle weight
+          candidates.push(i);
         } else {
           candidates.push(i);
         }
@@ -340,33 +376,46 @@
     return candidates[Math.floor(Math.random() * candidates.length)];
   }
 
-  // Smart Collision-Free Placement in the Shared Hearth Ring
+  // Sacred Fire Clearance & Collision-Free Placement in the Clearing
   function findComfortableHearthSlot(speakerAngle, wordWidth) {
-    // The shared space is an annulus between hearth (radius ~70x25) and seats (floorRx, floorRy)
-    // Distance from center: 45% .. 62% of floor radius
-    const baseR = 0.52;
+    // Distance from center: 52% .. 74% of clearing radius
+    // CRITICAL: Must maintain at least 95px horizontal and 48px vertical clearance from (cx, floorCY)
+    // so words NEVER touch or overlap the campfire flames!
+    const baseR = 0.58;
+    const halfW = wordWidth / 2;
+
     let bestX = cx + Math.cos(speakerAngle) * (floorRx * baseR);
     let bestY = floorCY + Math.sin(speakerAngle) * (floorRy * baseR);
 
-    // Check collision against all existing words
-    const minPaddingX = wordWidth / 2 + 16;
-    const minPaddingY = 16;
-
     let attempts = 0;
-    let angleShift = 0;
-    while (attempts < 20) {
+    while (attempts < 28) {
+      const angleShift = (attempts === 0 ? 0 : (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * 0.20);
       const testAng = speakerAngle + angleShift;
-      // Slight radial variation to stagger words organically
-      const testR = baseR + ((attempts % 3) - 1) * 0.08;
-      const testX = cx + Math.cos(testAng) * (floorRx * testR);
-      const testY = floorCY + Math.sin(testAng) * (floorRy * testR);
+      // Organically stagger between inner and outer ring of the clearing
+      const testR = baseR + ((attempts % 3) - 1) * 0.09;
 
+      let testX = cx + Math.cos(testAng) * (floorRx * testR);
+      let testY = floorCY + Math.sin(testAng) * (floorRy * testR);
+
+      // Enforce strict clearance from the campfire & flame height!
+      const distFireX = Math.abs(testX - cx);
+      const distFireY = testY - floorCY; // negative is above fire (where flames rise!)
+
+      // If word is in the flame zone (above hearth and close horizontally)
+      if (distFireX < (90 + halfW) && distFireY < 32 && distFireY > -105) {
+        // Push word outward safely
+        if (distFireX < (90 + halfW)) {
+          testX = cx + (testX >= cx ? 1 : -1) * (100 + halfW);
+        }
+      }
+
+      // Check collision against all existing words
       let overlaps = false;
       for (let i = 0; i < words.length; i++) {
         const w = words[i];
         const dx = Math.abs(testX - w.targetX);
         const dy = Math.abs(testY - w.targetY);
-        if (dx < (minPaddingX + w.width / 2) && dy < minPaddingY) {
+        if (dx < (halfW + w.width / 2 + 18) && dy < 18) {
           overlaps = true;
           break;
         }
@@ -377,10 +426,7 @@
         bestY = testY;
         break;
       }
-
-      // Try nudging left/right along the clearing circumference
       attempts++;
-      angleShift = (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * 0.22;
     }
 
     return { x: bestX, y: bestY };
@@ -398,8 +444,6 @@
     seat.spokenCount++;
 
     const now = performance.now();
-
-    // Age all previous words by 0.02
     agePreviousWords();
 
     if (kind === 'pass') {
@@ -410,18 +454,16 @@
       return;
     }
 
-    // Measure text width for accurate spacing
     ctx.font = "12px 'JetBrains Mono'";
     const textMetrics = ctx.measureText(text);
     const wordWidth = textMetrics.width;
 
-    // Check if word already exists in the circle from this speaker
     let existing = words.find(w => w.text === text && w.seatId === activeSeat);
     if (existing) {
       existing.count++;
       existing.lastAt = now;
       existing.pulse = 1.0;
-      existing.opacity = 1.0; // Reignite
+      existing.opacity = 1.0;
 
       if (lastSpokenWord && lastSpokenWord !== existing) {
         recordLinkInStorage(lastSpokenWord, existing);
@@ -435,7 +477,6 @@
       return;
     }
 
-    // Find comfortable, non-overlapping spot in the shared hearth ring
     const slot = findComfortableHearthSlot(seat.angle, wordWidth);
 
     const newWord = {
@@ -443,7 +484,6 @@
       family: family || 'спокойствие',
       seatId: activeSeat,
       width: wordWidth,
-      // Starts gently emerging from the speaker's seat
       x: seat.x,
       y: seat.y,
       targetX: slot.x,
@@ -463,7 +503,6 @@
 
     words.push(newWord);
 
-    // Warm flight spark from seat to word position
     flightSparks.push({
       sx: seat.x, sy: seat.y,
       tx: slot.x, ty: slot.y,
@@ -579,7 +618,7 @@
   btnAudio.addEventListener('click', toggleAudio);
 
   // =========================================================================
-  // MAIN RENDER LOOP: Atmospheric, Contemplative Living Hearth
+  // MAIN RENDER LOOP: Living, Balanced, Breathing Hearth
   // =========================================================================
 
   function render(time) {
@@ -591,7 +630,7 @@
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Isometric Clearing Rings on Ground (subtle atmosphere)
+    // 2. Isometric Clearing Rings on Ground
     ctx.save();
     for (let k = 1; k <= 3; k++) {
       const rx = floorRx * (0.35 + k * 0.22);
@@ -622,7 +661,7 @@
     ctx.fill();
     ctx.restore();
 
-    // 4. Hearth Bed: Charred Wood Base & River Stones
+    // 4. Hearth Bed: Ash Bed, River Stones & Charred Firewood Logs
     ctx.save();
     // Ash bed
     ctx.fillStyle = '#0b0806';
@@ -630,7 +669,7 @@
     ctx.ellipse(cx, floorCY + 3, 50, 17, 0, 0, TAU);
     ctx.fill();
 
-    // Natural stone circle around hearth
+    // River stones ring around hearth
     const stoneCount = 10;
     for (let i = 0; i < stoneCount; i++) {
       const sAng = (i / stoneCount) * TAU + 0.2;
@@ -642,27 +681,26 @@
       ctx.fill();
     }
 
-    // Charred burning logs
-    const logAngles = [-0.65, 0.85, 2.35, 3.85];
-    for (let i = 0; i < logAngles.length; i++) {
-      const a = logAngles[i];
-      const lx1 = cx + Math.cos(a) * 32;
-      const ly1 = floorCY + 3 + Math.sin(a) * 11;
-      const lx2 = cx - Math.cos(a) * 32;
-      const ly2 = floorCY + 3 - Math.sin(a) * 11;
+    // Charred burning logs with internal heat
+    for (let i = 0; i < LOGS.length; i++) {
+      const lg = LOGS[i];
+      const lx1 = cx + Math.cos(lg.a) * (lg.len * 0.5);
+      const ly1 = floorCY + 3 + Math.sin(lg.a) * (lg.len * 0.18);
+      const lx2 = cx - Math.cos(lg.a) * (lg.len * 0.5);
+      const ly2 = floorCY + 3 - Math.sin(lg.a) * (lg.len * 0.18);
 
       ctx.strokeStyle = '#140f0a';
-      ctx.lineWidth = 6;
+      ctx.lineWidth = lg.w;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(lx1, ly1);
       ctx.lineTo(lx2, ly2);
       ctx.stroke();
 
-      // Pulsating glowing crevice
-      const creviceHeat = Math.sin(t * 1.8 + i * 1.2) * 0.15 + 0.65;
-      ctx.strokeStyle = `rgba(240, 110, 30, ${creviceHeat * 0.75})`;
-      ctx.lineWidth = 2.2;
+      // Pulsating glowing crevice on each log
+      const logHeat = Math.sin(t * lg.speed + lg.heatPhase) * 0.2 + 0.7;
+      ctx.strokeStyle = `rgba(245, 115, 30, ${logHeat * 0.75})`;
+      ctx.lineWidth = lg.w * 0.35;
       ctx.beginPath();
       ctx.moveTo(cx + (lx1 - cx) * 0.35, floorCY + 3 + (ly1 - (floorCY + 3)) * 0.35);
       ctx.lineTo(cx + (lx2 - cx) * 0.35, floorCY + 3 + (ly2 - (floorCY + 3)) * 0.35);
@@ -670,51 +708,63 @@
     }
     ctx.restore();
 
-    // 5. Living Organic Bezier Flame Tongues (TeamLab / Brian Eno generative style)
+    // 5. LIVING, BALANCED, MULTI-TONGUE FLAME (Leaping naturally between logs)
+    // Wandering gentle breeze: balanced at 0, drifts left & right naturally
+    const globalWind = Math.sin(t * 0.45) * 4.5 + Math.sin(t * 1.1) * 2.0;
+
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
 
-    for (let i = 0; i < FLAME_TONGUES.length; i++) {
-      const fl = FLAME_TONGUES[i];
-      const sway = Math.sin(t * fl.speed + fl.phase) * 7 + Math.sin(t * 3.8 + fl.phase * 2) * 3;
-      const stretch = 1.0 + Math.sin(t * 1.6 + fl.phase) * 0.12;
+    for (let i = 0; i < TONGUES.length; i++) {
+      const fl = TONGUES[i];
 
-      const baseX = cx + Math.cos(fl.baseAngle) * 18;
-      const baseY = floorCY + Math.sin(fl.baseAngle) * 6;
-      const tipX = cx + sway * 0.8;
-      const tipY = floorCY - fl.height * stretch;
+      // Evolving activity cycle: tongues flare up, leap, and subside asynchronously!
+      // This creates the hypnotic "leaping from one log to another" flame life!
+      const cycle = Math.sin(t * fl.speed + fl.phase);
+      const cycle2 = Math.sin(t * (fl.speed * 1.6) + fl.phase * 1.4);
+      const activity = Math.max(0.18, (cycle * 0.55 + cycle2 * 0.35 + 0.55)); // 0.18 .. 1.45
 
-      // Cubic Bezier curve for left and right flanks of the flame
-      const cpLeftX = baseX - fl.width * 0.6 + sway * 0.3;
-      const cpLeftY = floorCY - fl.height * 0.45;
-      const cpRightX = baseX + fl.width * 0.6 + sway * 0.3;
-      const cpRightY = floorCY - fl.height * 0.45;
+      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * 5 + globalWind;
+      const stretch = (fl.baseH * (0.65 + activity * 0.45));
+      const width = fl.width * (0.75 + activity * 0.35);
+
+      const baseX = cx + fl.relX;
+      const baseY = floorCY + fl.relY;
+      const tipX = cx + fl.relX * 0.4 + localSway;
+      const tipY = floorCY - stretch;
+
+      // Organic Bezier curvature with flicking tip
+      const flick = Math.sin(t * 4.2 + fl.phase) * 3;
+      const cpLeftX = baseX - width * 0.55 + localSway * 0.35;
+      const cpLeftY = floorCY - stretch * 0.42;
+      const cpRightX = baseX + width * 0.55 + localSway * 0.35;
+      const cpRightY = floorCY - stretch * 0.42;
 
       ctx.beginPath();
-      ctx.moveTo(baseX - fl.width * 0.45, baseY);
-      ctx.bezierCurveTo(cpLeftX, cpLeftY, tipX - 2, tipY + 8, tipX, tipY);
-      ctx.bezierCurveTo(tipX + 2, tipY + 8, cpRightX, cpRightY, baseX + fl.width * 0.45, baseY);
+      ctx.moveTo(baseX - width * 0.42, baseY);
+      ctx.bezierCurveTo(cpLeftX, cpLeftY, tipX - 2 + flick, tipY + 8, tipX + flick, tipY);
+      ctx.bezierCurveTo(tipX + 2 + flick, tipY + 8, cpRightX, cpRightY, baseX + width * 0.42, baseY);
       ctx.closePath();
 
-      // Deep, silky gradient from base to tip
+      // Layered blackbody gradient based on flame layer and current activity
       const flameGrad = ctx.createLinearGradient(baseX, baseY, tipX, tipY);
-      if (fl.layer === 2) {
-        // Core flame
-        flameGrad.addColorStop(0.0, 'rgba(255, 240, 190, 0.70)');
-        flameGrad.addColorStop(0.4, 'rgba(255, 175, 70, 0.50)');
-        flameGrad.addColorStop(0.85, 'rgba(220, 70, 20, 0.22)');
+      const actAlpha = Math.min(1.0, activity);
+
+      if (fl.layer === 'core') {
+        flameGrad.addColorStop(0.0, `rgba(255, 245, 210, ${0.72 * actAlpha})`);
+        flameGrad.addColorStop(0.35, `rgba(255, 185, 80, ${0.55 * actAlpha})`);
+        flameGrad.addColorStop(0.78, `rgba(225, 75, 22, ${0.28 * actAlpha})`);
         flameGrad.addColorStop(1.0, 'rgba(160, 30, 10, 0.0)');
-      } else if (fl.layer === 1) {
-        // Body flame
-        flameGrad.addColorStop(0.0, 'rgba(255, 200, 110, 0.55)');
-        flameGrad.addColorStop(0.5, 'rgba(240, 120, 35, 0.38)');
-        flameGrad.addColorStop(0.9, 'rgba(180, 40, 12, 0.15)');
+      } else if (fl.layer === 'body') {
+        flameGrad.addColorStop(0.0, `rgba(255, 205, 110, ${0.52 * actAlpha})`);
+        flameGrad.addColorStop(0.48, `rgba(240, 125, 38, ${0.38 * actAlpha})`);
+        flameGrad.addColorStop(0.85, `rgba(190, 45, 15, ${0.16 * actAlpha})`);
         flameGrad.addColorStop(1.0, 'rgba(100, 20, 5, 0.0)');
       } else {
-        // Outer mantle
-        flameGrad.addColorStop(0.0, 'rgba(235, 130, 40, 0.40)');
-        flameGrad.addColorStop(0.6, 'rgba(190, 60, 18, 0.22)');
-        flameGrad.addColorStop(1.0, 'rgba(90, 15, 5, 0.0)');
+        // Outer glowing mantle
+        flameGrad.addColorStop(0.0, `rgba(240, 135, 45, ${0.36 * actAlpha})`);
+        flameGrad.addColorStop(0.55, `rgba(195, 65, 20, ${0.20 * actAlpha})`);
+        flameGrad.addColorStop(1.0, 'rgba(85, 15, 5, 0.0)');
       }
 
       ctx.fillStyle = flameGrad;
@@ -722,7 +772,36 @@
     }
     ctx.restore();
 
-    // 6. Volumetric Warmth Puffs (Soft radial gradients inside flame body)
+    // 6. Detaching Micro-Licks (Popping off active tongues and curling)
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < licks.length; i++) {
+      const lk = licks[i];
+      lk.life++;
+      if (lk.life >= lk.maxLife) {
+        Object.assign(lk, createLick());
+      }
+      const p = lk.life / lk.maxLife;
+      const curl = Math.sin(t * 3.5 + lk.curlPhase) * 0.45;
+      lk.x += lk.vx + curl + globalWind * 0.05;
+      lk.y += lk.vy;
+
+      const alpha = p < 0.25 ? p / 0.25 : (1.0 - p);
+      const curR = lk.size * (1 - p * 0.6);
+
+      const lickGrad = ctx.createRadialGradient(lk.x, lk.y, 0, lk.x, lk.y, curR);
+      lickGrad.addColorStop(0, `rgba(255, 220, 140, ${alpha * 0.65})`);
+      lickGrad.addColorStop(0.6, `rgba(235, 120, 35, ${alpha * 0.35})`);
+      lickGrad.addColorStop(1, 'rgba(160, 40, 10, 0)');
+
+      ctx.fillStyle = lickGrad;
+      ctx.beginPath();
+      ctx.arc(lk.x, lk.y, curR, 0, TAU);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 7. Volumetric Warmth Puffs (Internal soft heat glow)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < flamePuffs.length; i++) {
@@ -732,20 +811,20 @@
         Object.assign(p, createPuff());
       }
       const progress = p.life / p.maxLife;
-      p.x += p.vx + Math.sin(t * 3 + p.y * 0.04) * 0.2;
+      p.x += p.vx + Math.sin(t * 2.8 + p.y * 0.04) * 0.2 + globalWind * 0.03;
       p.y += p.vy;
 
       const alpha = progress < 0.25 ? progress / 0.25 : (1.0 - progress);
-      const rad = p.size * (1 - progress * 0.5);
+      const rad = p.size * (1 - progress * 0.45);
 
       const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rad);
       if (p.hue === 'amber') {
-        grad.addColorStop(0, `rgba(255, 210, 130, ${alpha * 0.35})`);
-        grad.addColorStop(0.6, `rgba(240, 120, 40, ${alpha * 0.18})`);
+        grad.addColorStop(0, `rgba(255, 215, 130, ${alpha * 0.32})`);
+        grad.addColorStop(0.6, `rgba(240, 120, 40, ${alpha * 0.16})`);
         grad.addColorStop(1, 'rgba(180, 40, 10, 0)');
       } else {
-        grad.addColorStop(0, `rgba(240, 130, 40, ${alpha * 0.25})`);
-        grad.addColorStop(0.7, `rgba(180, 40, 10, ${alpha * 0.10})`);
+        grad.addColorStop(0, `rgba(240, 130, 40, ${alpha * 0.22})`);
+        grad.addColorStop(0.7, `rgba(180, 40, 10, ${alpha * 0.08})`);
         grad.addColorStop(1, 'rgba(80, 15, 5, 0)');
       }
 
@@ -756,7 +835,7 @@
     }
     ctx.restore();
 
-    // 7. Gentle Floating Sparks (Dancing slowly in the convection updraft)
+    // 8. Gentle Floating Sparks
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < hearthSparks.length; i++) {
@@ -766,8 +845,8 @@
         Object.assign(sp, createHearthSpark());
       }
       const p = sp.life / sp.maxLife;
-      const swirl = Math.sin(t * 1.8 + sp.swirl) * 0.4;
-      sp.vx = (sp.vx + swirl * 0.04) * 0.96;
+      const swirl = Math.sin(t * 1.8 + sp.swirl) * 0.35;
+      sp.vx = (sp.vx + swirl * 0.04 + globalWind * 0.02) * 0.96;
       sp.x += sp.vx;
       sp.y += sp.vy;
 
@@ -782,7 +861,7 @@
     }
     ctx.restore();
 
-    // 8. Transient Flight Sparks: from seat into the shared hearth ring
+    // 9. Transient Flight Sparks: from seat to word position
     for (let i = flightSparks.length - 1; i >= 0; i--) {
       const sp = flightSparks[i];
       const elapsed = now - sp.born;
@@ -808,7 +887,7 @@
       ctx.restore();
     }
 
-    // 9. Draw Seats Ring (Quiet outer circle of participants)
+    // 10. Draw Seats Ring (Quiet outer circle of participants)
     for (let i = 0; i < seats.length; i++) {
       const s = seats[i];
       const isActive = i === activeSeat;
@@ -848,11 +927,10 @@
       ctx.fillText(`[${String(i + 1).padStart(2, '0')}]`, lx, ly);
     }
 
-    // 10. Update & Render Shared Words (Between People and Fire, No Frames, Fading to 10%)
+    // 11. Update & Render Shared Words (COMFORTABLY SPACED AROUND FIRE, NO FRAMES, FADING TO 10%)
     for (let i = 0; i < words.length; i++) {
       const w = words[i];
 
-      // Smooth arrival into the shared hearth clearing
       if (!w.settled) {
         w.x += (w.targetX - w.x) * 0.06;
         w.y += (w.targetY - w.y) * 0.06;
@@ -860,7 +938,6 @@
           w.settled = true;
         }
       } else {
-        // Very gentle organic resting breath (amplitude 0.7px)
         w.y = w.targetY + Math.sin(t * 0.7 + w.breathOffset) * 0.7;
       }
 
@@ -875,7 +952,6 @@
       const isLatest = w === lastSpokenWord;
       const alpha = Math.max(0.10, w.opacity);
 
-      // Pure clean typography resting on the clearing floor
       if (isLatest) {
         ctx.fillStyle = `rgba(255, 185, 115, ${alpha})`;
         ctx.shadowColor = 'rgba(255, 178, 102, 0.60)';
