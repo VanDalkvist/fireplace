@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { SessionPhase } from "@/domain/types";
 import { isPureFillerPhrase } from "@/domain/lexicon-engine";
-import { distillWithNeuralFallback, splitIntoSemanticPhrases } from "@/domain/phrase-distiller";
+import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
 import { SpeakerTurnBuffer } from "@/domain/speaker-turn-buffer";
 import { createSpeechEngine } from "@/speech/speech-factory";
 import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
@@ -99,23 +99,24 @@ export function useSalonSpeech({
 
     let matched = false;
     for (const f of res.feelings) {
-      for (const p of splitIntoSemanticPhrases(f.form || f.lemma)) {
-        if (!isPureFillerPhrase(p)) { feelFn(p, f.family, f.valence, speakerSeat); matched = true; }
+      const phraseText = (f.form || f.lemma || "").trim();
+      if (phraseText && !isPureFillerPhrase(phraseText)) {
+        feelFn(phraseText, f.family, f.valence, speakerSeat);
+        matched = true;
       }
     }
     for (const d of res.desires) {
-      for (const p of splitIntoSemanticPhrases(d.text)) {
-        if (!isPureFillerPhrase(p)) { desireFn(p, speakerSeat); matched = true; }
+      const desireText = (d.text || "").trim();
+      if (desireText && !isPureFillerPhrase(desireText)) {
+        desireFn(desireText, speakerSeat);
+        matched = true;
       }
     }
     if (!matched) {
-      const clean = res.fallbackText || settled;
-      if (isPureFillerPhrase(clean)) return;
-      for (const p of splitIntoSemanticPhrases(clean)) {
-        if (!isPureFillerPhrase(p)) {
-          if (res.isDesirePhrase || curPhase === "desires") desireFn(p, speakerSeat);
-          else feelFn(p, "живость", 0, speakerSeat);
-        }
+      const clean = (res.fallbackText || settled || "").trim();
+      if (clean && !isPureFillerPhrase(clean)) {
+        if (res.isDesirePhrase || curPhase === "desires") desireFn(clean, speakerSeat);
+        else feelFn(clean, "живость", 0, speakerSeat);
       }
     }
     if (speakerSeat) scheduleSpeakerDecay();
