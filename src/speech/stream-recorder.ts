@@ -19,6 +19,7 @@ export class StreamRecorder {
   private speechDetected = false;
   private lastSpeechTime = 0;
   private readonly speechRmsThreshold = 0.015;
+  private ownsActiveStream = false;
 
   public async start(stream?: MediaStream, timesliceMs?: number): Promise<void> {
     if (this.isRecording) return;
@@ -27,44 +28,52 @@ export class StreamRecorder {
     this.lastSpeechTime = 0;
 
     let targetStream = stream;
-    if (!targetStream && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+    if (stream) {
+      this.ownsActiveStream = false;
+    } else if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
       targetStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.ownsActiveStream = true;
     }
 
     if (!targetStream) {
       throw new Error("No audio stream available for recording");
     }
 
-    this.activeStream = targetStream;
-    this.setupAudioAnalysis(targetStream);
+    try {
+      this.activeStream = targetStream;
+      this.setupAudioAnalysis(targetStream);
 
-    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : undefined;
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : undefined;
 
-    this.mediaRecorder = new MediaRecorder(targetStream, mimeType ? { mimeType } : undefined);
+      this.mediaRecorder = new MediaRecorder(targetStream, mimeType ? { mimeType } : undefined);
 
-    this.mediaRecorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) {
-        this.sampleAudioRms();
-        this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
-        if (this.ringBuffer.length > this.maxBufferSize) {
-          this.ringBuffer.shift(); // Enforce circular bound (AP-018, AP-023)
+      this.mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          this.sampleAudioRms();
+          this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
+          if (this.ringBuffer.length > this.maxBufferSize) {
+            this.ringBuffer.shift(); // Enforce circular bound (AP-018, AP-023)
+          }
         }
+      };
+
+      this.mediaRecorder.onstop = () => {
+        const type = this.mediaRecorder?.mimeType || "audio/webm";
+        const blob = new Blob(this.ringBuffer.map((c) => c.blob), { type });
+        this.resolveStop?.(blob);
+        this.resolveStop = null;
+      };
+
+      if (timesliceMs !== undefined) {
+        this.mediaRecorder.start(timesliceMs);
+      } else {
+        this.mediaRecorder.start();
       }
-    };
-
-    this.mediaRecorder.onstop = () => {
-      const type = this.mediaRecorder?.mimeType || "audio/webm";
-      const blob = new Blob(this.ringBuffer.map((c) => c.blob), { type });
-      this.resolveStop?.(blob);
-      this.resolveStop = null;
-    };
-
-    if (timesliceMs !== undefined) {
-      this.mediaRecorder.start(timesliceMs);
-    } else {
-      this.mediaRecorder.start();
+    } catch (err) {
+      this.cleanup();
+      throw err;
     }
   }
 
@@ -77,8 +86,8 @@ export class StreamRecorder {
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       source.connect(this.analyser);
-    } catch {
-      // AudioContext may be blocked by autoplay or environment, continue gracefully (AP-012)
+    } catch (err) {
+      console.warn("[StreamRecorder] setupAudioAnalysis failed (non-blocking):", err);
     }
   }
 
@@ -153,12 +162,16 @@ export class StreamRecorder {
 
   public cleanup(): void {
     if (this.audioContext && this.audioContext.state !== "closed") {
-      this.audioContext.close().catch(() => {});
+      this.audioContext.close().catch((err) => {
+        console.warn("[StreamRecorder] AudioContext close failed:", err);
+      });
       this.audioContext = null;
     }
     this.analyser = null;
     if (this.activeStream) {
-      this.activeStream.getTracks().forEach((t) => t.stop());
+      if (this.ownsActiveStream) {
+        this.activeStream.getTracks().forEach((t) => t.stop());
+      }
       this.activeStream = null;
     }
     this.mediaRecorder = null;

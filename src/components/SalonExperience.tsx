@@ -63,6 +63,7 @@ export const SalonExperience: React.FC = () => {
     onPass: handlePass,
     onAddFeeling: handleAddFeeling,
     onAddDesire: handleAddDesire,
+    onSwitchToWhisper: () => setSttEngine("whisper"),
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -88,8 +89,15 @@ export const SalonExperience: React.FC = () => {
     onToggleHelp: () => setIsIntroOpen((p) => !p),
     onToggleZen: () => setIsZen((p) => !p),
     onToggleFullscreen: () => {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-      else document.exitFullscreen?.();
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.warn("[SalonExperience] requestFullscreen failed:", err);
+        });
+      } else {
+        document.exitFullscreen?.().catch((err) => {
+          console.warn("[SalonExperience] exitFullscreen failed:", err);
+        });
+      }
     },
     onTriggerTurn: triggerNextTurn,
     onPass: handlePass,

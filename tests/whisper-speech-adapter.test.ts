@@ -78,12 +78,40 @@ describe('WhisperSpeechAdapter', () => {
 
     await adapter.start();
 
-    // Call flush (or timer tick) on silence
-    adapter.flush();
+    // Trigger normal interval-based segment processing on silence
+    (adapter as unknown as { processCurrentSegment: (overlap?: number, isExplicit?: boolean) => Promise<void> })
+      .processCurrentSegment(300, false);
     await new Promise((r) => setTimeout(r, 10));
 
     // Whisper should NOT be called on silence!
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(callbacks.onFinalPhrase).not.toHaveBeenCalled();
+  });
+
+  it('synchronizes listening state and stops silence timer on Whisper network error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Whisper server connection refused'));
+
+    const mockRecorder = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(new Blob([])),
+      extractCurrentSegment: vi.fn().mockReturnValue(new Blob(['speech audio'], { type: 'audio/webm' })),
+      hasSpeechInCurrentSegment: vi.fn().mockReturnValue(true),
+      cleanup: vi.fn(),
+      isRecording: true,
+    };
+    (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
+
+    await adapter.start();
+    adapter.flush();
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(callbacks.onError).toHaveBeenCalled();
+    expect(callbacks.onStatusChange).toHaveBeenCalledWith(false);
+
+    // Clicking toggle should start listening again, NOT stop!
+    const startSpy = vi.spyOn(adapter, 'start');
+    adapter.toggle();
+    expect(startSpy).toHaveBeenCalled();
   });
 });

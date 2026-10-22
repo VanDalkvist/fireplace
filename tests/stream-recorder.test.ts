@@ -13,6 +13,11 @@ describe('StreamRecorder', () => {
       getTracks: vi.fn(() => [mockTrack]),
     } as unknown as MediaStream;
 
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(mockStream) } },
+      configurable: true,
+    });
+
     class MockMediaRecorder {
       public state: 'inactive' | 'recording' = 'inactive';
       public mimeType = 'audio/webm';
@@ -106,8 +111,15 @@ describe('StreamRecorder', () => {
     expect(recorder.hasSpeechInCurrentSegment()).toBe(false);
   });
 
-  it('cleans up stream tracks upon cleanup call', async () => {
+  it('does NOT stop external stream tracks upon cleanup call, preserving Zoom/Meet streams', async () => {
     await recorder.start(mockStream);
+    recorder.cleanup();
+
+    expect(mockTrack.stop).not.toHaveBeenCalled();
+  });
+
+  it('stops internal microphone tracks created via getUserMedia on cleanup', async () => {
+    await recorder.start();
     recorder.cleanup();
 
     expect(mockTrack.stop).toHaveBeenCalled();

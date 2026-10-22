@@ -49,9 +49,9 @@ export function useSalonSession(): UseSalonSessionReturn {
 
   const handleAddFeeling = useCallback(
     (phrase: string, family = "живость", valence = 0, spkId?: number) => {
-      const speakerId = spkId ?? state.activeSpeakerId ?? 1;
       audioRef.current?.playFeeling(family, valence);
       setState((prev: SessionState) => {
+        const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
         const withSpeaker: SessionState = {
           ...prev,
           activeSpeakerId: speakerId,
@@ -70,14 +70,14 @@ export function useSalonSession(): UseSalonSessionReturn {
         });
       });
     },
-    [state.activeSpeakerId]
+    []
   );
 
   const handleAddDesire = useCallback(
     (desireText: string, spkId?: number) => {
-      const speakerId = spkId ?? state.activeSpeakerId ?? 1;
       audioRef.current?.playDesire();
       setState((prev: SessionState) => {
+        const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
         const withSpeaker: SessionState = {
           ...prev,
           activeSpeakerId: speakerId,
@@ -93,34 +93,71 @@ export function useSalonSession(): UseSalonSessionReturn {
         });
       });
     },
-    [state.activeSpeakerId]
+    []
   );
 
   const handlePass = useCallback(() => {
-    const speakerId = state.activeSpeakerId ?? 1;
-    audioRef.current?.playPass();
-    setState((prev: SessionState) => passTurn(prev, speakerId));
-  }, [state.activeSpeakerId]);
+    setState((prev: SessionState) => {
+      const speakerId = prev.activeSpeakerId ?? 1;
+      audioRef.current?.playPass();
+      return passTurn(prev, speakerId);
+    });
+  }, []);
 
   const handleAdvanceTurn = useCallback(() => {
     setState((prev: SessionState) => nextSpeaker(prev));
   }, []);
 
   const triggerNextTurn = useCallback(() => {
-    const item = DEMO_PHRASES[demoIdx % DEMO_PHRASES.length];
-    setDemoIdx((prev) => prev + 1);
-    const currId = state.activeSpeakerId ?? 1;
-    const candidates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((id) => id !== currId);
-    const nextId = candidates[Math.floor(Math.random() * candidates.length)];
+    setState((prev: SessionState) => {
+      const item = DEMO_PHRASES[demoIdx % DEMO_PHRASES.length];
+      setDemoIdx((d) => d + 1);
+      const currId = prev.activeSpeakerId ?? 1;
+      const candidates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((id) => id !== currId);
+      const nextId = candidates[Math.floor(Math.random() * candidates.length)];
 
-    if (item.isPass) {
-      handlePass();
-    } else if (item.desire) {
-      handleAddDesire(item.desire, nextId);
-    } else if (item.family) {
-      handleAddFeeling(item.text, item.family, item.valence ?? 0, nextId);
-    }
-  }, [demoIdx, state.activeSpeakerId, handlePass, handleAddDesire, handleAddFeeling]);
+      if (item.isPass) {
+        audioRef.current?.playPass();
+        return passTurn(prev, currId);
+      }
+      if (item.desire) {
+        audioRef.current?.playDesire();
+        const withSpeaker: SessionState = {
+          ...prev,
+          activeSpeakerId: nextId,
+          participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
+        };
+        return addDesireToken(withSpeaker, {
+          id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          text: item.desire,
+          object: item.desire,
+          who: "",
+          speakerId: nextId,
+          timestamp: Date.now(),
+        });
+      }
+      if (item.family) {
+        audioRef.current?.playFeeling(item.family, item.valence ?? 0);
+        const withSpeaker: SessionState = {
+          ...prev,
+          activeSpeakerId: nextId,
+          participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
+        };
+        return addFeelingToken(withSpeaker, {
+          id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          text: item.text,
+          lemma: item.text,
+          family: item.family,
+          valence: item.valence ?? 0,
+          arousal: 0.5,
+          intensity: 1.2,
+          speakerId: nextId,
+          timestamp: Date.now(),
+        });
+      }
+      return prev;
+    });
+  }, [demoIdx]);
 
   const handleSelectSpeaker = useCallback((speakerId: number) => {
     setState((prev: SessionState) => setSpeaker(prev, speakerId));

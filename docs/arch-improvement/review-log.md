@@ -393,8 +393,70 @@
    - Живой стенд: в тихой комнате Whisper больше не спамит запросами; кнопка `встреча (zoom)` подключает стрим звонка; во время работы Qwen фраза не пропадает и не откатывается к старой; реплики попадают в круг без искусственной подмены на "спокойствие".
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 11 - 2026-10-22 - Hook Stabilization, Stream Ownership & Clean Infrastructure
+
+### Context
+- Branch: `main` (commit head, remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Устранение всех дефектов [P1] и [P2], выявленных независимым аудитом в Cycle 10:
+  1. **Стабилизация зависимостей хуков (`useSalonSession.ts`, `useSalonSpeech.ts`):** Устранен срыв Open Mic при смене спикера / ходе. `handleAddFeeling`, `handleAddDesire` и `handlePass` переведены на функциональный `setState((prev) => ...)`. В `useSalonSpeech` применен паттерн `callbacksRef`, за счет чего `handleSpeechResult` получил стабильную ссылку и больше не пересоздает `SpeechEngine` при смене стейта сессии.
+  2. **Синхронизация жизненного цикла `WhisperSpeechAdapter`:** В блоке `catch` метода `processCurrentSegment` при сетевых сбоях Whisper сбрасывается `isListeningActive = false`, останавливается `silenceTimer` и вызывается `onStatusChange(false)`. Логика кнопки микрофона `(v)` больше не инвертируется.
+  3. **Владение аудиостримами в `StreamRecorder`:** Введено поле `ownsActiveStream`. Чужие внешние стримы встречи (`meetingStream`) больше не уничтожаются вызовом `track.stop()` при `cleanup()`.
+  4. **Автопереключение на Whisper при захвате звонка Zoom/Meet:** Если при нажатии «встреча (zoom)» активен Google Speech, STT прозрачно переключается на `whisper`, умеющий принимать внешний `MediaStream`.
+  5. **Слушатель `track.onended` в `SalonAudioEngine`:** При системном закрытии окна/вкладки шеринга пользователем meeting audio автоматически отключается с уведомлением UI.
+  6. **Вынос сетевых вызовов Ollama в слой Infrastructure (AP-010):** Создан `src/infrastructure/ollama-client.ts` (79 строк). Доменный слой `phrase-distiller.ts` полностью очищен от прямых сетевых вызовов `fetch`. Остаточный дефолт `"спокойствие"` заменен на `"живость"` (AP-013).
+  7. **Логирование и RAII (AP-022, AP-023):** Добавлен unmount cleanup в `useSalonSpeech` и структурированный `console.warn` во все пустые блоки `catch`.
+- Source docs:
+  - `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-11.md`
+  - `src/hooks/useSalonSession.ts`, `src/hooks/useSalonSpeech.ts`, `src/speech/whisper-speech-adapter.ts`, `src/speech/stream-recorder.ts`, `src/infrastructure/ollama-client.ts`, `src/domain/phrase-distiller.ts`
+  - `~/Projects/arch-rules/arch-rules.md` (AP-010..AP-071)
+- Architecture gates: AP-010, AP-012, AP-013, AP-018, AP-019 (лимит <= 250 строк/файл), AP-020, AP-022, AP-023, AP-025 (0 циклов), AP-028 (TDD детерминизм), AP-029 (TypeScript strictness), AP-053, AP-054.
+
+### Findings & Resolution
+- [P1] Самопроизвольное выключение микрофона при смене спикера из-за каскадных зависимостей хуков - fixed
+  - Resolution: `useSalonSession` переведен на функциональный `setState`; `useSalonSpeech` стабилизирован через `callbacksRef`.
+  - Rule: AP-018, AP-020, AP-053, AP-054.
+- [P1] Рассинхронизация жизненного цикла WhisperSpeechAdapter и UI при сетевых сбоях Whisper - fixed
+  - Resolution: Остановка таймеров, сброс `isListeningActive = false` и `onStatusChange(false)` в блоке `catch`.
+  - Rule: AP-012, AP-018, AP-022, AP-023.
+- [P1] StreamRecorder.cleanup() перманентно уничтожает внешние стримы встречи Zoom - fixed
+  - Resolution: Введено поле `ownsActiveStream`: внешние стримы встречи не останавливаются при cleanup.
+  - Rule: AP-013, AP-018, AP-023.
+- [P2] Имитация захвата звука встречи при активном движке Google Speech - fixed
+  - Resolution: Автоматическое переключение STT на `whisper` при активации захвата звонка.
+  - Rule: AP-010, AP-020, AP-054.
+- [P2] Отсутствие unmount-cleanup в useSalonSpeech - fixed
+  - Resolution: Добавлен cleanup handler `return () => { void speechRef.current?.stop(); }`.
+  - Rule: AP-023, AP-053.
+- [P2] Отсутствие обработчика onended на системный сброс стрима getDisplayMedia - fixed
+  - Resolution: Подписка на `track.addEventListener('ended', ...)`.
+  - Rule: AP-012, AP-018, AP-054.
+- [P2] Нарушение границ Clean Architecture (прямой HTTP-клиент в слое Domain) - fixed
+  - Resolution: Создан `src/infrastructure/ollama-client.ts`, дефолт заменен на `"живость"`.
+  - Rule: AP-010, AP-020.
+- [P2] Пустые блоки catch без логирования - fixed
+  - Resolution: Все пустые блоки заменены на структурированный `console.warn` по стандарту AP-022.
+  - Rule: AP-022.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (Independent Subthread thr_jyvxvvf52g):**
+   - Все файлы $\le 239$ строк (AP-019 strictly observed, максимум 239 в `audio-engine.ts`, 204 в `SalonExperience.tsx`).
+   - 60/60 тестов Vitest GREEN по 17 тест-сьютам.
+   - `tsc --noEmit`: 0 ошибок, 0 warnings.
+   - `madge`: 0 circular dependencies (48 файлов).
+   - Сборка `vite build`: 251 мс, 0 ошибок.
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Непрерывный Open Mic больше не срывается при переходе хода и смене спикеров.
+   - При сбое Whisper кнопка микрофона не инвертируется.
+   - Стрим встречи Zoom не разрушается при остановке микрофона.
+   - При системном закрытии окна звонка статус встречи сбрасывается корректно.
+   - **Вердикт:** `VERDICT: PASS`.
+
 ### Residual Risk
-- В Safari захват системного звука через `getDisplayMedia` может требовать явного разрешения системной вкладки с флагом `audio`.
+- В macOS при системном шеринге экрана Zoom требует явного выбора системной вкладки или окна с опцией «Share audio».
+
 
 
 

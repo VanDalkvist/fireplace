@@ -15,6 +15,7 @@ interface UseSalonSpeechOptions {
   onPass: () => void;
   onAddFeeling: (text: string, family?: string, valence?: number) => void;
   onAddDesire: (text: string) => void;
+  onSwitchToWhisper?: () => void;
 }
 
 export function useSalonSpeech({
@@ -24,6 +25,7 @@ export function useSalonSpeech({
   onPass,
   onAddFeeling,
   onAddDesire,
+  onSwitchToWhisper,
 }: UseSalonSpeechOptions) {
   const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
   const [isListening, setIsListening] = useState(isVoiceInit);
@@ -36,65 +38,72 @@ export function useSalonSpeech({
   const [speechError, setSpeechError] = useState<string | null>(null);
   const speechRef = useRef<SpeechEnginePort | null>(null);
 
-  const handleSpeechResult = useCallback(
-    async (phrase: string) => {
-      // In-place morphing: keep phrase in UI with [нейрокоррекция] to prevent visual rollback (AP-054)
-      setInterimPhrase(phrase);
-      setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
+  // Stabilize callbacks against re-render cascades (AP-053, AP-054)
+  const callbacksRef = useRef({ phase, onPass, onAddFeeling, onAddDesire, onSwitchToWhisper });
+  callbacksRef.current = { phase, onPass, onAddFeeling, onAddDesire, onSwitchToWhisper };
 
-      const res = await distillWithNeuralFallback(phrase, defaultLexiconIndex);
-      const settled = res.repairedText || phrase;
+  const handleSpeechResult = useCallback(async (phrase: string) => {
+    // In-place morphing: keep phrase in UI with [нейрокоррекция] to prevent visual rollback (AP-054)
+    setInterimPhrase(phrase);
+    setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
 
-      setLastPhrase(settled);
-      setInterimPhrase("");
-      setInterimBadge(null);
+    const res = await distillWithNeuralFallback(phrase, defaultLexiconIndex);
+    const settled = res.repairedText || phrase;
 
-      if (res.pass) return onPass();
+    setLastPhrase(settled);
+    setInterimPhrase("");
+    setInterimBadge(null);
 
-      let matched = false;
-      for (const f of res.feelings) {
-        onAddFeeling(f.form || f.lemma, f.family, f.valence);
-        matched = true;
+    const { phase: currentPhase, onPass: passFn, onAddFeeling: feelFn, onAddDesire: desireFn } =
+      callbacksRef.current;
+
+    if (res.pass) return passFn();
+
+    let matched = false;
+    for (const f of res.feelings) {
+      feelFn(f.form || f.lemma, f.family, f.valence);
+      matched = true;
+    }
+    for (const d of res.desires) {
+      desireFn(d.text);
+      matched = true;
+    }
+    if (!matched) {
+      const clean = res.fallbackText || settled;
+      if (res.isDesirePhrase || currentPhase === "desires") {
+        desireFn(clean);
+      } else {
+        // Authenticity (AP-013): keep user's authentic words without fake "спокойствие"
+        feelFn(clean, "живость", 0);
       }
-      for (const d of res.desires) {
-        onAddDesire(d.text);
-        matched = true;
-      }
-      if (!matched) {
-        const clean = res.fallbackText || settled;
-        if (res.isDesirePhrase || phase === "desires") {
-          onAddDesire(clean);
-        } else {
-          // Authenticity (AP-013): keep user's authentic words without fake "спокойствие"
-          onAddFeeling(clean, "живость", 0);
-        }
-      }
-    },
-    [phase, onPass, onAddFeeling, onAddDesire]
-  );
+    }
+  }, []);
 
   const handleToggleMeetingAudio = useCallback(async () => {
     if (!audioRef.current) return;
     if (isMeetingConnected) {
       audioRef.current.disconnectMeetingAudio();
       setIsMeetingConnected(false);
-      speechRef.current?.stop();
-      await speechRef.current?.start();
+      void speechRef.current?.stop();
+      void speechRef.current?.start();
     } else {
+      if (sttEngine === "google") {
+        callbacksRef.current.onSwitchToWhisper?.();
+      }
       const ok = await audioRef.current.captureMeetingAudio();
       setIsMeetingConnected(ok);
       if (ok) {
         const stream = audioRef.current.getMeetingStream();
         if (stream) {
-          speechRef.current?.stop();
-          await speechRef.current?.start(stream);
+          void speechRef.current?.stop();
+          void speechRef.current?.start(stream);
         }
       }
     }
-  }, [audioRef, isMeetingConnected]);
+  }, [audioRef, isMeetingConnected, sttEngine]);
 
   useEffect(() => {
-    speechRef.current?.stop();
+    void speechRef.current?.stop();
     speechRef.current = createSpeechEngine(sttEngine, {
       onInterimPhrase: (text) => {
         setInterimPhrase(text);
@@ -119,6 +128,10 @@ export function useSalonSpeech({
         if (active) setSpeechError(null);
       },
     });
+
+    return () => {
+      void speechRef.current?.stop();
+    };
   }, [sttEngine, handleSpeechResult]);
 
   return {

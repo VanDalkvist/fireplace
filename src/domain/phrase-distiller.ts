@@ -1,4 +1,5 @@
 import { distillSpokenPhrase, type DistillationResult, type LexiconIndex } from "./lexicon-engine";
+import { OllamaClient } from "@/infrastructure/ollama-client";
 
 export interface NeuralDistillerOptions {
   ollamaUrl?: string;
@@ -39,9 +40,7 @@ export async function distillWithNeuralFallback(
   const timeoutMs = options.timeoutMs ?? 2000;
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
+    const client = new OllamaClient(ollamaUrl);
     const prompt = `Ты — созерцательный слушатель у костра. Твоя задача:
 1. Исправь опечатки и ослышки распознавания речи в высказывании участника.
 2. Извлеки суть и сокровенное чувство, сохранив живую метафору и отбросив бытовой шум.
@@ -56,77 +55,73 @@ export async function distillWithNeuralFallback(
 
 JSON:`;
 
-    const res = await fetch(`${ollamaUrl}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
+    const data = await client.generate(
+      {
         model,
         prompt,
         format: "json",
         stream: false,
         options: { temperature: 0.15, num_predict: 96 },
-      }),
-    });
-    clearTimeout(timer);
+      },
+      timeoutMs
+    );
 
-    if (res.ok) {
-      const data = (await res.json()) as { response?: string };
-      if (data.response) {
-        const parsed = JSON.parse(data.response) as LlmDistillPayload;
-        const phraseClean = (parsed.phrase || "").trim();
-        const isTemplateLeak =
-          phraseClean.includes("глубинный смысл") ||
-          phraseClean.includes("живая метафора") ||
-          phraseClean.includes("извлеченное чувство") ||
-          phraseClean.length === 0;
+    if (data?.response) {
+      const parsed = JSON.parse(data.response) as LlmDistillPayload;
+      const phraseClean = (parsed.phrase || "").trim();
+      const isTemplateLeak =
+        phraseClean.includes("глубинный смысл") ||
+        phraseClean.includes("живая метафора") ||
+        phraseClean.includes("извлеченное чувство") ||
+        phraseClean.length === 0;
 
-        const effectivePhrase = isTemplateLeak ? trimmed : phraseClean;
+      const effectivePhrase = isTemplateLeak ? trimmed : phraseClean;
+      const repaired = (parsed.repaired_text || "").trim() || trimmed;
 
-        const repaired = (parsed.repaired_text || "").trim() || trimmed;
-
-        if (effectivePhrase) {
-          const kind = parsed.kind || "feeling";
-          if (kind === "pass") {
-            return {
-              feelings: [], desires: [], pass: true,
-              repairedText: repaired,
-              neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b",
-            };
-          }
-          if (kind === "desire") {
-            return {
-              feelings: [],
-              desires: [{ text: effectivePhrase, object: effectivePhrase, who: null }],
-              pass: false,
-              isDesirePhrase: true,
-              repairedText: repaired,
-              neuralDistilled: true,
-              engineUsed: model as "qwen2.5:1.5b",
-            };
-          }
+      if (effectivePhrase) {
+        const kind = parsed.kind || "feeling";
+        if (kind === "pass") {
           return {
-            feelings: [
-              {
-                lemma: effectivePhrase,
-                family: parsed.family || "спокойствие",
-                valence: parsed.valence ?? 0.5,
-                arousal: 0.3,
-                form: effectivePhrase,
-                intensity: 1,
-              },
-            ],
+            feelings: [],
             desires: [],
-            pass: false,
+            pass: true,
             repairedText: repaired,
             neuralDistilled: true,
             engineUsed: model as "qwen2.5:1.5b",
           };
         }
+        if (kind === "desire") {
+          return {
+            feelings: [],
+            desires: [{ text: effectivePhrase, object: effectivePhrase, who: null }],
+            pass: false,
+            isDesirePhrase: true,
+            repairedText: repaired,
+            neuralDistilled: true,
+            engineUsed: model as "qwen2.5:1.5b",
+          };
+        }
+        return {
+          feelings: [
+            {
+              lemma: effectivePhrase,
+              family: parsed.family || "живость",
+              valence: parsed.valence ?? 0.5,
+              arousal: 0.3,
+              form: effectivePhrase,
+              intensity: 1,
+            },
+          ],
+          desires: [],
+          pass: false,
+          repairedText: repaired,
+          neuralDistilled: true,
+          engineUsed: model as "qwen2.5:1.5b",
+        };
       }
     }
-  } catch {
-    // Graceful degradation only on hard timeout or network disconnection
+  } catch (err) {
+    console.warn("[distillWithNeuralFallback] Neural pipeline fallback to lexicon:", err);
   }
 
   const baseResult = distillSpokenPhrase(rawText, idx);
@@ -137,14 +132,6 @@ export async function checkOllamaStatus(
   ollamaUrl = "http://127.0.0.1:11434",
   model = "qwen2.5:1.5b"
 ): Promise<{ online: boolean; hasModel: boolean }> {
-  try {
-    const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(600) });
-    if (!res.ok) return { online: false, hasModel: false };
-    const data = (await res.json()) as { models?: Array<{ name: string }> };
-    const models = data.models || [];
-    const hasModel = models.some((m) => m.name.includes(model) || m.name.includes("qwen2.5"));
-    return { online: true, hasModel };
-  } catch {
-    return { online: false, hasModel: false };
-  }
+  const client = new OllamaClient(ollamaUrl);
+  return client.checkStatus(model);
 }

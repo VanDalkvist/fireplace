@@ -8,7 +8,6 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   private isListeningActive = false;
   private whisperUrl: string;
   private silenceTimer: ReturnType<typeof setTimeout> | null = null;
-  private chunkInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(callbacks: SpeechEngineCallbacks = {}, whisperUrl = "http://127.0.0.1:8085") {
     this.callbacks = callbacks;
@@ -76,6 +75,9 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
         this.callbacks.onFinalPhrase?.(text);
       }
     } catch (err) {
+      if (this.silenceTimer) clearTimeout(this.silenceTimer);
+      this.isListeningActive = false;
+      this.callbacks.onStatusChange?.(false);
       this.callbacks.onError?.(
         `Ошибка Whisper ASR: ${err instanceof Error ? err.message : String(err)}`
       );
@@ -85,7 +87,6 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   public async stop(): Promise<void> {
     if (!this.isListeningActive) return;
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
-    if (this.chunkInterval) clearInterval(this.chunkInterval);
 
     this.isListeningActive = false;
     this.callbacks.onStatusChange?.(false);
@@ -118,7 +119,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
   public flush(): void {
     if (!this.isListeningActive) return;
-    this.processCurrentSegment(0);
+    this.processCurrentSegment(0, true);
     this.armSilenceTimer();
   }
 }

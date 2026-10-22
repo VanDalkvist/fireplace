@@ -12,7 +12,8 @@ export async function checkWhisperStatus(url = "http://127.0.0.1:8085"): Promise
   try {
     const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(500) });
     return { online: res.ok || res.status === 200 || res.status === 405 };
-  } catch {
+  } catch (err) {
+    console.warn("[WhisperClient] checkWhisperStatus failed:", err);
     return { online: false };
   }
 }

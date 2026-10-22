@@ -127,7 +127,9 @@ export class HearthWordsManager {
       });
       if (existing.length > 200) existing.splice(0, existing.length - 200);
       localStorage.setItem(key, JSON.stringify(existing));
-    } catch {}
+    } catch (err) {
+      console.warn("[HearthWords] Failed to persist link in localStorage:", err);
+    }
   }
 
   public render(ctx: CanvasRenderingContext2D, seats: IsometricSeat[], time: number): void {

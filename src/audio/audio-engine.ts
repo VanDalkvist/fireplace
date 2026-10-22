@@ -1,27 +1,6 @@
-const BASE = 146.83; // D3 in standard tuning
+import { FAMILY_SEMITONES, BELL_STEPS, semitoneToHz } from "./audio-constants";
 
-export const FAMILY_SEMITONES: Record<string, number> = {
-  радость: 7,
-  живость: 14,
-  интерес: 9,
-  нежность: 5,
-  спокойствие: 0,
-  тело: -5,
-  усталость: 2,
-  грусть: 3,
-  растерянность: 10,
-  стыд: -2,
-  страх: -3,
-  тревога: -10,
-  злость: -12,
-  другое: 0,
-};
-
-const BELL_STEPS = [0, 2, 5, 7, 9, 12, 14];
-
-export function semitoneToHz(semi: number): number {
-  return BASE * Math.pow(2, semi / 12);
-}
+export { FAMILY_SEMITONES, BELL_STEPS, semitoneToHz };
 
 export class SalonAudioEngine {
   private ac: AudioContext | null = null;
@@ -205,6 +184,13 @@ export class SalonAudioEngine {
       const audioTracks = stream.getAudioTracks();
       if (!audioTracks.length) return false;
 
+      audioTracks.forEach((track) => {
+        track.addEventListener?.("ended", () => {
+          this.disconnectMeetingAudio();
+          this.onMeetingAudioEndedCallback?.();
+        });
+      });
+
       this.meetingStream = stream;
       if (this.ac) {
         const src = this.ac.createMediaStreamSource(stream);
@@ -213,9 +199,16 @@ export class SalonAudioEngine {
         src.connect(this.analyser);
       }
       return true;
-    } catch {
+    } catch (err) {
+      console.warn("[SalonAudioEngine] captureMeetingAudio failed:", err);
       return false;
     }
+  }
+
+  private onMeetingAudioEndedCallback: (() => void) | null = null;
+
+  public onMeetingAudioEnded(cb: () => void): void {
+    this.onMeetingAudioEndedCallback = cb;
   }
 
   public disconnectMeetingAudio(): void {
