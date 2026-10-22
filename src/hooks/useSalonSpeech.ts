@@ -4,7 +4,7 @@ import { distillSpokenPhrase } from "@/domain/lexicon-engine";
 import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { createSpeechEngine } from "@/speech/speech-factory";
-import type { SpeechEnginePort, SpeechEngineKind } from "@/speech/speech-types";
+import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
 import type { SalonAudioEngine } from "@/audio/audio-engine";
 import type { InterimBadge } from "@/components/salon/VoiceIndicator";
 import { createSpeakerIdentifier } from "@/speaker/speaker-factory";
@@ -33,6 +33,8 @@ export function useSalonSpeech({
   const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
   const [isListening, setIsListening] = useState(isVoiceInit);
   const [isMeetingConnected, setIsMeetingConnected] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [pipelineStatus, setPipelineStatus] = useState<SpeechPipelineStatus>("idle");
   const [lastPhrase, setLastPhrase] = useState("тишина у огня");
   const [interimPhrase, setInterimPhrase] = useState(isVoiceInit ? "я чувствую замедление" : "");
   const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(
@@ -153,6 +155,8 @@ export function useSalonSpeech({
       onError: (err) => {
         setSpeechError(err);
       },
+      onAudioLevel: (lvl) => setAudioLevel(lvl),
+      onPipelineStatus: (status) => setPipelineStatus(status),
       onStatusChange: (active) => {
         setIsListening(active);
         wasListeningRef.current = active;
@@ -181,6 +185,8 @@ export function useSalonSpeech({
   return {
     isListening,
     isMeetingConnected,
+    audioLevel,
+    pipelineStatus,
     lastPhrase,
     interimPhrase,
     interimBadge,

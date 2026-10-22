@@ -45,6 +45,8 @@ export const SalonExperience: React.FC = () => {
   const {
     isListening,
     isMeetingConnected,
+    audioLevel,
+    pipelineStatus,
     lastPhrase,
     interimPhrase,
     interimBadge,
@@ -132,6 +134,8 @@ export const SalonExperience: React.FC = () => {
       <div className={cn("fixed bottom-4 left-4 right-4 z-10 flex flex-col items-center gap-2.5 transition-all duration-300", isZen && "translate-y-4 opacity-0 pointer-events-none")}>
         <VoiceIndicator
           isListening={isListening}
+          audioLevel={audioLevel}
+          pipelineStatus={pipelineStatus}
           lastPhraseText={lastPhrase}
           interimText={interimPhrase}
           interimBadge={interimBadge}
