@@ -20,8 +20,15 @@ export class SalonMotionEngine {
   public floorCY = 0;
   public floorRx = 0;
   public floorRy = 0;
+  public currentHeat = 0.0;
 
   private knownTokenIds = new Set<string>();
+
+  public computeTargetHeat(wordCount: number, isSpeaking: boolean): number {
+    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 14)) * 0.92 : 0.0;
+    const speechBoost = isSpeaking ? 0.12 : 0.0;
+    return Math.min(1.0, wordContribution + speechBoost);
+  }
 
   public resize(width: number, height: number): void {
     this.cx = width / 2;
@@ -132,8 +139,12 @@ export class SalonMotionEngine {
     }
     ctx.restore();
 
-    // 3. Living Contemplative Hearth Flame
-    this.flame.render(ctx, this.cx, this.floorCY, time);
+    // 3. Living Contemplative Hearth Flame (Ignited by accumulated words heat)
+    const isSpeaking = activeSpeakerId !== null || this.words.flightSparks.length > 0;
+    const targetHeat = this.computeTargetHeat(this.words.words.length, isSpeaking);
+    this.currentHeat += (targetHeat - this.currentHeat) * 0.035;
+
+    this.flame.render(ctx, this.cx, this.floorCY, time, this.currentHeat);
 
     // 4. Seats Ring (Pure glowing ember dots, no text numbers)
     this.seats.render(ctx, activeSpeakerId, time);

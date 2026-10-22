@@ -79,4 +79,58 @@ describe("SalonMotionEngine", () => {
     expect(engine.words.words.length).toBe(0);
     expect(engine.seats.seats.length).toBe(0);
   });
+
+  it("calculates progressive heat accumulation from words with speech boost", () => {
+    const engine = new SalonMotionEngine();
+
+    // 0 words, silent
+    expect(engine.computeTargetHeat(0, false)).toBe(0);
+
+    // 0 words, someone speaking -> gentle spark boost
+    expect(engine.computeTargetHeat(0, true)).toBeGreaterThan(0.08);
+
+    // Progressive ignition as words fill the circle
+    const heat5 = engine.computeTargetHeat(5, false);
+    const heat15 = engine.computeTargetHeat(15, false);
+    const heat30 = engine.computeTargetHeat(30, false);
+
+    expect(heat5).toBeGreaterThan(0.25);
+    expect(heat15).toBeGreaterThan(heat5);
+    expect(heat30).toBeGreaterThan(heat15);
+    expect(heat30).toBeLessThanOrEqual(1.0);
+  });
+
+  it("smoothly interpolates current heat during render loop", () => {
+    const engine = new SalonMotionEngine();
+    const mockCtx = {
+      fillRect: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      closePath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      bezierCurveTo: vi.fn(),
+      arc: vi.fn(),
+      ellipse: vi.fn(),
+      stroke: vi.fn(),
+      fill: vi.fn(),
+      translate: vi.fn(),
+      fillText: vi.fn(),
+      createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      globalCompositeOperation: "source-over",
+    } as unknown as CanvasRenderingContext2D;
+
+    // Simulate 15 words accumulated in circle
+    engine.words.words = Array(15).fill({ text: "слово" } as unknown);
+
+    expect(engine.currentHeat).toBe(0);
+    engine.render(mockCtx, 800, 600, null, 1000);
+    expect(engine.currentHeat).toBeGreaterThan(0);
+    const firstHeat = engine.currentHeat;
+
+    engine.render(mockCtx, 800, 600, null, 1016);
+    expect(engine.currentHeat).toBeGreaterThan(firstHeat);
+  });
 });

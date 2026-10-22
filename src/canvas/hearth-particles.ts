@@ -114,9 +114,10 @@ export class HearthParticleSystem {
     };
   }
 
-  public render(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number, wind: number): void {
+  public render(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number, wind: number, heat = 0.0): void {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    const clampedHeat = Math.max(0, Math.min(1, heat));
 
     // 1. Detaching Micro-Licks (via hardware sprite)
     for (let i = 0; i < this.licks.length; i++) {
@@ -124,7 +125,7 @@ export class HearthParticleSystem {
       if (++lk.life >= lk.maxLife) Object.assign(lk, this.createLick(cx, cy));
       const p = lk.life / lk.maxLife;
       lk.x += lk.vx + Math.sin(t * 3.5 + lk.curlPhase) * 0.55 + wind * 0.05;
-      lk.y += lk.vy;
+      lk.y += lk.vy * (1.0 + clampedHeat * 0.45);
       const alpha = p < 0.25 ? p / 0.25 : 1.0 - p;
       const curR = lk.size * (1 - p * 0.6);
 
@@ -140,7 +141,7 @@ export class HearthParticleSystem {
       if (++p.life >= p.maxLife) Object.assign(p, this.createPuff(cx, cy));
       const prog = p.life / p.maxLife;
       p.x += p.vx + Math.sin(t * 2.8 + p.y * 0.04) * 0.25 + wind * 0.03;
-      p.y += p.vy;
+      p.y += p.vy * (1.0 + clampedHeat * 0.45);
       const a = prog < 0.25 ? prog / 0.25 : 1.0 - prog;
       const rad = p.size * (1 - prog * 0.45);
       const sprite = p.hue === 'amber' ? this.amberPuffSprite : this.carminePuffSprite;
@@ -157,10 +158,10 @@ export class HearthParticleSystem {
       if (++sp.life >= sp.maxLife) Object.assign(sp, this.createSpark(cx, cy));
       const prog = sp.life / sp.maxLife;
       sp.x += sp.vx + Math.sin(t * 4.2 + sp.swirl) * 0.45 + wind * 0.06;
-      sp.y += sp.vy;
+      sp.y += sp.vy * (1.0 + clampedHeat * 0.65);
       const a = prog < 0.15 ? prog / 0.15 : 1.0 - prog;
 
-      ctx.globalAlpha = Math.max(0, Math.min(1, a * 0.85));
+      ctx.globalAlpha = Math.max(0, Math.min(1, a * (0.85 + clampedHeat * 0.15)));
       ctx.fillStyle = sp.life % 2 === 0 ? '#ffdfa0' : '#ff9838';
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, sp.size, 0, TAU);

@@ -35,21 +35,23 @@ const TONGUES: Tongue[] = [
 export class HearthFlameSimulator {
   private particles = new HearthParticleSystem();
 
-  public render(ctx: CanvasRenderingContext2D, cx: number, cy: number, time: number): void {
+  public render(ctx: CanvasRenderingContext2D, cx: number, cy: number, time: number, heat = 0.0): void {
     const t = time * 0.001;
+    const clampedHeat = Math.max(0, Math.min(1, heat));
     const globalWind = Math.sin(t * 0.45) * 5.5 + Math.sin(t * 1.1) * 2.5;
 
-    // 1. Ambient Ground Light Pool (~0.12 Hz breathing)
+    // 1. Ambient Ground Light Pool (~0.12 Hz breathing, organically expands with words heat)
     const breath = Math.sin(t * 0.75) * 0.03 + Math.sin(t * 1.5) * 0.015;
-    const poolRx = 220 * (1.0 + breath);
-    const poolRy = 78 * (1.0 + breath);
+    const poolRx = (175 + clampedHeat * 95) * (1.0 + breath);
+    const poolRy = (62 + clampedHeat * 32) * (1.0 + breath);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const poolGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, poolRx);
-    poolGrad.addColorStop(0.0, 'rgba(255, 200, 140, 0.20)');
-    poolGrad.addColorStop(0.45, 'rgba(215, 110, 40, 0.11)');
-    poolGrad.addColorStop(0.78, 'rgba(110, 25, 8, 0.035)');
+    const poolAlpha = 0.16 + clampedHeat * 0.10;
+    poolGrad.addColorStop(0.0, `rgba(255, 205, 145, ${poolAlpha})`);
+    poolGrad.addColorStop(0.45, `rgba(215, 110, 40, ${poolAlpha * 0.55})`);
+    poolGrad.addColorStop(0.78, `rgba(110, 25, 8, ${poolAlpha * 0.18})`);
     poolGrad.addColorStop(1.0, 'rgba(5, 5, 5, 0.0)');
     ctx.fillStyle = poolGrad;
     ctx.beginPath();
@@ -90,8 +92,8 @@ export class HearthFlameSimulator {
       ctx.lineTo(lx2, ly2);
       ctx.stroke();
 
-      const logHeat = Math.sin(t * lg.speed + lg.heatPhase) * 0.2 + 0.7;
-      ctx.strokeStyle = `rgba(245, 115, 30, ${logHeat * 0.75})`;
+      const logHeat = (Math.sin(t * lg.speed + lg.heatPhase) * 0.2 + 0.65) * (0.75 + clampedHeat * 0.45);
+      ctx.strokeStyle = `rgba(245, 115, 30, ${Math.min(1.0, logHeat * 0.75)})`;
       ctx.lineWidth = lg.w * 0.35;
       ctx.beginPath();
       ctx.moveTo(cx + (lx1 - cx) * 0.35, cy + 4 + (ly1 - (cy + 4)) * 0.35);
@@ -110,9 +112,9 @@ export class HearthFlameSimulator {
       const cycle2 = Math.sin(t * (fl.speed * 1.6) + fl.phase * 1.4);
       const activity = Math.max(0.18, cycle * 0.55 + cycle2 * 0.35 + 0.55);
 
-      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * 6 + globalWind;
-      const stretch = fl.baseH * (0.65 + activity * 0.45);
-      const width = fl.width * (0.75 + activity * 0.35);
+      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * (5 + clampedHeat * 3) + globalWind;
+      const stretch = fl.baseH * (0.55 + activity * 0.35 + clampedHeat * 0.50);
+      const width = fl.width * (0.70 + activity * 0.30 + clampedHeat * 0.35);
 
       const baseX = cx + fl.relX;
       const baseY = cy + fl.relY;
@@ -155,7 +157,7 @@ export class HearthFlameSimulator {
     }
     ctx.restore();
 
-    // 5. Render licks, puffs, and embers
-    this.particles.render(ctx, cx, cy, t, globalWind);
+    // 5. Render licks, puffs, and embers with heat convection
+    this.particles.render(ctx, cx, cy, t, globalWind, clampedHeat);
   }
 }
