@@ -16,11 +16,11 @@
 - Create: `src/domain/prompts/types.ts`
 - Test: `tests/prompts/prompt-types.test.ts`
 
-- [ ] **Step 1: Write test for prompt strategy interface and types**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Implement `src/domain/prompts/types.ts`**
-- [ ] **Step 4: Run test to verify pass**
-- [ ] **Step 5: Commit contract definition**
+- [x] **Step 1: Write test for prompt strategy interface and types**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Implement `src/domain/prompts/types.ts`**
+- [x] **Step 4: Run test to verify pass**
+- [x] **Step 5: Commit contract definition**
 
 ---
 
@@ -32,13 +32,13 @@
 - Create: `src/domain/prompts/completion-prompt.ts`
 - Test: `tests/prompts/phase-prompts.test.ts`
 
-- [ ] **Step 1: Write unit tests for Feelings, Desires, and Completion strategies**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Implement `FeelingsPromptStrategy`**
-- [ ] **Step 4: Implement `DesiresPromptStrategy`**
-- [ ] **Step 5: Implement `CompletionPromptStrategy`**
-- [ ] **Step 6: Run tests to verify pass**
-- [ ] **Step 7: Commit strategies**
+- [x] **Step 1: Write unit tests for Feelings, Desires, and Completion strategies**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Implement `FeelingsPromptStrategy`**
+- [x] **Step 4: Implement `DesiresPromptStrategy`**
+- [x] **Step 5: Implement `CompletionPromptStrategy`**
+- [x] **Step 6: Run tests to verify pass**
+- [x] **Step 7: Commit strategies**
 
 ---
 
@@ -48,11 +48,11 @@
 - Create: `src/domain/prompts/prompt-registry.ts`
 - Test: `tests/prompts/prompt-registry.test.ts`
 
-- [ ] **Step 1: Write unit tests for PromptRegistry resolution and defaults**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Implement `PromptRegistry` and export `defaultPromptRegistry`**
-- [ ] **Step 4: Run test to verify pass**
-- [ ] **Step 5: Commit registry**
+- [x] **Step 1: Write unit tests for PromptRegistry resolution and defaults**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Implement `PromptRegistry` and export `defaultPromptRegistry`**
+- [x] **Step 4: Run test to verify pass**
+- [x] **Step 5: Commit registry**
 
 ---
 
@@ -63,12 +63,12 @@
 - Test: `tests/phrase-distiller.test.ts`
 - Test: `tests/distiller-adapters.test.ts` (fix unused `DistillerRegistry` import)
 
-- [ ] **Step 1: Write unit test asserting phase-aware prompt selection in `distillWithNeuralFallback`**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Refactor `phrase-distiller.ts` to delegate to `defaultPromptRegistry` and fix TS warnings**
-- [ ] **Step 4: Fix TS warning in `tests/distiller-adapters.test.ts`**
-- [ ] **Step 5: Run tests and `npm run typecheck` to verify pass**
-- [ ] **Step 6: Commit refactor**
+- [x] **Step 1: Write unit test asserting phase-aware prompt selection in `distillWithNeuralFallback`**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Refactor `phrase-distiller.ts` to delegate to `defaultPromptRegistry` and fix TS warnings**
+- [x] **Step 4: Fix TS warning in `tests/distiller-adapters.test.ts`**
+- [x] **Step 5: Run tests and `npm run typecheck` to verify pass**
+- [x] **Step 6: Commit refactor**
 
 ---
 
@@ -78,25 +78,25 @@
 - Modify: `src/hooks/useSalonSpeech.ts`
 - Test: `tests/salon-speech.test.ts`
 
-- [ ] **Step 1: Write test verifying phase parameter passed to distillation and completion routing**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Update `useSalonSpeech.ts` to pass `phase` to `distillWithNeuralFallback` and route `completion`**
-- [ ] **Step 4: Run tests to verify pass**
-- [ ] **Step 5: Commit hook integration**
+- [x] **Step 1: Write test verifying phase parameter passed to distillation and completion routing**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Update `useSalonSpeech.ts` to pass `phase` to `distillWithNeuralFallback` and route `completion`**
+- [x] **Step 4: Run tests to verify pass**
+- [x] **Step 5: Commit hook integration**
 
 ---
 
 ### Task 6: Verification & Dual-Circuit Review (S9)
 
-- [ ] **Step 1: Run full test suite (`npm test`), type check (`npm run typecheck`), and build (`npm run build`)**
-- [ ] **Step 2: Run Architectural Reviewer subagent (`antigravity/gemini-3.8-flash --reasoning-level high`)**
-- [ ] **Step 3: Run Product Reviewer subagent (`antigravity/gemini-3.8-flash --reasoning-level high`)**
-- [ ] **Step 4: Verify dual PASS verdicts**
+- [x] **Step 1: Run full test suite (`npm test`), type check (`npm run typecheck`), and build (`npm run build`)**
+- [x] **Step 2: Run Architectural Reviewer subagent (`antigravity/gemini-3.8-flash --reasoning-level high`)**
+- [x] **Step 3: Run Product Reviewer subagent (`antigravity/gemini-3.8-flash --reasoning-level high`)**
+- [x] **Step 4: Verify dual PASS verdicts**
 
 ---
 
 ### Task 7: Ledger and Memory Update (S10, S11)
 
-- [ ] **Step 1: Document Cycle 38 in `docs/arch-improvement/review-log.md`**
-- [ ] **Step 2: Record architectural lessons in `docs/arch-improvement/memory.md`**
-- [ ] **Step 3: Commit and push to private repository**
+- [x] **Step 1: Document Cycle 38 in `docs/arch-improvement/review-log.md`**
+- [x] **Step 2: Record architectural lessons in `docs/arch-improvement/memory.md`**
+- [x] **Step 3: Commit and push to private repository**

@@ -1,5 +1,13 @@
 # Arch Improvement Memory
 
+## 2026-10-23 - Strategy + Registry Pattern for Multi-Phase LLM Prompts
+- Context: Дистилляция речи в 4 фазах практики присутствия («тишина», «круг чувств», «желания», «завершение»).
+- Symptom: Разрастание одного файла оркестратора (`phrase-distiller.ts`) при попытке держать в нём несколько промптов и парсеров под разные фазы, риск пробития лимита AP-019 (250 строк) и нарушение Open/Closed Principle.
+- Cause: Монолитное хранение системных промптов и логики разбора в одной функции.
+- Use next time: Использовать чистый паттерн «Стратегия + Реестр» (`src/domain/prompts/`): интерфейс-порт `PhasePromptStrategy` (`buildPrompt`, `parseResponse`, `createFallback`), отдельные изолированные классы под каждую фазу (`FeelingsPromptStrategy`, `DesiresPromptStrategy`, `CompletionPromptStrategy`) и `PromptRegistry` как точку сборки с безопасным fallback на дефолтную стратегию. Оркестратор остаётся тонким фасадом ($\le 130$ строк).
+- Evidence: `src/domain/prompts/*`, `tests/prompts/*`, 152/152 тестов GREEN, 0 циклических зависимостей.
+
+
 ## 2026-10-22 - OpenAI Audio API Standard & Multi-ASR DI
 - Context: Переход на мультивендорный ASR (GigaAM v3 + Whisper Large Turbo) и стандартизацию протоколов.
 - Symptom: Разные ASR-серверы исторически имели разные кастомные эндпоинты (`/inference` у whisper.cpp, `/v1/transcribe` у некоторых Rust/Python шлюзов), что провоцировало спагетти-код в адаптерах.

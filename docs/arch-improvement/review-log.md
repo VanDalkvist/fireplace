@@ -1220,6 +1220,53 @@
    - Сборка `vite build` — 283 мс. Процесс PM2 `salon-presence` перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 38 - 2026-10-23 - Independent Phase Prompt Strategies (Feelings, Desires, Completion) & Registry Pattern
+
+### Context
+- Branch: `main`
+- Scope:
+  1. Реализация независимых фазовых промпт-стратегий для 3 этапов практики присутствия:
+     - Первый этап (`feelings`): извлечение эмоционального переживания спикера в моменте (`family`, `valence`).
+     - Второй этап (`desires`): извлечение живой потребности, импульса или желания («хочу... / хочется...») с формированием токена желания (`isDesirePhrase: true`).
+     - Третий этап (`completion`): чекаут и интеграция круга («Что было важным? Что забираю с собой?»), извлечение сухого остатка и инсайтов с семейством `завершение`.
+  2. Паттерн «Стратегия + Реестр» (Strategy + Registry):
+     - `src/domain/prompts/types.ts`: общий интерфейс-порт `PhasePromptStrategy` и типизированные DTO `PromptDistillPayload`, `PhaseDistillResult`.
+     - `src/domain/prompts/feelings-prompt.ts`: стратегия круга чувств.
+     - `src/domain/prompts/desires-prompt.ts`: стратегия круга желаний.
+     - `src/domain/prompts/completion-prompt.ts`: стратегия чекаута.
+     - `src/domain/prompts/prompt-registry.ts`: единая точка сборки (composition root) с автоматическим фоллбэком на стратегию чувств при фазе `silence` или неизвестной фазе (AP-046).
+  3. Рефакторинг оркестратора `src/domain/phrase-distiller.ts`:
+     - Сокращение размера со 195 строк до 128 строк (строгий PASS AP-019 $\le 250$).
+     - Устранение неиспользуемых переменных (`contextLines`), исправление ошибок TypeScript strictness.
+     - Делегирование выбора промпта и парсинга ответа в `defaultPromptRegistry`.
+  4. Интеграция с рантаймом в `src/hooks/useSalonSpeech.ts`:
+     - Передача текущей фазы `phase: curPhase` в дистиллятор нейросети.
+     - Маршрутизация завершающих фраз (`completion`) в токены круга.
+     - Сохранение 100% честного verbatim-режима и оффлайн-фоллбэка.
+
+### Findings Fixed
+- [P1] Monolithic Distillation Prompt without Multi-Phase Support — RESOLVED via Strategy + Registry pattern in `src/domain/prompts/*`.
+- [P1] Missing Phase Context Delegation in Speech Hook — RESOLVED via passing `phase: curPhase` to `distillWithNeuralFallback`.
+- [P2] TypeScript Compilation Errors on Unused Variables — RESOLVED via removing unused `contextLines` in `phrase-distiller.ts` and unused `DistillerRegistry` import in `tests/distiller-adapters.test.ts`.
+- [P2] Risk of Breaching AP-019 Line Budget — RESOLVED via decomposing prompt logic into independent modules; all files $\le 248$ lines.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (`thr_24upbheka7`):**
+   - 152/152 тестов Vitest GREEN (37 тест-сьютов, 22 новых модульных теста стратегий и реестра).
+   - `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - `madge --circular` 0 циклических зависимостей (AP-025).
+   - Все файлы в `src/` $\le 248$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer (`thr_5ffnc79e2k`):**
+   - Проведено синтетическое black-box тестирование в headless-браузере на live-рантайме (`http://127.0.0.1:4343`):
+     - Happy Path: в фазе `feelings` извлечено чувство (`family: "усталость"`); в `desires` извлечено желание (`"хочется выдохнуть и побыть в тишине"`, `isDesirePhrase: true`); в `completion` извлечен чекаут (`"забираю ясность и спокойствие"`, `family: "завершение"`).
+     - Cold-Start / Empty State: пустые фразы не вызывают сетевых запросов; «пас» отрабатывает мгновенно за 0 мс без обращения к LLM.
+     - Error Recovery: при симуляции полного отключения сети система активирует честный verbatim-режим без искажений слов спикера и без фризов UI.
+   - Сборка `vite build` — 221 мс. Процесс PM2 `salon-presence` (id 7) перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
 
 
 
