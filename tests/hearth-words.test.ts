@@ -58,7 +58,7 @@ describe('HearthWordsManager', () => {
     expect(slot2Angle).toBeLessThan(Math.PI / 2);
   });
 
-  it('applies law of opacity decay by 0.02 with 0.10 floor', () => {
+  it('applies law of opacity decay by 0.02 with 0.20 floor', () => {
     const manager = new HearthWordsManager();
     const mockCtx = {
       font: '',
@@ -75,12 +75,12 @@ describe('HearthWordsManager', () => {
     for (let i = 0; i < 10; i++) manager.ageWords();
     expect(manager.words[0].opacity).toBeCloseTo(0.80, 2);
 
-    // Age 60 more times -> should reach floor 0.10 and NOT go lower
+    // Age 60 more times -> should reach floor 0.20 and NOT go lower
     for (let i = 0; i < 60; i++) manager.ageWords();
-    expect(manager.words[0].opacity).toBe(0.10);
+    expect(manager.words[0].opacity).toBe(0.20);
   });
 
-  it('enforces capacity cap of 36 words with LRU eviction of faded words', () => {
+  it('preserves all words without truncation or eviction', () => {
     const manager = new HearthWordsManager();
     const mockCtx = {
       font: '',
@@ -96,6 +96,6 @@ describe('HearthWordsManager', () => {
       manager.addWord(`w-${i}`, `слово-${i}`, 'спокойствие', seat, 500, 300, 400, 200, mockCtx);
     }
 
-    expect(manager.words.length).toBeLessThanOrEqual(36);
+    expect(manager.words.length).toBe(40);
   });
 });

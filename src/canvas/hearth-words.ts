@@ -1,7 +1,7 @@
 /**
  * Contemplative Hearth Words & Conversational Resonance
  * Words settle in the shared clearing ring with sacred fire clearance,
- * 22% conversational gravity, 2.4s provenance tether, and 0.10 opacity floor.
+ * 22% conversational gravity, 2.4s provenance tether, and 0.20 opacity floor.
  * Compliance: AP-019 (<= 250 lines), AP-029 (strict TS)
  */
 
@@ -75,7 +75,7 @@ export class HearthWordsManager {
 
   public ageWords(): void {
     for (let i = 0; i < this.words.length; i++) {
-      this.words[i].opacity = Math.max(0.10, this.words[i].opacity - 0.02);
+      this.words[i].opacity = Math.max(0.20, this.words[i].opacity - 0.02);
     }
   }
 
@@ -107,14 +107,6 @@ export class HearthWordsManager {
     };
 
     this.recordLink(item);
-    if (this.words.length >= 36) {
-      const oldestIdx = this.words.findIndex((w) => w.opacity <= 0.15);
-      if (oldestIdx !== -1) {
-        this.words.splice(oldestIdx, 1);
-      } else {
-        this.words.shift();
-      }
-    }
     this.words.push(item);
     this.flightSparks.push({
       sx: speakerSeat.x, sy: speakerSeat.y, tx: slot.x, ty: slot.y,
@@ -203,7 +195,7 @@ export class HearthWordsManager {
       ctx.textBaseline = 'middle';
 
       const isLatest = w === this.lastSpokenWord;
-      const alpha = Math.max(0.10, w.opacity);
+      const alpha = Math.max(0.20, w.opacity);
       if (isLatest) {
         ctx.fillStyle = `rgba(255, 185, 115, ${alpha})`;
         ctx.shadowColor = 'rgba(255, 178, 102, 0.60)';
