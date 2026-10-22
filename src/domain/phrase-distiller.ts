@@ -1,4 +1,4 @@
-import { distillSpokenPhrase, type DistillationResult, type LexiconIndex } from "./lexicon-engine";
+import { distillSpokenPhrase, isPureFillerPhrase, type DistillationResult, type LexiconIndex } from "./lexicon-engine";
 import { OllamaClient } from "@/infrastructure/ollama-client";
 
 export interface NeuralDistillerOptions {
@@ -34,6 +34,11 @@ export async function distillWithNeuralFallback(
     return { feelings: [], desires: [], pass: true, neuralDistilled: false, engineUsed: "qwen2.5:1.5b" };
   }
 
+  // Fast-track pure conversational fillers (e.g. "как раз", "в общем", "ну вот")
+  if (isPureFillerPhrase(trimmed)) {
+    return { feelings: [], desires: [], pass: false, repairedText: trimmed, neuralDistilled: false, engineUsed: "lexicon-fallback" };
+  }
+
   // Pure Neural Routing: everything flows to Qwen to preserve essence, metaphor, and depth
   const ollamaUrl = options.ollamaUrl || "http://127.0.0.1:11434";
   const model = options.model || "qwen2.5:1.5b";
@@ -42,14 +47,15 @@ export async function distillWithNeuralFallback(
   try {
     const client = new OllamaClient(ollamaUrl);
     const prompt = `Ты — созерцательный слушатель у костра. Твоя задача:
-1. Исправь опечатки и ослышки распознавания речи в высказывании участника.
-2. Сохрани живые слова и смысл высказывания человека целиком. Не обрезай до одного слова!
+1. Очисти высказывание от слов-паразитов и вводных связок («как раз», «в общем», «ну вот», «так сказать», «то есть», «короче», «собственно», «по сути»).
+2. Если высказывание состоит ТОЛЬКО из связок/мусора — верни phrase: "".
+3. Сохрани живую смысловую мысль человека целиком (2–6 слов).
 
-Слова участника: "${trimmed}"
+Высказывание: "${trimmed}"
 
-Выведи JSON с полями:
-- repaired_text (строка: исправленный чистый текст высказывания без опечаток)
-- phrase (строка: емкая мысль или живая фраза от 2 до 5 слов, не обрезай до одного слова)
+Выведи JSON:
+- repaired_text (строка: чистая фраза без слов-паразитов и опечаток)
+- phrase (строка: емкая мысль от 2 до 6 слов или пустая строка если нет мысли)
 - family (одно слово: покой, тепло, грусть, благодарность, уязвимость, радость, усталость или другое точное слово)
 - valence (число от -1.0 до 1.0)
 
@@ -83,6 +89,18 @@ JSON:`;
         (phraseWords.length <= 1 && repairedWords.length >= 2);
 
       const effectivePhrase = isAmputationOrLeak ? repaired : phraseClean;
+
+      // Suppress pure filler leakage after neural step
+      if (isPureFillerPhrase(effectivePhrase)) {
+        return {
+          feelings: [],
+          desires: [],
+          pass: false,
+          repairedText: repaired,
+          neuralDistilled: true,
+          engineUsed: model as "qwen2.5:1.5b",
+        };
+      }
 
       if (effectivePhrase) {
         const kind = parsed.kind || "feeling";

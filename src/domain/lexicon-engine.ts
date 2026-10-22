@@ -192,8 +192,25 @@ export function extractFeelingsAndDesires(phrase: string, idx: LexiconIndex): Ex
 const CONVERSATIONAL_FILLERS = new Set([
   "ну", "в", "общем", "целом", "как-то", "сейчас", "наверное", "я", "чувствую",
   "мне", "кажется", "у", "меня", "такое", "просто", "вот", "знаете", "немного",
-  "очень", "прямо", "сегодня", "вообще", "наверно", "типа", "короче"
+  "очень", "прямо", "сегодня", "вообще", "наверно", "типа", "короче", "ага", "угу"
 ]);
+
+const DISCOURSE_FILLER_PHRASES = new Set([
+  "как раз", "как раз вот", "вот как раз", "в общем", "в общем то", "в целом",
+  "так сказать", "то есть", "на самом деле", "по сути", "по сути дела", "как бы",
+  "собственно", "собственно говоря", "в принципе", "дело в том", "дело в том что",
+  "короче", "короче говоря", "ну вот", "ну и вот", "вот так", "да да", "да да да",
+  "ага", "угу", "ну да", "ну нет", "кстати", "кстати говоря", "значит", "в смысле"
+]);
+
+export function isPureFillerPhrase(text: string): boolean {
+  const norm = text.toLowerCase().replace(/[.,!?;:—\-]/g, " ").replace(/\s+/g, " ").trim();
+  if (!norm || norm.length < 2) return true;
+  if (DISCOURSE_FILLER_PHRASES.has(norm)) return true;
+  const parts = norm.split(" ");
+  if (parts.length === 1 && CONVERSATIONAL_FILLERS.has(parts[0])) return true;
+  return false;
+}
 
 const PASS_STEMS = ["пас", "помолчу", "паснусь", "пропущу", "пропускаю", "помолчать"];
 

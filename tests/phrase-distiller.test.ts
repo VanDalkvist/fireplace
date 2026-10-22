@@ -7,6 +7,16 @@ describe('Neural Phrase Distiller', () => {
     vi.restoreAllMocks();
   });
 
+  it('suppresses pure conversational fillers like "как раз" without adding them to hearth', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const res = await distillWithNeuralFallback("как раз", defaultLexiconIndex);
+
+    expect(res.feelings.length).toBe(0);
+    expect(res.desires.length).toBe(0);
+    expect(res.pass).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('fast-tracks explicit pass phrases without calling neural endpoint', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const res = await distillWithNeuralFallback("пас", defaultLexiconIndex);

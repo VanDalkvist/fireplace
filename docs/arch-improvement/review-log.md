@@ -708,24 +708,30 @@
      - Внедрен анти-ампутационный гейт `isAmputationOrLeak`: пресечена попытка малой LLM Qwen 1.5B ампутировать цельные живые мысли до 1 оторванного слова/глагола (`«поиграй»`, `«работает»`, `«туш»`). Если фраза лаконична или LLM обрезала высказывание до 1 слова, в круг летит полная чистая мысль человека (`repaired_text`).
      - Птолок непрерывного монолога расширен с 7.0 с до 12.0 с, а пауза EOU скорректирована до 700 мс, исключая случайную нарезку речи посередине смысловой фразы.
   3. Очистка костра от видимых связей (`hearth-words.ts`): удалены временные пунктирные линии, перечеркивавшие пламя костра от стульев к словам. Связи диалога по-прежнему персистятся как данные в `localStorage` (`recordLink`), но визуальное поле остается чистым, созерцательным и свободным от линий.
-  4. Соблюдение строгих лимитов AP-019: `stream-recorder.ts` (236 строк), `hearth-words.ts` (231 строка), все файлы $\le 236$ строк.
+  4. Фильтрация паразитных речевых связок и вводных конструкций (`lexicon-engine.ts`, `phrase-distiller.ts`, `useSalonSpeech.ts`):
+     - Внедрен детерминированный фильтр `isPureFillerPhrase` со словарем дискурсивных паразитов («как раз», «в общем», «ну вот», «так сказать», «то есть», «короче», «собственно», «да да», «ага» и др.).
+     - Промпт Qwen 1.5B явно проинструктирован вырезать вводные связки («как раз», «в общем») и возвращать `phrase: ""` для бессодержательных фраз-паразитов.
+     - `useSalonSpeech` блокирует отправку пустых паразитных конструкций в круг костра.
+  5. Соблюдение строгих лимитов AP-019: все файлы $\le 246$ строк.
 
 ### Findings Fixed
 - [P1] Jittery Jumping Microphone Button UX (AP-054) — RESOLVED via serene static state `"слушаю"`.
 - [P1] Single-Word Amputation & Monologue Chopping (AP-012, AP-013) — RESOLVED via anti-amputation guard & 12s ceiling.
 - [P1] Intrusive Visible Lines Across the Hearth Fire — RESOLVED by removing canvas lines and keeping links in data only.
+- [P2] Conversational Filler Leakage ("как раз", "в общем") into the Hearth Ring — RESOLVED via dual deterministic + neural filler filter.
 
 ### Verification (Dual-Circuit S9 Gate)
 1. **Architectural Reviewer:**
-   - 111/111 тестов Vitest GREEN (29 тест-сьютов).
+   - 112/112 тестов Vitest GREEN (29 тест-сьютов).
    - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
-   - Все файлы в `src/` $\le 236$ строк (строгий PASS AP-019 $\le 250$).
+   - Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
    - **Вердикт:** `VERDICT: PASS`.
 2. **Product Reviewer:**
    - Сценарий 1 (Кнопка не прыгает): подтвержден `tests/voice-indicator.test.tsx` (ровно `"слушаю"` при любых фазах).
    - Сценарий 2 (В круг летят цельные осмысленные фразы, а не огрызки): подтвержден `tests/phrase-distiller.test.ts`.
    - Сценарий 3 (Чистый костер без линий): подтвержден `tests/hearth-words.test.ts`.
-   - Сборка `vite build` — 288 мс. PM2 процессы онлайн.
+   - Сценарий 4 (Паразитные связки «как раз» не попадают в костер): подтвержден `tests/lexicon-engine.test.ts`.
+   - Сборка `vite build` — 423 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
 

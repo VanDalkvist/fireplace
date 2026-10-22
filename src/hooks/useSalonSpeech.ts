@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { SessionPhase } from "@/domain/types";
-import { distillSpokenPhrase } from "@/domain/lexicon-engine";
+import { distillSpokenPhrase, isPureFillerPhrase } from "@/domain/lexicon-engine";
 import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { createSpeechEngine } from "@/speech/speech-factory";
@@ -100,6 +100,7 @@ export function useSalonSpeech({
     }
     if (!matched) {
       const clean = res.fallbackText || settled;
+      if (isPureFillerPhrase(clean)) return;
       if (res.isDesirePhrase || currentPhase === "desires") {
         desireFn(clean, speakerSeat);
       } else {
