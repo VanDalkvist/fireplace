@@ -125,14 +125,8 @@ export const SalonExperience: React.FC = () => {
       {/* Floating Header */}
       <div className={cn("fixed top-3 left-4 right-4 z-10 transition-all duration-300", isZen && "-translate-y-4 opacity-0 pointer-events-none")}>
         <SalonHeader
-          phase={state.phase}
-          isListening={isListening}
-          isZen={isZen}
-          onPhaseSelect={handlePhaseSelect}
-          onToggleZen={() => setIsZen((prev) => !prev)}
           onOpenPult={() => setIsPultOpen(true)}
           onOpenAnalytics={() => setIsAnalyticsOpen(true)}
-          onOpenHelp={() => setIsIntroOpen(true)}
         />
       </div>
 

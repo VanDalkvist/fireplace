@@ -134,4 +134,30 @@ describe("SalonMotionEngine", () => {
     engine.render(mockCtx, 800, 600, null, 1016);
     expect(engine.currentHeat).toBeGreaterThan(firstHeat);
   });
+
+  it("triggers instant flame flare when a new word enters the circle", () => {
+    const engine = new SalonMotionEngine();
+    const mockCtx = createMockCtx();
+    const participants: Participant[] = [
+      { id: 1, seatNumber: 1, role: "light", isSpeaking: true, hasPassed: false, isHost: true },
+    ];
+    const initialHeat = engine.currentHeat;
+
+    const feelings: FeelingToken[] = [
+      {
+        id: "flare-token-1",
+        text: "живость",
+        lemma: "живость",
+        family: "живость",
+        valence: 0.8,
+        arousal: 0.8,
+        intensity: 1.5,
+        speakerId: 1,
+        timestamp: Date.now(),
+      },
+    ];
+
+    engine.syncTokens(feelings, [], participants, 1, 800, 600, mockCtx);
+    expect(engine.currentHeat).toBeGreaterThanOrEqual(initialHeat + 0.2);
+  });
 });

@@ -13,6 +13,10 @@ const TONGUES: Tongue[] = buildTongues();
 export class HearthFlameSimulator {
   private particles = new HearthParticleSystem();
 
+  public triggerWordFlare(cx: number, cy: number): void {
+    this.particles.burst(cx, cy, 18);
+  }
+
   public render(ctx: CanvasRenderingContext2D, cx: number, cy: number, time: number, heat = 0.0): void {
     const t = time * 0.001;
     const clampedHeat = Math.max(0, Math.min(1, heat));

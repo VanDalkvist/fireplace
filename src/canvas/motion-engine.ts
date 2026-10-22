@@ -85,6 +85,8 @@ export class SalonMotionEngine {
         if (speakerSeat) {
           speakerSeat.pulse = 1.0;
           speakerSeat.spokenCount++;
+          this.currentHeat = Math.min(1.0, this.currentHeat + 0.22);
+          this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(
             token.id,
             token.lemma || token.text,
@@ -108,6 +110,8 @@ export class SalonMotionEngine {
         if (speakerSeat) {
           speakerSeat.pulse = 1.0;
           speakerSeat.spokenCount++;
+          this.currentHeat = Math.min(1.0, this.currentHeat + 0.22);
+          this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(
             token.id,
             token.text,

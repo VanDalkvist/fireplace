@@ -1146,6 +1146,41 @@
    - Сборка `vite build` — 315 мс. Процесс PM2 `salon-presence` перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 33 - 2026-10-22 - Minimal Header, Zero Layout Shift & Word Campfire Ignition Mechanics
+
+### Context
+- Branch: `main`
+- Scope:
+  1. Очистка хедера от визуального шума (`src/components/salon/SalonHeader.tsx`):
+     - Удалены все лишние пункты и слова: навигация по фазам («01 тишина», «02 круг чувств», «03 чего хочется», «04 выход»), дескриптор «· созерцательный очаг», статус «слушает голос / тишина у огня», кнопки «зен (h)» и «?».
+     - В хедере оставлено только чистое название: `салон присутствия · костёр` с теплым угольком, а справа — аккуратные кнопки открытия аналитики и пульта.
+  2. Ликвидация прыжков интерфейса при активации микрофона (Zero Layout Shift):
+     - В `SalonHeader` полностью удален динамический текст статуса микрофона, вызывавший горизонтальные скачки кнопок. Хедер зафиксирован на высоте `h-10`.
+     - В `VoiceIndicator` кнопке микрофона задана стабильная фиксированная ширина `min-w-[132px] justify-center` (не меняет размер при переключении между «микрофон (v)» и «слушаю»), а подстрочнику статуса задана фиксированная высота `h-5` (исключены вертикальные скачки нижней панели управления).
+  3. Проверка и усиление механики разгорания костра от слов:
+     - Подтверждена прогрессивная физика нагрева: `computeTargetHeat` масштабирует огонь по экспоненциальной кривой от числа слов (`1.0 - exp(-wordCount / 8)`). Высота пламени вырастает на +70%, ширина на +50%, а ореол каскада света расширяется с 780px до 1000px.
+     - Добавлен мгновенный импульс возгорания при приходе нового слова: `currentHeat = Math.min(1.0, currentHeat + 0.22)` и вызов `triggerWordFlare` со снопом из 18 взлетающих конвекционных искр (`burst`).
+
+### Findings Fixed
+- [P1] Cluttered Header with Redundant Phase Buttons — RESOLVED via minimal header containing only «салон присутствия · костёр» and utility drawers.
+- [P1] Layout Shift / Header Jitter on Speech Activity — RESOLVED via removal of dynamic speech status from header and fixed constraints (`min-w-[132px]`, `h-5`).
+- [P2] Immediate Fire Flare upon Spoken Words — RESOLVED via instant +0.22 heat impulse and particle convection burst in `SalonMotionEngine`.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 129/129 тестов Vitest GREEN (32 тест-сьюта, добавлен тест на моментальный флейр костра при приходе слова).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 235$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Хедер стал предельно спокойным и чистым: только «салон присутствия · костёр», ничего не скачет и не дёргается при включении микрофона или речи.
+   - Механика костра от слов живая и отзывчивая: каждое высказанное слово даёт яркий всплеск пламени с искрами, а общее тепло костра и радиус света растут по мере накопления мыслей в круге.
+   - Сборка `vite build` — 330 мс. Процесс PM2 `salon-presence` перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

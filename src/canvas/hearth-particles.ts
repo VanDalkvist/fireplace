@@ -114,6 +114,19 @@ export class HearthParticleSystem {
     };
   }
 
+  public burst(cx: number, cy: number, count = 16): void {
+    for (let i = 0; i < count; i++) {
+      const sp = this.createSpark(cx, cy);
+      sp.vy = -2.2 - Math.random() * 3.8;
+      sp.vx = (Math.random() - 0.5) * 2.2;
+      sp.size = 2.0 + Math.random() * 3.0;
+      this.sparks.push(sp);
+    }
+    if (this.sparks.length > 80) {
+      this.sparks.splice(0, this.sparks.length - 80);
+    }
+  }
+
   public render(ctx: CanvasRenderingContext2D, cx: number, cy: number, t: number, wind: number, heat = 0.0): void {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
