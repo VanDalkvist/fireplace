@@ -997,6 +997,47 @@
    - Сборка `vite build` — 244 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 29 - 2026-10-22 - Radiance Cascade Ground Light Diffusion & Vibrant Stone Highlights
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-29-radiance-cascade-ground-light-and-vibrant-stone-highlights.md`
+- Scope:
+  1. Ликвидация искусственного срезанного овала света (`src/canvas/hearth-flame.ts`):
+     - Первопричина дефекта: заполнение `ctx.ellipse` обычным круглым радиальным градиентом срезало градиент по оси Y на 40% радиуса (где альфа была > 0.20), создавая жесткую видимую кайму.
+     - Решение на базе PBR / Taos WebGPU Engine: трансформация координатной сетки `ctx.translate(cx, cy); ctx.scale(1.0, 0.36)`. Градиент становится математически изометрическим эллипсом, где внешний стоп `1.0` равен абсолютному нулю `rgba(0,0,0,0)`, полностью исключая любые видимые границы.
+     - 3-уровневый каскад освещенности (Radiance Cascade):
+       * Tier 1 (Distant Ambient Dissipation): радиус 780..1000px, мягко заливает поляну теплым янтарным светом далеко под парящие слова и к креслам участников с плавным затуханием по закону обратных квадратов.
+       * Tier 2 (Meadow Mid-Glow): радиус 440..580px, медово-оранжевый полумрак поляны.
+       * Tier 3 (Hearth Direct Glow): радиус 210..280px, насыщенное теплое сияние вокруг камней.
+     - 1/f мульти-частотное дыхание света: три некратные синусоиды (1.7, 3.3, 7.1 Гц) оживляют интенсивность и радиус светового бассейна в унисон с языками огня.
+  2. Выразительные блики и сияние камней очага:
+     - Введена аддитивная модель освещения `ctx.globalCompositeOperation = 'lighter'`.
+     - Направленный золотистый блик от огня (`rgba(255, 225, 135)`) увеличен в размере и яркости.
+     - Добавлен мерцающий рефлекс пламени на каждом камне (`stoneFlicker = sin(t * 3.8 + ang * 2.5)`).
+     - Добавлена спекулярная световая дуга (гребень камня, обращенный к костру) золотистого оттенка `rgba(255, 215, 120)` толщиной 1.3px.
+  3. Декомпозиция геометрии: `src/canvas/hearth-geometry.ts` (98 строк), `src/canvas/hearth-flame.ts` (223 строки) — строгий PASS AP-019 ($\le 250$ строк).
+
+### Findings Fixed
+- [P1] Artificial Clipped Light Oval — RESOLVED via transform-scaled isometric Radiance Cascade with windowed inverse-square attenuation.
+- [P1] Light Dissipation Under Floating Words — RESOLVED via Tier 1 ambient dissipation reaching 780–1000px.
+- [P2] Dim Stone Highlights — RESOLVED via additive lighter composite, dynamic flame flicker, and specular crest rims.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 123/123 тестов Vitest GREEN (31 тест-сьют).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 239$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Световой бассейн больше не выглядит плоским овальным стикером с жесткими краями: свет свободно, глубоко и мягко рассеивается по поляне далеко под парящие слова, плавно сходя на нет в темноте.
+   - Камни очага выразительно ловят живой свет огня с мерцающими золотыми бликами и освещенными гранями.
+   - Сборка `vite build` — 335 мс. PM2 перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

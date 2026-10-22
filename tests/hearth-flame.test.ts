@@ -17,6 +17,8 @@ describe('HearthFlameSimulator', () => {
       ellipse: vi.fn(),
       fill: vi.fn(),
       stroke: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
       createRadialGradient: vi.fn(() => ({
         addColorStop: vi.fn(),
       })),
@@ -56,6 +58,8 @@ describe('HearthFlameSimulator', () => {
       ellipse: vi.fn(),
       fill: vi.fn(),
       stroke: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
       createRadialGradient: vi.fn((_cx, _cy, _r0, _fx, _fy, r1) => {
         sink.push(r1);
         return { addColorStop: vi.fn() };
@@ -80,7 +84,7 @@ describe('HearthFlameSimulator', () => {
 
     expect(coolRadius).toBeDefined();
     expect(hotRadius).toBeDefined();
-    expect(coolRadius).toBeGreaterThanOrEqual(280);
+    expect(coolRadius).toBeGreaterThanOrEqual(700);
     expect(hotRadius).toBeGreaterThan(coolRadius);
   });
 
@@ -104,6 +108,7 @@ describe('HearthFlameSimulator', () => {
       createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       translate: vi.fn(),
+      scale: vi.fn(),
       rotate: vi.fn(),
       fillStyle: '',
       strokeStyle: '',
@@ -136,6 +141,8 @@ describe('HearthFlameSimulator', () => {
       ellipse: vi.fn(),
       fill: vi.fn(),
       stroke: vi.fn(),
+      translate: vi.fn(),
+      scale: vi.fn(),
       createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       fillStyle: '',

@@ -116,6 +116,7 @@ describe("SalonMotionEngine", () => {
       stroke: vi.fn(),
       fill: vi.fn(),
       translate: vi.fn(),
+      scale: vi.fn(),
       fillText: vi.fn(),
       createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
       createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),

@@ -5,65 +5,9 @@
  */
 
 import { HearthParticleSystem } from './hearth-particles';
+import { HEARTH_STONES, LOGS, buildTongues, type Tongue } from './hearth-geometry';
 
 const TAU = Math.PI * 2;
-
-interface Log { a: number; len: number; w: number; heatPhase: number; speed: number; }
-interface Tongue {
-  relX: number; relY: number; width: number; baseH: number; speed: number; phase: number;
-  layer: 'core' | 'body' | 'mantle';
-}
-interface Stone {
-  ang: number; dr: number; w: number; h: number; rot: number; shade: string;
-}
-
-const HEARTH_STONES: Stone[] = [
-  { ang: 0.08, dr: 3,  w: 19, h: 11, rot: 0.12,  shade: '#201813' },
-  { ang: 0.46, dr: -4, w: 14, h: 9,  rot: 0.28,  shade: '#18120e' },
-  { ang: 0.84, dr: 5,  w: 20, h: 12, rot: -0.18, shade: '#251d17' },
-  { ang: 1.26, dr: -3, w: 15, h: 9,  rot: 0.14,  shade: '#1b1410' },
-  { ang: 1.64, dr: 4,  w: 22, h: 12, rot: 0.02,  shade: '#231a15' },
-  { ang: 2.04, dr: -5, w: 13, h: 8,  rot: -0.25, shade: '#16110d' },
-  { ang: 2.42, dr: 3,  w: 18, h: 10, rot: 0.18,  shade: '#211914' },
-  { ang: 2.82, dr: -3, w: 15, h: 9,  rot: -0.12, shade: '#1a130f' },
-  { ang: 3.20, dr: 4,  w: 20, h: 11, rot: 0.06,  shade: '#241c16' },
-  { ang: 3.60, dr: -4, w: 14, h: 8,  rot: 0.22,  shade: '#17110d' },
-  { ang: 4.00, dr: 3,  w: 18, h: 10, rot: -0.16, shade: '#221a15' },
-  { ang: 4.40, dr: -3, w: 15, h: 9,  rot: 0.12,  shade: '#19130f' },
-  { ang: 4.78, dr: 5,  w: 22, h: 12, rot: -0.08, shade: '#261e18' },
-  { ang: 5.18, dr: -5, w: 13, h: 8,  rot: 0.26,  shade: '#16110d' },
-  { ang: 5.56, dr: 3,  w: 17, h: 10, rot: -0.14, shade: '#1f1813' },
-  { ang: 5.94, dr: -2, w: 15, h: 9,  rot: 0.18,  shade: '#1a130f' },
-];
-
-const LOGS: Log[] = [
-  { a: -0.65, len: 144, w: 13.5, heatPhase: 0.0, speed: 1.6 },
-  { a: 0.85,  len: 138, w: 13.0, heatPhase: 2.1, speed: 2.0 },
-  { a: 2.35,  len: 150, w: 14.0, heatPhase: 4.2, speed: 1.4 },
-  { a: 3.85,  len: 135, w: 13.0, heatPhase: 1.3, speed: 1.8 }
-];
-
-function buildTongues(): Tongue[] {
-  const t: Tongue[] = [
-    { relX: -16, relY: -4, width: 36, baseH: 235, speed: 1.6, phase: 0.2, layer: 'core' },
-    { relX: 5,   relY: 3,  width: 38, baseH: 250, speed: 1.8, phase: 2.1, layer: 'core' },
-    { relX: 24,  relY: -5, width: 30, baseH: 215, speed: 2.0, phase: 4.3, layer: 'core' },
-    { relX: -34, relY: 1,  width: 28, baseH: 195, speed: 1.9, phase: 5.7, layer: 'core' },
-  ];
-  for (let i = 0; i < 12; i++) {
-    const cx = ((i % 3) - 1) * 32 + ((i % 2 === 0 ? 1 : -1) * 8);
-    t.push({ relX: cx, relY: Math.sin(i * 1.9) * 8 - 1, width: 22 + (i % 3) * 7, baseH: 110 + (i % 4) * 15, speed: 2.1 + (i % 4) * 0.28, phase: i * 0.72 + 1.1, layer: 'body' });
-  }
-  for (let i = 0; i < 16; i++) {
-    t.push({ relX: (i - 7.5) * 7.0 + Math.sin(i * 1.5) * 5, relY: Math.cos(i * 1.7) * 9 + 4, width: 15 + (i % 3) * 5, baseH: 55 + (i % 5) * 8, speed: 2.6 + (i % 4) * 0.35, phase: i * 0.58 + 2.4, layer: 'mantle' });
-  }
-  for (let i = 0; i < 18; i++) {
-    const s = i % 2 === 0 ? 1 : -1;
-    t.push({ relX: s * (14 + i * 3.0), relY: 5 + Math.sin(i * 2.3) * 6, width: 10 + (i % 3) * 4, baseH: 25 + (i % 4) * 6, speed: 3.2 + (i % 3) * 0.45, phase: i * 0.81 + 3.7, layer: 'mantle' });
-  }
-  return t;
-}
-
 const TONGUES: Tongue[] = buildTongues();
 
 export class HearthFlameSimulator {
@@ -74,22 +18,49 @@ export class HearthFlameSimulator {
     const clampedHeat = Math.max(0, Math.min(1, heat));
     const globalWind = Math.sin(t * 0.45) * 5.5 + Math.sin(t * 1.1) * 2.5;
 
-    // 1. Ambient Ground Light Pool (~0.12 Hz breathing, organically expands with words heat)
-    const breath = Math.sin(t * 0.75) * 0.03 + Math.sin(t * 1.5) * 0.015;
-    const poolRx = (290 + clampedHeat * 180) * (1.0 + breath);
-    const poolRy = (105 + clampedHeat * 70) * (1.0 + breath);
-
+    // 1. Radiance Cascade: 3-tier true isometric light diffusion (reaches under words)
+    const flicker = Math.sin(t * 1.7) * 0.04 + Math.sin(t * 3.3 + 1.2) * 0.02 + Math.sin(t * 7.1 + 0.5) * 0.01;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const poolGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, poolRx);
-    const poolAlpha = 0.16 + clampedHeat * 0.10;
-    poolGrad.addColorStop(0.0, `rgba(255, 205, 145, ${poolAlpha})`);
-    poolGrad.addColorStop(0.45, `rgba(215, 110, 40, ${poolAlpha * 0.55})`);
-    poolGrad.addColorStop(0.78, `rgba(110, 25, 8, ${poolAlpha * 0.18})`);
-    poolGrad.addColorStop(1.0, 'rgba(5, 5, 5, 0.0)');
-    ctx.fillStyle = poolGrad;
+    ctx.translate(cx, cy);
+    ctx.scale(1.0, 0.36);
+
+    // Tier 1: Distant Ambient Dissipation (spreads under the floating words across the clearing)
+    const distR = (780 + clampedHeat * 220) * (1.0 + flicker);
+    const distGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, distR);
+    const distAlpha = 0.075 + clampedHeat * 0.055;
+    distGrad.addColorStop(0.0, `rgba(245, 140, 50, ${distAlpha * 0.85})`);
+    distGrad.addColorStop(0.35, `rgba(215, 95, 30, ${distAlpha * 0.45})`);
+    distGrad.addColorStop(0.68, `rgba(160, 45, 12, ${distAlpha * 0.18})`);
+    distGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = distGrad;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, poolRx * 1.35, poolRy * 1.35, 0, 0, TAU);
+    ctx.arc(0, 0, distR, 0, TAU);
+    ctx.fill();
+
+    // Tier 2: Meadow Mid-Glow (warm honey falloff across the inner clearing)
+    const midR = (440 + clampedHeat * 140) * (1.0 + flicker * 1.2);
+    const midGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, midR);
+    const midAlpha = 0.12 + clampedHeat * 0.08;
+    midGrad.addColorStop(0.0, `rgba(255, 185, 90, ${midAlpha})`);
+    midGrad.addColorStop(0.42, `rgba(230, 110, 35, ${midAlpha * 0.50})`);
+    midGrad.addColorStop(0.78, `rgba(140, 35, 10, ${midAlpha * 0.15})`);
+    midGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = midGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, midR, 0, TAU);
+    ctx.fill();
+
+    // Tier 3: Hearth Direct Glow (warm amber pool hugging stone ring)
+    const hearthR = (210 + clampedHeat * 70) * (1.0 + flicker * 1.5);
+    const hearthGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, hearthR);
+    const hearthAlpha = 0.16 + clampedHeat * 0.12;
+    hearthGrad.addColorStop(0.0, `rgba(255, 230, 160, ${hearthAlpha})`);
+    hearthGrad.addColorStop(0.40, `rgba(255, 150, 50, ${hearthAlpha * 0.60})`);
+    hearthGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+    ctx.fillStyle = hearthGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, hearthR, 0, TAU);
     ctx.fill();
     ctx.restore();
 
@@ -109,17 +80,30 @@ export class HearthFlameSimulator {
       ctx.ellipse(sc.sx, sc.sy, sc.st.w * 0.5, sc.st.h * 0.5, rot, 0, TAU);
       ctx.fill();
 
-      // Fire-facing warm rim highlight
+      // Fire-facing warm facet highlight with dancing flicker (additive lighting)
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
       const toFire = Math.atan2(cy - sc.sy, cx - sc.sx);
-      const hx = sc.sx + Math.cos(toFire) * (sc.st.w * 0.22);
-      const hy = sc.sy + Math.sin(toFire) * (sc.st.h * 0.22);
-      const hlGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, sc.st.w * 0.45);
-      hlGrad.addColorStop(0, `rgba(235, 115, 35, ${0.16 + clampedHeat * 0.14})`);
+      const stoneFlicker = Math.sin(t * 3.8 + sc.st.ang * 2.5) * 0.08;
+      const hx = sc.sx + Math.cos(toFire) * (sc.st.w * 0.24);
+      const hy = sc.sy + Math.sin(toFire) * (sc.st.h * 0.24);
+      const hlGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, sc.st.w * 0.52);
+      const hlAlpha = Math.max(0.1, 0.36 + clampedHeat * 0.28 + stoneFlicker);
+      hlGrad.addColorStop(0, `rgba(255, 225, 135, ${hlAlpha})`);
+      hlGrad.addColorStop(0.45, `rgba(240, 120, 40, ${hlAlpha * 0.65})`);
       hlGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = hlGrad;
       ctx.beginPath();
-      ctx.ellipse(hx, hy, sc.st.w * 0.32, sc.st.h * 0.32, rot, 0, TAU);
+      ctx.ellipse(hx, hy, sc.st.w * 0.40, sc.st.h * 0.40, rot, 0, TAU);
       ctx.fill();
+
+      // Glowing specular rim on top edge facing the flames
+      ctx.strokeStyle = `rgba(255, 215, 120, ${0.35 + clampedHeat * 0.25 + stoneFlicker * 0.5})`;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.ellipse(sc.sx, sc.sy, sc.st.w * 0.46, sc.st.h * 0.46, rot, toFire - 0.75, toFire + 0.75);
+      ctx.stroke();
+      ctx.restore();
     };
 
     // 2a. Back stones behind ash and flame
