@@ -457,10 +457,57 @@
 ### Residual Risk
 - В macOS при системном шеринге экрана Zoom требует явного выбора системной вкладки или окна с опцией «Share audio».
 
+---
 
+## Cycle 12 - 2026-10-22 - Autonomous Acoustic Speaker Identification (Sherpa-ONNX CAM++)
 
+### Context
+- Branch: `main` (commit `69f5ba7`, `72d7f87`)
+- Scope: Автономная идентификация говорящих через нейросетевые эмбеддинги CAM++ ONNX (192-dim) на Bun/Node микросервисе `sherpa-speaker-service` (порт 8086).
+- Zero-Click Turn Taking: Первый распознанный голос закрепляется за стулом 1, последующие голоса занимают стулья 2..12. Ручные клики мыши для смены спикеров ликвидированы.
+- Architecture gates: AP-010, AP-011, AP-012, AP-019, AP-020, AP-025, AP-028, AP-029.
 
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (`thr_m102938475`):**
+   - 66/66 тестов Vitest GREEN.
+   - 0 circular dependencies, все файлы $\le 239$ строк.
+   - **Вердикт:** `VERDICT: PASS`.
 
+---
 
+## Cycle 13 - 2026-10-22 - Pure Contemplative Hearth & Dynamic Emergent Seating
 
+### Context
+- Branch: `main` (commit `b447a65`)
+- Scope: Очистка пространства костра от интерфейсного мусора (удалены чипы слов, текстовый инпут, номера и бейджи участников), скрытие технических настроек в выдвижную панель `SalonControls` с поддержкой `Escape`, реализация органического эмерджентного круга (0 начальных стульев, зажигание искр участников по золотому сечению phyllotaxis).
+- Architecture gates: AP-010, AP-014, AP-019, AP-025, AP-028, AP-029, AP-055.
 
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (`thr_9z8y7x6w5v`):**
+   - 72/72 тестов Vitest GREEN (включая `motion-engine.test.ts`).
+   - Устранен сброс буфера Canvas на каждом кадре RAF в `useSalonCanvas`.
+   - 0 circular dependencies, все 48 файлов $\le 239$ строк.
+   - **Вердикт:** `VERDICT: PASS`.
+
+---
+
+## Cycle 14 - 2026-10-22 - Memory Leak Deep Audit & Zero-Leak Stabilization
+
+### Context
+- Branch: `main` (commit `94eadf1` в `salon-presence`, `59174db` в `sherpa-speaker-service`)
+- Scope: Полная ликвидация зависаний браузера и утечек ресурсов:
+  1. Web Audio: отсоединение узлов через `onended` на ведущих осцилляторах (`playTone`, `playDesire`), выделение `MeetingAudioCapture` с идемпотентным захватом.
+  2. Canvas 2D: пре-рендеринг оффскрин-спрайтов для licks и puffs (ликвидация 2 040 аллокаций градиентов/сек).
+  3. Words & Shadows: ограничение емкости 36 словами с LRU-вытеснением, отключение `shadowBlur` для старых слов.
+  4. MediaRecorder: сброс `ondataavailable`/`onstop` и остановка рекордера в `cleanup()`.
+  5. Subprocesses: сторожевой таймер (3000 мс) с `SIGKILL` на зависший `ffmpeg` в `sherpa-speaker-service`.
+- Исследование: `docs/arch-improvement/research-memory-leak-audit.md`.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (`thr_zmhqazazeg`):**
+   - Лимиты строк: все файлы $\le 221$ строки в `salon-presence`, $\le 107$ строк в `sherpa-speaker-service` (AP-019 PASS).
+   - Тесты: 73/73 тестов в `salon-presence` GREEN, 6/6 тестов в `sherpa-speaker-service` GREEN (AP-028 PASS).
+   - Типизация: `tsc --noEmit` 0 ошибок в обоих проектах (AP-029, AP-066 PASS).
+   - Циклические зависимости: 0 circular dependencies (AP-025 PASS).
+   - Устранены замечания P2/P3: добавлен детерминированный тест `audio-decoder.test.ts`, тест LRU-вытеснения 36 слов в `hearth-words.test.ts`, вызов `this.disconnect()` в `MeetingAudioCapture.capture()`, `console.warn` вместо пустого обработчика `ff.stdin.on("error")`.
+   - **Вердикт:** `VERDICT: PASS`.
