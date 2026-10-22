@@ -35,6 +35,8 @@ export function saveHearthWordsPersistence(words: HearthWordItem[]): void {
       settled: true,
       opacity: w.opacity,
       breathOffset: w.breathOffset,
+      relAngle: w.relAngle,
+      relRadius: w.relRadius,
     }));
     localStorage.setItem(WORDS_KEY, JSON.stringify(serialized));
   } catch (err) {
@@ -55,17 +57,33 @@ export function loadHearthWordsPersistence(): HearthWordItem[] {
   }
 }
 
-export function saveSessionPersistence(session: SessionState, heat: number): void {
+export function saveSessionPersistence(session: SessionState, heat?: number): void {
   if (typeof window === "undefined" || !window.localStorage) return;
   try {
+    const prev = loadSessionPersistence();
+    const effectiveHeat = heat !== undefined ? heat : (prev?.heat ?? 0.0);
     const payload: PersistedSession = {
       session,
-      heat,
+      heat: effectiveHeat,
       savedAt: Date.now(),
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
   } catch (err) {
     console.warn("[SalonPersistence] Failed to save session:", err);
+  }
+}
+
+export function updatePersistedHeat(heat: number): void {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const prev = loadSessionPersistence();
+    if (prev) {
+      prev.heat = heat;
+      prev.savedAt = Date.now();
+      localStorage.setItem(SESSION_KEY, JSON.stringify(prev));
+    }
+  } catch (err) {
+    console.warn("[SalonPersistence] Failed to update heat:", err);
   }
 }
 

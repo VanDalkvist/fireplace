@@ -17,6 +17,7 @@ export interface HearthWordItem {
   id: string; text: string; family: string; seatId: number; width: number;
   x: number; y: number; targetX: number; targetY: number; born: number;
   lastAt: number; count: number; settled: boolean; opacity: number; breathOffset: number;
+  relAngle?: number; relRadius?: number;
 }
 
 interface FlightSpark {
@@ -84,6 +85,20 @@ export class HearthWordsManager {
     return { x: bestX, y: bestY };
   }
 
+  public repositionToViewport(cx: number, cy: number, rx: number, ry: number): void {
+    for (let i = 0; i < this.words.length; i++) {
+      const w = this.words[i];
+      if (w.relAngle !== undefined && w.relRadius !== undefined) {
+        w.targetX = cx + Math.cos(w.relAngle) * (rx * w.relRadius);
+        w.targetY = cy + Math.sin(w.relAngle) * (ry * w.relRadius);
+        if (w.settled) {
+          w.x = w.targetX;
+          w.y = w.targetY;
+        }
+      }
+    }
+  }
+
   public ageWords(): void {
     for (let i = 0; i < this.words.length; i++) {
       this.words[i].opacity = Math.max(0.20, this.words[i].opacity - 0.02);
@@ -107,15 +122,22 @@ export class HearthWordsManager {
       existing.opacity = 1.0;
       this.recordLink(existing);
       this.lastSpokenWord = existing;
+      saveHearthWordsPersistence(this.words);
       return;
     }
 
     const slot = this.findSlot(speakerSeat.angle, wordWidth, cx, cy, rx, ry);
+    const dx = slot.x - cx;
+    const dy = slot.y - cy;
+    const relAngle = Math.atan2(dy / ry, dx / rx);
+    const relRadius = Math.hypot(dx / rx, dy / ry);
+
     const item: HearthWordItem = {
       id, text, family, seatId: speakerSeat.id, width: wordWidth,
       x: speakerSeat.x, y: speakerSeat.y, targetX: slot.x, targetY: slot.y,
       born: now, lastAt: now, count: 1, settled: false, opacity: 1.0,
       breathOffset: Math.random() * TAU,
+      relAngle, relRadius,
     };
 
     this.recordLink(item);

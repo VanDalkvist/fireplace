@@ -11,6 +11,7 @@ import { HearthWordsManager } from './hearth-words';
 import {
   clearAllSalonPersistence,
   loadSessionPersistence,
+  updatePersistedHeat,
 } from '@/infrastructure/salon-persistence';
 
 const TAU = Math.PI * 2;
@@ -50,6 +51,7 @@ export class SalonMotionEngine {
     this.floorRy = Math.min(height * 0.40, 420);
 
     this.seats.layout(this.cx, this.floorCY, this.floorRx, this.floorRy, 12);
+    this.words.repositionToViewport(this.cx, this.floorCY, this.floorRx, this.floorRy);
   }
 
   public syncTokens(
@@ -158,6 +160,9 @@ export class SalonMotionEngine {
     const isSpeaking = activeSpeakerId !== null || this.words.flightSparks.length > 0;
     const targetHeat = this.computeTargetHeat(this.words.words.length, isSpeaking);
     this.currentHeat += (targetHeat - this.currentHeat) * 0.035;
+    if (Math.round(time) % 60 === 0) {
+      updatePersistedHeat(this.currentHeat);
+    }
 
     this.flame.render(ctx, this.cx, this.floorCY, time, this.currentHeat);
 
