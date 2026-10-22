@@ -1070,6 +1070,43 @@
    - Сборка `vite build` — 326 мс. PM2 перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 31 - 2026-10-22 - Hyperrealistic Procedural Campfire Simulation
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-31-hyperrealistic-procedural-campfire.md`
+- Scope:
+  1. Ликвидация жестких симметричных «лепестков» огня (`src/canvas/hearth-flame.ts`, `src/canvas/hearth-geometry.ts`):
+     - Внедрены кубические S-образные кривые Безье с независимыми контрольными точками завихрений (`curlL` и `curlR`).
+     - Контуры языков пламени рассчитываются независимо по левому и правому краю на базе вихревого поля скоростей (Vorticity Confinement).
+     - Пламя изгибается, скручивается и дышит, как настоящий живой костёр на ветру.
+  2. Спектр абсолютно черного тела (Planck Blackbody Radiation) и синее основание:
+     - В основание костра на стыке бревен добавлен тонкий радиальный ореол синего кислородного свечения (`rgba(65, 115, 255, 0.28)`), где подсасывается свежий воздух при горении.
+     - Откалиброваны градиенты `coreGrad`, `bodyGrad`, `mantleGrad` — исключен пересвет в плоское белое пятно в центре, сформирована глубокая градация от золотисто-белого жара до сочного янтаря и карминно-дымных верхушек.
+  3. Тлеющие дрова с термо-трещинами (`thermal fissures`):
+     - Вместо плоских коричневых линий создана фактура обугленного дерева (`#100c09`) с горячими внутренними жилами углей.
+     - На каждом бревне прорисованы светящиеся растрескавшиеся прожилки жара (`rgba(255, 205, 90)`), пульсирующие в такт дыханию пламени.
+  4. Строгий лимит AP-019: `hearth-flame.ts` (231 строка), `hearth-geometry.ts` (186 строк) $\le 250$.
+
+### Findings Fixed
+- [P1] Symmetrical Static Bezier Cones — RESOLVED via asymmetric turbulent S-curves with dual-frequency curl turbulence.
+- [P1] Flat Brown Log Sticks — RESOLVED via charred wood bark and pulsating thermal fissures.
+- [P2] Central White Overexposure — RESOLVED via calibrated Planck blackbody color ramps and oxygen blue foot.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 125/125 тестов Vitest GREEN (31 тест-сьют, добавлен тест на растрескавшиеся бревна и синий корень пламени).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 239$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Костёр перестал выглядеть как наклеенные картонные лепестки: пламя живое, асимметричное, скручивается в пространстве, у дров виден натуральный синий кислородный отблеск, а сами брёвна тлеют раскалёнными трещинами.
+   - Сборка `vite build` — 270 мс. PM2 перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

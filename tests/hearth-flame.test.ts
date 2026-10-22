@@ -158,4 +158,46 @@ describe('HearthFlameSimulator', () => {
     // With >= 50 tongues, we expect >= 100 bezierCurveTo calls
     expect(bezierCurveToCalls).toBeGreaterThanOrEqual(100);
   });
+
+  it('renders realistic burning logs with thermal fissures and oxygen blue foot glow', () => {
+    const flame = new HearthFlameSimulator();
+    let blueFootFound = false;
+    let strokeCalls = 0;
+
+    const mockCtx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      closePath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      bezierCurveTo: vi.fn(),
+      arc: vi.fn(),
+      ellipse: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(() => { strokeCalls++; }),
+      translate: vi.fn(),
+      scale: vi.fn(),
+      createRadialGradient: vi.fn(() => ({
+        addColorStop: vi.fn((_offset, color: string) => {
+          if (color.includes('65, 115') || color.includes('60, 110') || color.includes('blue')) {
+            blueFootFound = true;
+          }
+        }),
+      })),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      lineCap: 'round',
+      globalCompositeOperation: 'source-over',
+    } as unknown as CanvasRenderingContext2D;
+
+    flame.render(mockCtx, 500, 300, 1500, 0.5);
+
+    // Multiple strokes for charred wood and thermal fissures
+    expect(strokeCalls).toBeGreaterThanOrEqual(10);
+    // Blue oxygen foot glow present at log combustion roots
+    expect(blueFootFound).toBe(true);
+  });
 });
