@@ -511,3 +511,31 @@
    - Циклические зависимости: 0 circular dependencies (AP-025 PASS).
    - Устранены замечания P2/P3: добавлен детерминированный тест `audio-decoder.test.ts`, тест LRU-вытеснения 36 слов в `hearth-words.test.ts`, вызов `this.disconnect()` в `MeetingAudioCapture.capture()`, `console.warn` вместо пустого обработчика `ff.stdin.on("error")`.
    - **Вердикт:** `VERDICT: PASS`.
+
+---
+
+## Cycle 15 - 2026-10-22 - Progressive Hearth Ignition & Word Energy Accumulation
+
+### Context
+- Branch: `main` (commit `fa28156`)
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-15-hearth-ignition.md`
+- Scope: Реализация механики постепенного разгорания общего костра от накопленных в круге слов (`HearthHeatModel`). Костер в центре поля аккумулирует тепло произнесенных реплик и трансформируется из деликатного стартового пламени в высокий, мощный, согревающий очаг.
+  1. Тепловая модель: асимптотическое насыщение `wordContribution = (1.0 - Math.exp(-wordCount / 14)) * 0.92`, импульс речи `speechBoost = 0.12`, кламп $\le 1.0$.
+  2. Плавная интерполяция первого порядка в RAF: `currentHeat += (targetHeat - currentHeat) * 0.035` без рывков.
+  3. Масштабирование рендеринга: расширение амбиентного пула света на полу (`poolRx` до 270px, `poolRy` до 94px, alpha до 0.26), увеличение высоты и ширины языков пламени Безье (`stretch` от $0.55$ до $1.40\times$, `width` от $0.70$ до $1.35\times$), нагрев бревен, усиление конвекции частиц/искр (`vy` до $+65\%$).
+  4. Сброс и сохранение: все слова остаются в круге (`opacity >= 0.20`), а кнопка «новый круг» плавно возвращает огонь к деликатному стартовому тлению.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer (`thr_puaibcrsaf`):**
+   - 76/76 тестов Vitest GREEN, `tsc --noEmit` 0 ошибок, 0 circular dependencies.
+   - Все файлы $\le 229$ строк (AP-019 PASS), `motion-engine.ts` 155 строк, `hearth-flame.ts` 163 строки.
+   - P3 замечание: вынос констант насыщения в конфиг оставлен `log-only` по KISS (AP-015).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer (`thr_rc44bnvxgs`):**
+   - E2E Black-Box сценарии в реальном браузере через Browser Automation:
+     1. Cold-start (0 слов): деликатный, уютный, невысокий очаг.
+     2. Happy Path: speech boost + плавный переход $0 \to 4 \to 10 \to 23+$ слов, сохранение формы лепестков пламени, расширение ореола света, взлет искр.
+     3. Насыщение и сброс: отсутствие пересвета при $23+$ словах, чистый возврат к тлению по «новый круг», режим дзен (`h`).
+   - 0 runtime ошибок в консоли.
+   - **Вердикт:** `VERDICT: PASS`.
+
