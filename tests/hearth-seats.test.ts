@@ -46,4 +46,18 @@ describe('HearthSeatsLayout', () => {
     // Click far away
     expect(layout.getSeatAtPoint(targetSeat.x + 100, targetSeat.y + 100)).toBeNull();
   });
+
+  it('records lastSpokenAt on pulseSeat and triggers 5-second pulse decay', () => {
+    const layout = new HearthSeatsLayout();
+    layout.layout(500, 300, 400, 200);
+    layout.syncParticipants(
+      [{ id: 1, seatNumber: 1, role: 'light', isSpeaking: false, hasPassed: false, isHost: true }],
+      null
+    );
+
+    layout.pulseSeat(1);
+    const seat = layout.seats[0];
+    expect(seat.lastSpokenAt).toBeDefined();
+    expect(seat.spokenCount).toBe(1);
+  });
 });

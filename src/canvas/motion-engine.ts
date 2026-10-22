@@ -83,8 +83,7 @@ export class SalonMotionEngine {
         this.knownTokenIds.add(token.id);
         const speakerSeat = this.seats.seats.find((s) => s.id === token.speakerId) || this.seats.seats[0];
         if (speakerSeat) {
-          speakerSeat.pulse = 1.0;
-          speakerSeat.spokenCount++;
+          this.seats.pulseSeat(speakerSeat.id);
           this.currentHeat = Math.min(1.0, this.currentHeat + 0.22);
           this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(
@@ -108,8 +107,7 @@ export class SalonMotionEngine {
         this.knownTokenIds.add(token.id);
         const speakerSeat = this.seats.seats.find((s) => s.id === token.speakerId) || this.seats.seats[0];
         if (speakerSeat) {
-          speakerSeat.pulse = 1.0;
-          speakerSeat.spokenCount++;
+          this.seats.pulseSeat(speakerSeat.id);
           this.currentHeat = Math.min(1.0, this.currentHeat + 0.22);
           this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(

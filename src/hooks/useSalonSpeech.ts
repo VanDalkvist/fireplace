@@ -57,6 +57,15 @@ export function useSalonSpeech({
 
   const turnBufferRef = useRef(new SpeakerTurnBuffer(2200));
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speakerDecayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleSpeakerDecay = useCallback(() => {
+    if (speakerDecayTimerRef.current) clearTimeout(speakerDecayTimerRef.current);
+    speakerDecayTimerRef.current = setTimeout(() => {
+      callbacksRef.current.onSelectSpeaker?.(null as unknown as number);
+      setIdentifiedSpeaker(null);
+    }, 5000);
+  }, []);
 
   const processCompletedTurn = useCallback(async (text: string, speakerSeat?: number) => {
     const { phase: curPhase, isVerbatimMode: isVerbatim, onPass: passFn, onAddFeeling: feelFn, onAddDesire: desireFn } = callbacksRef.current;
@@ -71,6 +80,7 @@ export function useSalonSpeech({
       setInterimBadge(null);
       if (curPhase === "desires") desireFn(clean, speakerSeat);
       else feelFn(clean, "живость", 0, speakerSeat);
+      if (speakerSeat) scheduleSpeakerDecay();
       return;
     }
 
@@ -107,7 +117,8 @@ export function useSalonSpeech({
         }
       }
     }
-  }, []);
+    if (speakerSeat) scheduleSpeakerDecay();
+  }, [scheduleSpeakerDecay]);
 
   const handleSpeechResult = useCallback((phrase: string, speakerSeat?: number) => {
     if (speakerSeat) {
@@ -184,20 +195,13 @@ export function useSalonSpeech({
       onInterimPhrase: (text) => {
         setInterimPhrase(text);
         const p = distillSpokenPhrase(text, defaultLexiconIndex);
-        if (p.pass) {
-          setInterimBadge({ text: "пас", type: "pass" });
-        } else if (p.feelings.length > 0) {
-          setInterimBadge({ text: p.feelings[0].form || p.feelings[0].lemma, type: "feeling" });
-        } else if (p.desires.length > 0) {
-          setInterimBadge({ text: p.desires[0].text, type: "desire" });
-        } else {
-          setInterimBadge(null);
-        }
+        if (p.pass) setInterimBadge({ text: "пас", type: "pass" });
+        else if (p.feelings.length > 0) setInterimBadge({ text: p.feelings[0].form || p.feelings[0].lemma, type: "feeling" });
+        else if (p.desires.length > 0) setInterimBadge({ text: p.desires[0].text, type: "desire" });
+        else setInterimBadge(null);
       },
       onFinalPhrase: handleSpeechResult,
-      onError: (err) => {
-        setSpeechError(err);
-      },
+      onError: (err) => setSpeechError(err),
       onAudioLevel: (lvl) => setAudioLevel(lvl),
       onPipelineStatus: (status) => setPipelineStatus(status),
       onStatusChange: (active) => {

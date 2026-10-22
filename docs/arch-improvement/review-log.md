@@ -1180,6 +1180,47 @@
    - Сборка `vite build` — 330 мс. Процесс PM2 `salon-presence` перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 34 - 2026-10-22 - Distillation Prompt Refactor, Word Color Fade & 5s Speaker Accent Decay
+
+### Context
+- Branch: `main`
+- Scope:
+  1. Рефакторинг промпта дистилляции (`src/domain/phrase-distiller.ts`):
+     - Из промпта полностью удален мусор и хардкод IT-опечаток (`бэтенд->бэкенд`, etc.), который уже надежно отрабатывает в детерминированном regex.
+     - Промпт переориентирован на чуткое созерцательное слушание в круге чувств: склейка разорванных кусков речи в цельную мысль, бережное сохранение аутентичного голоса человека без сухого канцелярита, поддержка извлечения нескольких мыслей через `phrases: [...]`.
+     - Все извлеченные мысли направляются в круг полным списком без потери и ампутации.
+  2. Плавный переход цвета новой фразы (Orange -> Linen White):
+     - Устранено залипание оранжевого цвета на последнем слове: теперь фраза прилетает с ярким янтарным акцентом (`rgba(255, 185, 115)`) и за 4 секунды плавно переходит в спокойный льняной белый цвет (`rgba(236, 228, 214)`), не дожидаясь следующей реплики.
+  3. Плавная органика выезжания слов:
+     - Линейный шаг заменен на органическое замедление (Ease-Out) с мягким естественным покачиванием при приземлении.
+  4. 5-секундный спад акцента с участника (`src/canvas/hearth-seats.ts`, `src/hooks/useSalonSpeech.ts`):
+     - В момент вылета фразы в круг место участника пульсирует широким дыхательным ореолом (до 24px) и за 5 секунд плавно возвращается в спокойное русло.
+     - В `useSalonSpeech` запущен таймер спада: ровно через 5 секунд статус активного спикера снимается (`onSelectSpeaker(null)`).
+  5. Легитимность и надежность молчания:
+     - Подтверждено, что в паузах и тишине у огня адаптер распознавания не падает в ошибку и не рвет аудиопоток (`consecutiveErrors` сбрасывается в 0 на тишине), обеспечивая спокойное непрерывное ожидание следующей фразы.
+
+### Findings Fixed
+- [P1] Overgrown Distillation Prompt with Mixed IT Replacement Logic — RESOLVED via empathetic, feelings-circle focused prompt and multi-phrase support.
+- [P1] Persistent Orange Color on Latest Spoken Word — RESOLVED via 4-second quadratic fade from amber to serene linen white.
+- [P2] Abrupt Speaker Accent Stickiness — RESOLVED via 5-second pulsating decay ring and automatic state de-selection.
+- [P2] Mechanical Word Entrance Interpolation — RESOLVED via smooth deceleration ease-out.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 130/130 тестов Vitest GREEN (32 тест-сьюта, добавлен тест на фиксацию времени речи и запуск 5-секундного спада пульса).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 248$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Промпт стал в 2 раза компактнее и точнее, идеально попадает в атмосферу созерцательного круга чувств.
+   - Слова выплывают мягко, светятся янтарем и за 4 секунды естественным образом остывают до белого.
+   - Круг участника ярко пульсирует при речи и за 5 секунд плавно растворяет акцент.
+   - Сборка `vite build` — 283 мс. Процесс PM2 `salon-presence` перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

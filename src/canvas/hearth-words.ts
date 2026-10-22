@@ -135,8 +135,7 @@ export class HearthWordsManager {
     }
 
     const slot = this.findSlot(speakerSeat.angle, wordWidth, cx, cy, rx, ry);
-    const dx = slot.x - cx;
-    const dy = slot.y - cy;
+    const dx = slot.x - cx; const dy = slot.y - cy;
     const relAngle = Math.atan2(dy / ry, dx / rx);
     const relRadius = Math.hypot(dx / rx, dy / ry);
 
@@ -207,10 +206,13 @@ export class HearthWordsManager {
     for (let i = 0; i < this.words.length; i++) {
       const w = this.words[i];
 
+      // Smooth organic deceleration into target slot
       if (!w.settled) {
-        w.x += (w.targetX - w.x) * 0.06;
-        w.y += (w.targetY - w.y) * 0.06;
-        if (Math.hypot(w.targetX - w.x, w.targetY - w.y) < 1.2) w.settled = true;
+        const dx = w.targetX - w.x;
+        const dy = w.targetY - w.y;
+        w.x += dx * 0.055;
+        w.y += dy * 0.055;
+        if (Math.hypot(dx, dy) < 1.0) w.settled = true;
       } else {
         w.y = w.targetY + Math.sin(t * 0.7 + w.breathOffset) * 0.7;
       }
@@ -218,19 +220,26 @@ export class HearthWordsManager {
       ctx.save();
       ctx.translate(w.x, w.y);
       const label = w.count > 1 ? `${w.text} ×${w.count}` : w.text;
-      const isLatest = w === this.lastSpokenWord;
-      ctx.font = isLatest ? "600 22px 'JetBrains Mono'" : "20px 'JetBrains Mono'";
+
+      // Warm orange arrival fade to calm linen white over 4.0 seconds (no need to wait for next word!)
+      const age = now - (w.lastAt || w.born);
+      const warmRatio = age < 4000 ? Math.pow(1.0 - age / 4000, 2) : 0.0;
+
+      ctx.font = warmRatio > 0.3 ? "600 21px 'JetBrains Mono'" : "20px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
       const alpha = Math.max(0.20, w.opacity);
-      if (isLatest) {
-        ctx.fillStyle = `rgba(255, 185, 115, ${alpha})`;
-        ctx.shadowColor = 'rgba(255, 178, 102, 0.60)';
-        ctx.shadowBlur = 6;
+      const r = Math.round(236 + (255 - 236) * warmRatio);
+      const g = Math.round(228 + (185 - 228) * warmRatio);
+      const b = Math.round(214 + (115 - 214) * warmRatio);
+
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * (0.88 + warmRatio * 0.12)})`;
+      if (warmRatio > 0.05) {
+        ctx.shadowColor = `rgba(255, 178, 102, ${0.60 * warmRatio})`;
+        ctx.shadowBlur = Math.round(6 * warmRatio);
       } else {
-        ctx.fillStyle = `rgba(236, 228, 214, ${alpha * 0.88})`;
-        ctx.shadowBlur = 0; // Skip heavy GPU Gaussian blur passes on settled words (AP-055)
+        ctx.shadowBlur = 0;
       }
       ctx.fillText(label, 0, 0);
       ctx.restore();

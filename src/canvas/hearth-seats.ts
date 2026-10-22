@@ -18,6 +18,7 @@ export interface IsometricSeat {
   depth: number;
   pulse: number;
   spokenCount: number;
+  lastSpokenAt?: number;
   hasPassed?: boolean;
 }
 
@@ -79,6 +80,7 @@ export class HearthSeatsLayout {
     if (s) {
       s.pulse = 1.0;
       s.spokenCount++;
+      s.lastSpokenAt = performance.now();
     }
   }
 
@@ -98,39 +100,84 @@ export class HearthSeatsLayout {
     time: number
   ): void {
     const t = time * 0.001;
+    const now = performance.now();
 
     for (let i = 0; i < this.seats.length; i++) {
       const s = this.seats[i];
-      const isActive = s.id === activeSpeakerId;
-      if (s.pulse > 0) s.pulse -= 0.015;
+      const timeSinceSpoken = s.lastSpokenAt ? now - s.lastSpokenAt : Infinity;
+      const isPostSpeechDecay = timeSinceSpoken <= 5000;
+      const decayProgress = isPostSpeechDecay ? timeSinceSpoken / 5000 : 1.0;
+      const pulseDecay = isPostSpeechDecay ? (1.0 - decayProgress) : 0.0;
 
+      const isSpeakingNow = s.id === activeSpeakerId && !isPostSpeechDecay;
       const baseR = 4.0 + s.depth * 2.2;
 
-      // Soft ambient glow
       ctx.save();
-      const glowR = baseR + (isActive ? 10 + Math.sin(t * 3) * 2 : 4);
-      const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
-      grad.addColorStop(0, isActive ? 'rgba(255, 178, 102, 0.45)' : 'rgba(180, 120, 80, 0.2)');
-      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, glowR, 0, TAU);
-      ctx.fill();
 
-      // Living core ember
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, isActive ? baseR + 1.5 : baseR, 0, TAU);
-      ctx.fillStyle = isActive ? '#ffb266' : s.spokenCount > 0 ? '#b8895b' : '#543d2c';
-      ctx.fill();
+      if (isPostSpeechDecay) {
+        // Grand pulsating breathing ring expanding outwards and fading over 5 seconds
+        const pulseWave = Math.sin(t * 5.5) * 0.5 + 0.5;
+        const outerR = baseR + (14 + pulseWave * 5) * pulseDecay;
+        const glowR = outerR + 8 * pulseDecay;
 
-      // Breathing ring on active speaker
-      if (isActive) {
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
+        grad.addColorStop(0, `rgba(255, 178, 102, ${0.55 * pulseDecay})`);
+        grad.addColorStop(0.55, `rgba(235, 120, 45, ${0.25 * pulseDecay})`);
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, glowR, 0, TAU);
+        ctx.fill();
+
+        // Pulsating outer aura ring
+        ctx.strokeStyle = `rgba(255, 195, 115, ${0.75 * pulseDecay})`;
+        ctx.lineWidth = Math.max(0.5, 1.8 * pulseDecay);
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, outerR, 0, TAU);
+        ctx.stroke();
+      } else if (isSpeakingNow) {
+        // Continuous subtle breathing while currently listening
+        const glowR = baseR + 10 + Math.sin(t * 3) * 2;
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
+        grad.addColorStop(0, 'rgba(255, 178, 102, 0.45)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, glowR, 0, TAU);
+        ctx.fill();
+
         ctx.strokeStyle = 'rgba(255, 178, 102, 0.6)';
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.arc(s.x, s.y, baseR + 6 + Math.sin(t * 2.5) * 1.5, 0, TAU);
         ctx.stroke();
+      } else {
+        // Calm resting glow
+        const glowR = baseR + 4;
+        const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
+        grad.addColorStop(0, 'rgba(180, 120, 80, 0.2)');
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, glowR, 0, TAU);
+        ctx.fill();
       }
+
+      // Living core ember
+      const coreR = isPostSpeechDecay ? baseR + 2.0 * pulseDecay : (isSpeakingNow ? baseR + 1.5 : baseR);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, coreR, 0, TAU);
+      if (isPostSpeechDecay) {
+        const r = Math.round(184 + (255 - 184) * pulseDecay);
+        const g = Math.round(137 + (178 - 137) * pulseDecay);
+        const b = Math.round(91 + (102 - 91) * pulseDecay);
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      } else if (isSpeakingNow) {
+        ctx.fillStyle = '#ffb266';
+      } else {
+        ctx.fillStyle = s.spokenCount > 0 ? '#b8895b' : '#543d2c';
+      }
+      ctx.fill();
 
       ctx.restore();
     }

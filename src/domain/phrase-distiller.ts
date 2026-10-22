@@ -15,7 +15,9 @@ export interface EnrichedDistillationResult extends DistillationResult {
 
 interface LlmDistillPayload {
   repaired_text?: string;
+  full_thought?: string;
   phrase?: string;
+  phrases?: string[];
   family?: string;
   valence?: number;
   kind?: "feeling" | "desire" | "pass";
@@ -77,28 +79,28 @@ export async function distillWithNeuralFallback(
   try {
     const client = new OllamaClient(ollamaUrl);
     const contextLines = recentContext.length > 0
-      ? `Контекст предыдущих реплик:\n${recentContext.map((c) => `- "${c}"`).join("\n")}\n\n`
+      ? `Контекст реплик:\n${recentContext.map((c) => `- "${c}"`).join("\n")}\n\n`
       : "";
 
-    const prompt = `Ты — созерцательный редактор речи у костра на IT-созвоне.
-Извлеки из спонтанной речи участника емкую чистую мысль (2–5 слов) для круга огня.
+    const prompt = `Ты — чуткий слушатель в созерцательном круге чувств у костра.
+Участник делится переживаниями. Собери из его спонтанной речи емкую, живую мысль для круга.
 ПРАВИЛА:
-1. Исправляй опечатки ASR: бэтенд->бэкенд, спейс->Space, пошерить->пошарить, сценарий вещи->сценарий фичи.
-2. Убирай паразиты: «в общем», «как раз», «как бы», «ну вот», «так сказать», «короче».
-3. Зум-шум («ты слышишь», «смотри», «ага») и обрубки («была на бэтенде для») -> верни phrase: "".
-4. Для мыслей верни фразу (2–5 слов). Не сжимай до 1 слова.
+1. Убирай слова-паразиты («ну как бы», «в общем», «типа», «так сказать», «короче»), заикания и повторы.
+2. Сохраняй живой голос и суть переживания (без сухого канцелярита).
+3. Если мыслей несколько — выдели phrases: ["первая мысль", "вторая мысль"].
+4. Фоновый шум или обрывки («меня слышно?», «смотри») -> верни phrase: "".
 ПРИМЕРЫ:
-"была на бэтенде для" -> {"phrase": "", "family": "покой", "valence": 0.0}
-"ты слышишь меня?" -> {"phrase": "", "family": "покой", "valence": 0.0}
-"Почему бы нам не создать бота для участников" -> {"phrase": "создать бота для участников", "family": "интерес", "valence": 0.8}
-"Владелец данных давал возможность поделиться описанием своего опыта" -> {"phrase": "поделиться описанием своего опыта", "family": "открытость", "valence": 0.7}
-"В общем, будем пытаться как бы давать доступ к системе, там все шире" -> {"phrase": "давать доступ к системе", "family": "интерес", "valence": 0.7}
+"ну мы вчера долго сидели и я прям почувствовал такую усталость" -> {"full_thought": "почувствовал сильную усталость после долгого дня", "phrase": "сильная усталость", "family": "усталость", "valence": -0.4}
+"хочется просто выдохнуть и побыть в тишине" -> {"full_thought": "хочется просто выдохнуть и побыть в тишине", "phrase": "выдохнуть и побыть в тишине", "family": "покой", "valence": 0.8}
+"мне сейчас немного тревожно, но чувствую тепло круга" -> {"full_thought": "чувствую тревогу, но ощущаю тепло круга", "phrases": ["немного тревожно", "тепло круга"], "family": "тепло", "valence": 0.5}
+"алло раз два слышно меня да" -> {"phrase": "", "family": "покой", "valence": 0.0}
 
-${contextLines}Текущее высказывание: "${normalized}"
+${contextLines}Высказывание: "${normalized}"
 Выведи строго JSON:
-- repaired_text (чистая фраза без паразитов и опечаток)
-- phrase (емкая мысль 2-5 слов или "" если мусор)
-- family (покой, тепло, интерес, открытость, ясность, радость, усталость)
+- full_thought (связная очищенная мысль целиком)
+- phrase (емкая мысль 3–7 слов или "" если мусор)
+- phrases (массив строк, если мыслей несколько)
+- family (покой, тепло, радость, открытость, ясность, тревога, усталость, грусть)
 - valence (-1.0..1.0)
 JSON:`;
 
@@ -116,52 +118,38 @@ JSON:`;
     if (data?.response) {
       const parsed = JSON.parse(data.response) as LlmDistillPayload;
       const phraseClean = (parsed.phrase || "").trim();
-      const repaired = (parsed.repaired_text || "").trim() || normalized;
+      const repaired = (parsed.full_thought || parsed.repaired_text || "").trim() || normalized;
 
-      if (!phraseClean && (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized) || isDanglingFragment(normalized))) {
+      if (!phraseClean && !parsed.phrases?.length && (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized) || isDanglingFragment(normalized))) {
         return { feelings: [], desires: [], pass: false, repairedText: repaired, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
       }
 
       const phraseWords = phraseClean.split(/\s+/).filter(Boolean);
       const repairedWords = repaired.split(/\s+/).filter(Boolean);
 
-      // Guard against 1-word amputations when utterance had full thought
+      // Guard against 1-word amputations and prompt template leaks
       const isAmputationOrLeak =
         phraseClean.includes("глубинный смысл") ||
         phraseClean.includes("живая метафора") ||
         phraseClean.includes("извлеченное чувство") ||
         (phraseWords.length <= 1 && repairedWords.length >= 2 && phraseClean.length > 0);
 
-      const effectivePhrase = isAmputationOrLeak ? repaired : (phraseClean || repaired);
+      const singlePhrase = isAmputationOrLeak ? repaired : (phraseClean || repaired);
 
-      // Suppress pure filler leakage after neural step
-      if (isPureFillerPhrase(effectivePhrase) || isMeetingOperationalNoise(effectivePhrase)) {
-        return {
-          feelings: [],
-          desires: [],
-          pass: false,
-          repairedText: repaired,
-          neuralDistilled: true,
-          engineUsed: model as "qwen2.5:1.5b",
-        };
-      }
+      const rawPhrases = Array.isArray(parsed.phrases) && parsed.phrases.length > 0
+        ? parsed.phrases.map((p) => p.trim()).filter((p) => p.length > 0 && !isPureFillerPhrase(p))
+        : [];
+      const phraseList = rawPhrases.length > 0 ? rawPhrases : (singlePhrase ? [singlePhrase] : []);
 
-      if (effectivePhrase) {
+      if (phraseList.length > 0) {
         const kind = parsed.kind || "feeling";
         if (kind === "pass") {
-          return {
-            feelings: [],
-            desires: [],
-            pass: true,
-            repairedText: repaired,
-            neuralDistilled: true,
-            engineUsed: model as "qwen2.5:1.5b",
-          };
+          return { feelings: [], desires: [], pass: true, repairedText: repaired, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
         }
         if (kind === "desire") {
           return {
             feelings: [],
-            desires: [{ text: effectivePhrase, object: effectivePhrase, who: null }],
+            desires: phraseList.map((p) => ({ text: p, object: p, who: null })),
             pass: false,
             isDesirePhrase: true,
             repairedText: repaired,
@@ -170,16 +158,14 @@ JSON:`;
           };
         }
         return {
-          feelings: [
-            {
-              lemma: effectivePhrase,
-              family: parsed.family || "живость",
-              valence: parsed.valence ?? 0.5,
-              arousal: 0.3,
-              form: effectivePhrase,
-              intensity: 1,
-            },
-          ],
+          feelings: phraseList.map((p) => ({
+            lemma: p,
+            family: parsed.family || "живость",
+            valence: parsed.valence ?? 0.5,
+            arousal: 0.3,
+            form: p,
+            intensity: 1,
+          })),
           desires: [],
           pass: false,
           repairedText: repaired,
