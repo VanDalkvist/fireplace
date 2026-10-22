@@ -14,10 +14,17 @@ export class StreamRecorder {
   private readonly maxBufferSize = 240; // Bounded ring buffer (~60s at 250ms chunks)
   private resolveStop: ((blob: Blob) => void) | null = null;
   private activeStream: MediaStream | null = null;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private speechDetected = false;
+  private lastSpeechTime = 0;
+  private readonly speechRmsThreshold = 0.015;
 
   public async start(stream?: MediaStream, timesliceMs?: number): Promise<void> {
     if (this.isRecording) return;
     this.ringBuffer = [];
+    this.speechDetected = false;
+    this.lastSpeechTime = 0;
 
     let targetStream = stream;
     if (!targetStream && typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
@@ -29,6 +36,8 @@ export class StreamRecorder {
     }
 
     this.activeStream = targetStream;
+    this.setupAudioAnalysis(targetStream);
+
     const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
       ? "audio/webm;codecs=opus"
       : undefined;
@@ -37,6 +46,7 @@ export class StreamRecorder {
 
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) {
+        this.sampleAudioRms();
         this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
         if (this.ringBuffer.length > this.maxBufferSize) {
           this.ringBuffer.shift(); // Enforce circular bound (AP-018, AP-023)
@@ -58,8 +68,56 @@ export class StreamRecorder {
     }
   }
 
+  private setupAudioAnalysis(stream: MediaStream): void {
+    if (typeof window === "undefined" || !("AudioContext" in window || "webkitAudioContext" in window)) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioContext = new AudioCtx();
+      const source = this.audioContext.createMediaStreamSource(stream);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      source.connect(this.analyser);
+    } catch {
+      // AudioContext may be blocked by autoplay or environment, continue gracefully (AP-012)
+    }
+  }
+
+  public getInstantRms(): number {
+    if (!this.analyser) return 0;
+    const buffer = new Float32Array(this.analyser.fftSize);
+    this.analyser.getFloatTimeDomainData(buffer);
+    let sum = 0;
+    for (let i = 0; i < buffer.length; i++) {
+      sum += buffer[i] * buffer[i];
+    }
+    return Math.sqrt(sum / buffer.length);
+  }
+
+  private sampleAudioRms(): void {
+    const rms = this.getInstantRms();
+    if (rms >= this.speechRmsThreshold) {
+      this.speechDetected = true;
+      this.lastSpeechTime = Date.now();
+    }
+  }
+
+  public hasSpeechInCurrentSegment(): boolean {
+    return this.speechDetected;
+  }
+
+  public getLastSpeechTimestamp(): number {
+    return this.lastSpeechTime;
+  }
+
+  public setMockVoiceActivityForTesting(val: boolean): void {
+    this.speechDetected = val;
+    if (val) this.lastSpeechTime = Date.now();
+  }
+
   public extractCurrentSegment(overlapMs = 300): Blob {
     const type = this.mediaRecorder?.mimeType || "audio/webm";
+    this.speechDetected = false; // Reset for the next segment (AP-018)
+
     if (this.ringBuffer.length === 0) {
       return new Blob([], { type });
     }
@@ -94,11 +152,17 @@ export class StreamRecorder {
   }
 
   public cleanup(): void {
+    if (this.audioContext && this.audioContext.state !== "closed") {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+    }
+    this.analyser = null;
     if (this.activeStream) {
       this.activeStream.getTracks().forEach((t) => t.stop());
       this.activeStream = null;
     }
     this.mediaRecorder = null;
     this.ringBuffer = [];
+    this.speechDetected = false;
   }
 }

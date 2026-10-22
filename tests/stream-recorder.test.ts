@@ -90,6 +90,22 @@ describe('StreamRecorder', () => {
     expect(text2).toBe('partB partC ');
   });
 
+  it('tracks voice activity and reports whether speech occurred in the segment', async () => {
+    await recorder.start(mockStream, 250);
+
+    // Initial state: silence
+    expect(recorder.hasSpeechInCurrentSegment()).toBe(false);
+
+    // Simulate voice activity (mock RMS reading)
+    (recorder as unknown as { setMockVoiceActivityForTesting?: (val: boolean) => void }).setMockVoiceActivityForTesting?.(true);
+
+    expect(recorder.hasSpeechInCurrentSegment()).toBe(true);
+
+    // After extracting segment, speech flag is reset for the next segment
+    recorder.extractCurrentSegment(0);
+    expect(recorder.hasSpeechInCurrentSegment()).toBe(false);
+  });
+
   it('cleans up stream tracks upon cleanup call', async () => {
     await recorder.start(mockStream);
     recorder.cleanup();

@@ -8,9 +8,9 @@ export interface SpeechEngineCallbacks {
 }
 
 export interface SpeechEnginePort {
-  start(): void;
-  stop(): void;
-  toggle(): void;
+  start(stream?: MediaStream): void | Promise<void>;
+  stop(): void | Promise<void>;
+  toggle(): void | boolean | Promise<void | boolean>;
   flush(): void;
   isSupported(): boolean;
   getEngineType(): SpeechEngineKind;

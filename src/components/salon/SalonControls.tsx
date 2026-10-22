@@ -8,11 +8,13 @@ interface SalonControlsProps {
   isAudioOn: boolean;
   isListening?: boolean;
   isDemoActive: boolean;
+  isMeetingAudioConnected?: boolean;
   engineStatus?: { online: boolean; hasModel: boolean };
   sttEngine?: "whisper" | "google";
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
   onSpeechToggle?: () => void;
+  onToggleMeetingAudio?: () => void;
   onInputToggle?: () => void;
   onToggleSttEngine?: () => void;
   onTriggerTurn: () => void;
@@ -34,11 +36,13 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   isAudioOn,
   isListening = false,
   isDemoActive,
+  isMeetingAudioConnected = false,
   engineStatus,
   sttEngine = "whisper",
   onPhaseSelect,
   onAudioToggle,
   onSpeechToggle,
+  onToggleMeetingAudio,
   onInputToggle,
   onToggleSttEngine,
   onTriggerTurn,
@@ -94,6 +98,27 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
           >
             {isListening ? <Mic className="w-3.5 h-3.5 text-primary" /> : <MicOff className="w-3.5 h-3.5" />}
             <span>голос (v)</span>
+          </button>
+        )}
+
+        {onToggleMeetingAudio && (
+          <button
+            onClick={onToggleMeetingAudio}
+            title="Захват звука участников встречи Zoom или Google Meet"
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
+              isMeetingAudioConnected
+                ? "bg-[#34d399]/20 text-[#34d399] border-[#34d399] font-semibold"
+                : "border-border text-muted hover:text-foreground hover:bg-secondary"
+            )}
+          >
+            <span>встреча (zoom)</span>
+            <span
+              className={cn(
+                "w-1.5 h-1.5 rounded-full",
+                isMeetingAudioConnected ? "bg-[#34d399]" : "bg-muted"
+              )}
+            />
           </button>
         )}
 

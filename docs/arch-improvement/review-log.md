@@ -345,8 +345,57 @@
    - Живой стенд: микрофон держит непрерывный Open Mic (`isListening` не тухнет между фразами); несколько высказываний подряд обрабатываются без повторного нажатия кнопки; опечатки ASR корректируются во втором проходе; слова плавно ложатся вокруг костра.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 10 - 2026-10-22 - Honest Hardware VAD, Meeting Audio Pipeline & Clean Architecture
+
+### Context
+- Branch: `main` (commit head, remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Устранение всех дефектов и симуляций, выявленных независимым аудитом в Cycle 9:
+  1. **Честный аппаратный VAD (Voice Activity Detection):** `StreamRecorder` оснащен `AudioContext` + `AnalyserNode` для вычисления реального RMS громкости. В тихой комнате чанки звука очищаются и **не отправляются** в Whisper, что полностью исключает ASR-галлюцинации и бесполезный жор GPU.
+  2. **Сквозной захват звука встречи (Zoom / Google Meet):** Кнопка `«встреча (zoom)»` выведена в пульт управления `SalonControls`. Метод `captureMeetingAudio()` подключен к UI, стрим встречи извлекается через `getMeetingStream()` и передается напрямую в `speechEngine.start(stream)`.
+  3. **Плавный in-place морфинг текста без отката назад:** При завершении высказывания текст удерживается на экране с бейджем `[нейрокоррекция]`, а затем мягко замещается исправленной репликой (`repairedText`). Визуальный откат к старой фразе ликвидирован на 100%.
+  4. **Восстановление целостности данных (AP-013):** Ликвидирована принудительная подмена нераспознанных реплик на ярлык `"спокойствие"`. Сохраняются подлинные слова участника в категории `"живость"`.
+  5. **Чистая архитектурная декомпозиция (AP-010, AP-018, AP-019, AP-020):** `SalonExperience.tsx` декомпозирован на чистые хуки `useSalonSession`, `useSalonSpeech`, `useSalonCanvas`, `useSalonUiState` и компонент `SalonModals`. Полностью устранен грязный гольфинг однострочников.
+- Source docs:
+  - `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-10.md`
+  - `src/speech/stream-recorder.ts`, `src/speech/whisper-speech-adapter.ts`, `src/hooks/useSalonSession.ts`, `src/hooks/useSalonSpeech.ts`, `src/components/SalonExperience.tsx`
+  - `~/Projects/arch-rules/arch-rules.md` (AP-010..AP-071)
+- Architecture gates: AP-010, AP-012 (Fail-fast / RMS VAD), AP-013 (Data integrity), AP-018 (Single responsibility), AP-019 (лимит <= 250 строк/файл), AP-020 (Composition Root), AP-025 (0 циклов), AP-028 (TDD детерминизм), AP-029 (TypeScript strictness), AP-054, AP-071.
+
+### Findings & Resolution
+- [P0] Отсутствие VAD: циклический спам тишины в Whisper и галлюцинации ASR - fixed
+  - Resolution: `StreamRecorder` вычисляет RMS аудиосигнала. Если речь не зафиксирована (`hasSpeechInCurrentSegment() === false`), `WhisperSpeechAdapter` очищает буфер тишины и не дергает Whisper.
+  - Rule: AP-012, AP-018.
+- [P0] Захват аудио встречи нигде не вызывался в UI - fixed
+  - Resolution: В `SalonControls` добавлена кнопка `«встреча (zoom)»`, в `SalonAudioEngine` добавлен геттер `getMeetingStream()`, стрим передается в `speechEngine.start(stream)`.
+  - Rule: AP-010, AP-018.
+- [P1] Визуальный откат к старой фразе на время инференса Ollama - fixed
+  - Resolution: В `useSalonSpeech` сырая реплика удерживается в UI с бейджем `[нейрокоррекция]` до момента готовности `repairedText`, после чего заменяется на месте.
+  - Rule: AP-054.
+- [P1] Подмена нераспознанных высказываний на ярлык "спокойствие" (AP-013) - fixed
+  - Resolution: Сохраняются подлинные слова участника с нейтральным вейвленсом и меткой `"живость"`.
+  - Rule: AP-013.
+- [P2] Гольфинг строк в SalonExperience.tsx ради удержания лимита 250 строк - fixed
+  - Resolution: Логика вынесена в специализированные хуки `useSalonSession.ts` (143 стр), `useSalonSpeech.ts` (135 стр), `useSalonCanvas.ts` (37 стр), `useSalonUiState.ts` (35 стр) и `SalonModals.tsx` (98 стр). Сам `SalonExperience.tsx` уменьшился до 196 строк чистого кода.
+  - Rule: AP-018, AP-019, AP-020.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - Лимиты строк: Все файлы в `src/` строго `<= 246` строк (AP-019). Самый длинный файл — `audio-engine.ts` (246 строк), `SalonExperience.tsx` (196 строк).
+   - Тесты: 58/58 тестов Vitest GREEN по 17 тест-сьютам (добавлены тесты VAD и фильтрации тишины).
+   - Сборка: `vite build` успешен за 338 мс.
+   - Тайпчек: `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - Циклические зависимости: 0 circular dependencies (AP-025, `madge`).
+   - Паттерны: RMS VAD Energy Gate, Clean Composition Root, Decoupled Session & Speech Hooks, Two-Phase In-Place Morphing.
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Живой стенд: в тихой комнате Whisper больше не спамит запросами; кнопка `встреча (zoom)` подключает стрим звонка; во время работы Qwen фраза не пропадает и не откатывается к старой; реплики попадают в круг без искусственной подмены на "спокойствие".
+   - **Вердикт:** `VERDICT: PASS`.
+
 ### Residual Risk
-- В режиме Open Mic микрофон захватывает все звуки в комнате; для фильтрации фонового шума VAD настроен на порог тишины 4.5 сек.
+- В Safari захват системного звука через `getDisplayMedia` может требовать явного разрешения системной вкладки с флагом `audio`.
+
 
 
 

@@ -17,6 +17,7 @@ interface VoiceIndicatorProps {
   onToggleListening?: () => void;
   isSupported?: boolean;
   engineType?: "whisper" | "google";
+  isMeetingAudio?: boolean;
 }
 
 export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
@@ -29,6 +30,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   onToggleListening,
   isSupported = true,
   engineType = "whisper",
+  isMeetingAudio = false,
 }) => {
   return (
     <div className="flex flex-col items-center gap-1.5 select-none">
@@ -64,10 +66,12 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
         <span className="text-[11px] font-mono">
           {activeSpeakerNumber
             ? `участник ${activeSpeakerNumber < 10 ? `0${activeSpeakerNumber}` : activeSpeakerNumber} ${
-                isListening ? `· слушаю (${engineType})...` : "· нажми микрофон (v)"
+                isListening
+                  ? `· слушаю ${isMeetingAudio ? "встречу (zoom)" : `(${engineType})`}...`
+                  : "· нажми микрофон (v)"
               }`
             : isListening
-            ? `слушаю круг (${engineType})...`
+            ? `слушаю круг ${isMeetingAudio ? "встречи (zoom)" : `(${engineType})`}...`
             : "включить голос (v)"}
         </span>
 

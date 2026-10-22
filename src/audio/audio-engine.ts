@@ -230,6 +230,10 @@ export class SalonAudioEngine {
     return Boolean(this.meetingStream && this.meetingStream.getAudioTracks().some((t) => t.readyState === "live"));
   }
 
+  public getMeetingStream(): MediaStream | null {
+    return this.meetingStream;
+  }
+
   public getMeetingRmsLevel(): number {
     if (!this.analyser) return 0;
     this.analyser.getFloatTimeDomainData(this.timeData as Float32Array<ArrayBuffer>);

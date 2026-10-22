@@ -63,4 +63,27 @@ describe('WhisperSpeechAdapter', () => {
     // In Open-Mic mode, status change to false MUST NOT be called!
     expect(callbacks.onStatusChange).not.toHaveBeenCalledWith(false);
   });
+
+  it('skips sending silent audio to Whisper when no speech activity is detected', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const mockRecorder = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(new Blob([])),
+      extractCurrentSegment: vi.fn().mockReturnValue(new Blob(['silence audio'], { type: 'audio/webm' })),
+      hasSpeechInCurrentSegment: vi.fn().mockReturnValue(false), // Silence!
+      cleanup: vi.fn(),
+      isRecording: true,
+    };
+    (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
+
+    await adapter.start();
+
+    // Call flush (or timer tick) on silence
+    adapter.flush();
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Whisper should NOT be called on silence!
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(callbacks.onFinalPhrase).not.toHaveBeenCalled();
+  });
 });
