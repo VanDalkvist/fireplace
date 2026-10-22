@@ -168,7 +168,7 @@ export class HearthWordsManager {
     }
   }
 
-  public render(ctx: CanvasRenderingContext2D, seats: IsometricSeat[], time: number): void {
+  public render(ctx: CanvasRenderingContext2D, _seats: IsometricSeat[], time: number): void {
     const t = time * 0.001;
     const now = performance.now();
 
@@ -195,24 +195,9 @@ export class HearthWordsManager {
       ctx.restore();
     }
 
-    // 2. Words in the Hearth Ring
+    // 2. Words in the Hearth Ring (Pure floating typography, NO visible lines in fire - links stored in data only)
     for (let i = 0; i < this.words.length; i++) {
       const w = this.words[i];
-      const speakerSeat = seats.find((s) => s.id === w.seatId);
-      const elapsed = now - w.born;
-
-      if (elapsed < 2400 && speakerSeat) {
-        const q = 1 - elapsed / 2400;
-        ctx.save();
-        ctx.strokeStyle = `rgba(255, 178, 102, ${q * 0.16})`;
-        ctx.lineWidth = 0.8;
-        ctx.setLineDash([2, 5]);
-        ctx.beginPath();
-        ctx.moveTo(speakerSeat.x, speakerSeat.y);
-        ctx.lineTo(w.x, w.y);
-        ctx.stroke();
-        ctx.restore();
-      }
 
       if (!w.settled) {
         w.x += (w.targetX - w.x) * 0.06;

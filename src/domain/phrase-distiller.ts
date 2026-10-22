@@ -43,14 +43,14 @@ export async function distillWithNeuralFallback(
     const client = new OllamaClient(ollamaUrl);
     const prompt = `Ты — созерцательный слушатель у костра. Твоя задача:
 1. Исправь опечатки и ослышки распознавания речи в высказывании участника.
-2. Извлеки суть и сокровенное чувство, сохранив живую метафору и отбросив бытовой шум.
+2. Сохрани живые слова и смысл высказывания человека целиком. Не обрезай до одного слова!
 
 Слова участника: "${trimmed}"
 
 Выведи JSON с полями:
 - repaired_text (строка: исправленный чистый текст высказывания без опечаток)
-- phrase (строка: сокровенное чувство или живая метафора участника)
-- family (одно емкое слово оттенка чувства — например покой, тепло, грусть, благодарность, уязвимость или любое точное слово)
+- phrase (строка: емкая мысль или живая фраза от 2 до 5 слов, не обрезай до одного слова)
+- family (одно слово: покой, тепло, грусть, благодарность, уязвимость, радость, усталость или другое точное слово)
 - valence (число от -1.0 до 1.0)
 
 JSON:`;
@@ -69,14 +69,20 @@ JSON:`;
     if (data?.response) {
       const parsed = JSON.parse(data.response) as LlmDistillPayload;
       const phraseClean = (parsed.phrase || "").trim();
-      const isTemplateLeak =
+      const repaired = (parsed.repaired_text || "").trim() || trimmed;
+
+      const phraseWords = phraseClean.split(/\s+/).filter(Boolean);
+      const repairedWords = repaired.split(/\s+/).filter(Boolean);
+
+      // Guard against 1-word amputations (e.g. "работает", "поиграй", "туш") when utterance had full thought
+      const isAmputationOrLeak =
+        phraseClean.length === 0 ||
         phraseClean.includes("глубинный смысл") ||
         phraseClean.includes("живая метафора") ||
         phraseClean.includes("извлеченное чувство") ||
-        phraseClean.length === 0;
+        (phraseWords.length <= 1 && repairedWords.length >= 2);
 
-      const effectivePhrase = isTemplateLeak ? trimmed : phraseClean;
-      const repaired = (parsed.repaired_text || "").trim() || trimmed;
+      const effectivePhrase = isAmputationOrLeak ? repaired : phraseClean;
 
       if (effectivePhrase) {
         const kind = parsed.kind || "feeling";

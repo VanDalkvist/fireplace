@@ -112,4 +112,26 @@ describe('Neural Phrase Distiller', () => {
     expect(status.online).toBe(true);
     expect(status.hasModel).toBe(true);
   });
+
+  it('guards against single-word amputations from LLM and preserves full meaningful phrase', async () => {
+    const fakeLlmResponse = {
+      response: JSON.stringify({
+        repaired_text: "Распознавание голоса работает",
+        phrase: "работает", // 1-word amputation
+        family: "радость",
+        valence: 0.8,
+      })
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => fakeLlmResponse,
+    } as unknown as Response);
+
+    const utterance = "Распознавание голоса работает";
+    const res = await distillWithNeuralFallback(utterance, defaultLexiconIndex);
+
+    // Must NOT be severed to "работает" alone — must preserve full meaningful utterance
+    expect(res.feelings[0].lemma).toBe("Распознавание голоса работает");
+  });
 });

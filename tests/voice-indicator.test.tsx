@@ -2,13 +2,13 @@ import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
 import { VoiceIndicator } from "@/components/salon/VoiceIndicator";
 
-describe("VoiceIndicator with VU Meter and Pipeline Status", () => {
+describe("VoiceIndicator with Calm, Steady State", () => {
   it("renders idle microphone button with keyboard shortcut hint", () => {
     const html = renderToString(<VoiceIndicator isListening={false} />);
     expect(html).toContain("микрофон (v)");
   });
 
-  it("renders hearing status when speech is actively detected", () => {
+  it("renders calm, steady 'слушаю' status without technical jargon when listening", () => {
     const html = renderToString(
       <VoiceIndicator
         isListening={true}
@@ -17,27 +17,30 @@ describe("VoiceIndicator with VU Meter and Pipeline Status", () => {
         engineType="gigaam"
       />
     );
-    expect(html).toContain("слышу речь…");
+    expect(html).toContain("слушаю");
+    expect(html).not.toContain("gigaam");
+    expect(html).not.toContain("слышу речь");
   });
 
-  it("renders transcribing status when speech segment is sent to ASR", () => {
+  it("keeps 'слушаю' steady during transcribing phase without jumping text", () => {
     const html = renderToString(
       <VoiceIndicator
         isListening={true}
         pipelineStatus="transcribing"
-        engineType="gigaam"
+        engineType="whisper"
       />
     );
-    expect(html).toContain("распознаю (gigaam)…");
+    expect(html).toContain("слушаю");
+    expect(html).not.toContain("распознаю");
   });
 
-  it("renders meeting audio status when capturing meeting audio", () => {
+  it("keeps 'слушаю' steady during meeting audio capture without jumping label", () => {
     const html = renderToString(
       <VoiceIndicator
         isListening={true}
         isMeetingAudio={true}
       />
     );
-    expect(html).toContain("встреча: микрофон + zoom");
+    expect(html).toContain("слушаю");
   });
 });

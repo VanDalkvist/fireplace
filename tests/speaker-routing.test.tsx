@@ -12,7 +12,7 @@ describe("Autonomous Speaker Routing (Cycle 12)", () => {
       />
     );
 
-    expect(html).toContain("слушаю круг (whisper)...");
+    expect(html).toContain("слушаю");
   });
 
   it("passes speaker seat number from speakerPort to onFinalPhrase callback", async () => {

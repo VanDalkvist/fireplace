@@ -695,6 +695,40 @@
    - Сборка `vite build` — 304 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 21 - 2026-10-22 - Calm Steady Indicator, Anti-Amputation Phrase Distillation & Clean Hearth Fire
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-21-calm-indicator-meaningful-words-clean-hearth.md`
+- Scope:
+  1. Ликвидация скачущих состояний кнопки микрофона (`VoiceIndicator.tsx`, AP-054): убраны дергающиеся надписи («слышу речь…», «распознаю (gigaam)…», «нейрокоррекция…», «встреча: микрофон + zoom») и постоянная смена ширины/цветов кнопки. Теперь кнопка всегда спокойна и стабильна: при активной записи отображает ровное `«слушаю»`, при остановленной — `«микрофон (v)»`. Внутренняя точка мягко дышит уровнем громкости без вибрации макета.
+  2. Устранение обрезков фраз в круге огня (`phrase-distiller.ts`, `whisper-speech-adapter.ts`, `stream-recorder.ts`):
+     - Внедрен анти-ампутационный гейт `isAmputationOrLeak`: пресечена попытка малой LLM Qwen 1.5B ампутировать цельные живые мысли до 1 оторванного слова/глагола (`«поиграй»`, `«работает»`, `«туш»`). Если фраза лаконична или LLM обрезала высказывание до 1 слова, в круг летит полная чистая мысль человека (`repaired_text`).
+     - Птолок непрерывного монолога расширен с 7.0 с до 12.0 с, а пауза EOU скорректирована до 700 мс, исключая случайную нарезку речи посередине смысловой фразы.
+  3. Очистка костра от видимых связей (`hearth-words.ts`): удалены временные пунктирные линии, перечеркивавшие пламя костра от стульев к словам. Связи диалога по-прежнему персистятся как данные в `localStorage` (`recordLink`), но визуальное поле остается чистым, созерцательным и свободным от линий.
+  4. Соблюдение строгих лимитов AP-019: `stream-recorder.ts` (236 строк), `hearth-words.ts` (231 строка), все файлы $\le 236$ строк.
+
+### Findings Fixed
+- [P1] Jittery Jumping Microphone Button UX (AP-054) — RESOLVED via serene static state `"слушаю"`.
+- [P1] Single-Word Amputation & Monologue Chopping (AP-012, AP-013) — RESOLVED via anti-amputation guard & 12s ceiling.
+- [P1] Intrusive Visible Lines Across the Hearth Fire — RESOLVED by removing canvas lines and keeping links in data only.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 111/111 тестов Vitest GREEN (29 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 236$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Сценарий 1 (Кнопка не прыгает): подтвержден `tests/voice-indicator.test.tsx` (ровно `"слушаю"` при любых фазах).
+   - Сценарий 2 (В круг летят цельные осмысленные фразы, а не огрызки): подтвержден `tests/phrase-distiller.test.ts`.
+   - Сценарий 3 (Чистый костер без линий): подтвержден `tests/hearth-words.test.ts`.
+   - Сборка `vite build` — 288 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

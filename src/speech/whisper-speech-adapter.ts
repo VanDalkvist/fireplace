@@ -80,13 +80,13 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
   private armMaxDurationTimer(): void {
     this.clearMaxDurationTimer();
-    // Safety ceiling for continuous monologue: 7.0s with 1.5s left-context (FluidAudio pattern)
+    // Safety ceiling for continuous monologue: 12.0s before soft cut
     this.maxDurationTimer = setTimeout(() => {
       if (this.isListeningActive) {
-        void this.processCurrentSegment(false, 1500);
+        void this.processCurrentSegment(false, 0);
         this.armMaxDurationTimer();
       }
-    }, 7000);
+    }, 12000);
   }
 
   private clearMaxDurationTimer(): void {

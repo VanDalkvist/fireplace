@@ -1,5 +1,5 @@
 import React from "react";
-import { Mic, MicOff, Waves } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
 
@@ -25,30 +25,20 @@ interface VoiceIndicatorProps {
 export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   isListening,
   audioLevel = 0,
-  pipelineStatus = "idle",
+  pipelineStatus: _pipelineStatus = "idle",
   lastPhraseText,
   interimText,
   interimBadge,
   errorMessage,
   onToggleListening,
   isSupported = true,
-  engineType = "whisper",
-  isMeetingAudio = false,
+  engineType: _engineType = "whisper",
+  isMeetingAudio: _isMeetingAudio = false,
 }) => {
-  const energyScale = 1 + Math.min(Math.max(audioLevel * 12, 0), 0.85);
-  const energyOpacity = 0.3 + Math.min(Math.max(audioLevel * 8, 0), 0.7);
+  const energyScale = 1 + Math.min(Math.max(audioLevel * 10, 0), 0.7);
+  const energyOpacity = 0.35 + Math.min(Math.max(audioLevel * 6, 0), 0.65);
 
-  const getStatusLabel = (): string => {
-    if (!isListening) return "микрофон (v)";
-    if (pipelineStatus === "hearing") return "слышу речь…";
-    if (pipelineStatus === "transcribing") return `распознаю (${engineType})…`;
-    if (pipelineStatus === "distilling") return "нейрокоррекция…";
-    if (isMeetingAudio) return "встреча: микрофон + zoom";
-    return `слушаю круг (${engineType})...`;
-  };
-
-  const isHearing = isListening && pipelineStatus === "hearing";
-  const isTranscribing = isListening && pipelineStatus === "transcribing";
+  const statusLabel = isListening ? "слушаю" : "микрофон (v)";
 
   return (
     <div className="flex flex-col items-center gap-1.5 select-none pointer-events-auto">
@@ -61,22 +51,17 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
           "relative flex items-center gap-2 px-3 py-1 bg-black/40 border rounded-full backdrop-blur-md transition-all duration-300",
           isSupported ? "cursor-pointer" : "opacity-50 cursor-not-allowed",
           !isListening && "border-border/60 text-muted/80 hover:border-muted hover:text-foreground",
-          isListening && !isHearing && !isTranscribing && "border-primary/50 text-primary shadow-sm shadow-primary/20",
-          isHearing && "border-emerald-500/80 text-emerald-400 shadow-md shadow-emerald-500/30",
-          isTranscribing && "border-amber-500/80 text-amber-400 shadow-md shadow-amber-500/30"
+          isListening && "border-primary/50 text-primary shadow-sm shadow-primary/20"
         )}
       >
-        {/* Dynamic VU Meter Ring */}
+        {/* Dynamic VU Meter Ring: subtle breathing pulse without button resizing or flashing */}
         <span className="relative flex h-2 w-2 items-center justify-center">
           {isListening && (
             <span
-              className={cn(
-                "absolute inline-flex rounded-full transition-transform duration-75",
-                isHearing ? "bg-emerald-400" : isTranscribing ? "bg-amber-400" : "bg-primary"
-              )}
+              className="absolute inline-flex rounded-full bg-primary transition-transform duration-75"
               style={{
-                width: "10px",
-                height: "10px",
+                width: "8px",
+                height: "8px",
                 transform: `scale(${energyScale})`,
                 opacity: energyOpacity,
               }}
@@ -85,21 +70,16 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
           <span
             className={cn(
               "relative inline-flex rounded-full h-2 w-2",
-              !isListening && "bg-muted",
-              isListening && !isHearing && !isTranscribing && "bg-primary",
-              isHearing && "bg-emerald-400",
-              isTranscribing && "bg-amber-400 animate-pulse"
+              isListening ? "bg-primary" : "bg-muted"
             )}
           />
         </span>
 
         <span className="text-[11px] font-mono tracking-wide">
-          {getStatusLabel()}
+          {statusLabel}
         </span>
 
-        {isHearing ? (
-          <Waves className="w-3 h-3 text-emerald-400 ml-0.5 animate-pulse" />
-        ) : isListening ? (
+        {isListening ? (
           <Mic className="w-3 h-3 text-primary ml-0.5 opacity-80" />
         ) : (
           <MicOff className="w-3 h-3 text-muted ml-0.5 opacity-60" />

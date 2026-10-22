@@ -146,12 +146,12 @@ export class StreamRecorder {
         this.vadCallbacks.onSpeechStart?.();
       }
     } else if (this.wasSpeaking && !this.silenceTimer) {
-      // Natural pause debounce timer (850ms) before declaring SpeechEnd (AP-012)
+      // Natural pause debounce timer (700ms) before declaring SpeechEnd (AP-012)
       this.silenceTimer = setTimeout(() => {
         this.wasSpeaking = false;
         this.silenceTimer = null;
         this.vadCallbacks.onSpeechEnd?.();
-      }, 850);
+      }, 700);
     }
   }
 
@@ -160,7 +160,7 @@ export class StreamRecorder {
       this.hasSpeechInSegment = true;
       this.wasSpeaking = true;
       this.vadCallbacks.onSpeechStart?.();
-    } else if (silenceDurationMs >= 850) {
+    } else if (silenceDurationMs >= 700) {
       this.wasSpeaking = false;
       this.vadCallbacks.onSpeechEnd?.();
     }
