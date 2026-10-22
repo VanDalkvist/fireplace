@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { SessionPhase } from "@/domain/types";
 import { distillSpokenPhrase, isPureFillerPhrase } from "@/domain/lexicon-engine";
 import { distillWithNeuralFallback, splitIntoSemanticPhrases } from "@/domain/phrase-distiller";
+import { SpeakerTurnBuffer } from "@/domain/speaker-turn-buffer";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { createSpeechEngine } from "@/speech/speech-factory";
 import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
@@ -49,37 +50,19 @@ export function useSalonSpeech({
   const speakerPort = useRef(createSpeakerIdentifier()).current;
 
   // Stabilize callbacks against re-render cascades (AP-053, AP-054)
-  const callbacksRef = useRef({
-    phase,
-    onPass,
-    onAddFeeling,
-    onAddDesire,
-    onSelectSpeaker,
-    onSwitchToWhisper,
-  });
-  callbacksRef.current = {
-    phase,
-    onPass,
-    onAddFeeling,
-    onAddDesire,
-    onSelectSpeaker,
-    onSwitchToWhisper,
-  };
+  const callbacksRef = useRef({ phase, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper });
+  callbacksRef.current = { phase, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper };
 
-  const handleSpeechResult = useCallback(async (phrase: string, speakerSeat?: number) => {
-    // Zero-click acoustic turn taking (AP-054)
-    if (speakerSeat) {
-      setIdentifiedSpeaker({ seatNumber: speakerSeat, speakerId: `seat_${speakerSeat}` });
-      callbacksRef.current.onSelectSpeaker?.(speakerSeat);
-    }
+  const turnBufferRef = useRef(new SpeakerTurnBuffer(2200));
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // In-place morphing: keep phrase in UI with [нейрокоррекция] to prevent visual rollback (AP-054)
-    setInterimPhrase(phrase);
+  const processCompletedTurn = useCallback(async (text: string, speakerSeat?: number) => {
     setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
+    const recentContext = turnBufferRef.current.getRecentHistory(3);
+    const res = await distillWithNeuralFallback(text, defaultLexiconIndex, {}, recentContext);
+    const settled = res.repairedText || text;
 
-    const res = await distillWithNeuralFallback(phrase, defaultLexiconIndex);
-    const settled = res.repairedText || phrase;
-
+    turnBufferRef.current.commitCompletedTurn(settled);
     setLastPhrase(settled);
     setInterimPhrase("");
     setInterimBadge(null);
@@ -91,8 +74,7 @@ export function useSalonSpeech({
 
     let matched = false;
     for (const f of res.feelings) {
-      const parts = splitIntoSemanticPhrases(f.form || f.lemma);
-      for (const p of parts) {
+      for (const p of splitIntoSemanticPhrases(f.form || f.lemma)) {
         if (!isPureFillerPhrase(p)) {
           feelFn(p, f.family, f.valence, speakerSeat);
           matched = true;
@@ -100,8 +82,7 @@ export function useSalonSpeech({
       }
     }
     for (const d of res.desires) {
-      const parts = splitIntoSemanticPhrases(d.text);
-      for (const p of parts) {
+      for (const p of splitIntoSemanticPhrases(d.text)) {
         if (!isPureFillerPhrase(p)) {
           desireFn(p, speakerSeat);
           matched = true;
@@ -111,8 +92,7 @@ export function useSalonSpeech({
     if (!matched) {
       const clean = res.fallbackText || settled;
       if (isPureFillerPhrase(clean)) return;
-      const parts = splitIntoSemanticPhrases(clean);
-      for (const p of parts) {
+      for (const p of splitIntoSemanticPhrases(clean)) {
         if (!isPureFillerPhrase(p)) {
           if (res.isDesirePhrase || currentPhase === "desires") {
             desireFn(p, speakerSeat);
@@ -123,6 +103,29 @@ export function useSalonSpeech({
       }
     }
   }, []);
+
+  const handleSpeechResult = useCallback((phrase: string, speakerSeat?: number) => {
+    if (speakerSeat) {
+      setIdentifiedSpeaker({ seatNumber: speakerSeat, speakerId: `seat_${speakerSeat}` });
+      callbacksRef.current.onSelectSpeaker?.(speakerSeat);
+    }
+
+    setInterimPhrase(phrase);
+
+    const feedRes = turnBufferRef.current.feed(phrase, speakerSeat);
+    if (feedRes.flushedPrevious) {
+      void processCompletedTurn(feedRes.flushedPrevious.text, feedRes.flushedPrevious.speakerSeat);
+    }
+
+    if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+    const timeoutGap = turnBufferRef.current.isDangling(phrase) ? 3500 : 2200;
+    flushTimerRef.current = setTimeout(() => {
+      const flushed = turnBufferRef.current.flush();
+      if (flushed) {
+        void processCompletedTurn(flushed.text, flushed.speakerSeat);
+      }
+    }, timeoutGap);
+  }, [processCompletedTurn]);
 
   const handleToggleMeetingAudio = useCallback(async () => {
     if (!audioRef.current) return;

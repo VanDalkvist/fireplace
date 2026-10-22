@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { defaultLexiconIndex } from '../src/domain/lexicon-provider';
-import { distillWithNeuralFallback, checkOllamaStatus, splitIntoSemanticPhrases } from '../src/domain/phrase-distiller';
+import { distillWithNeuralFallback, checkOllamaStatus, splitIntoSemanticPhrases, normalizeItTerms, isMeetingOperationalNoise } from '../src/domain/phrase-distiller';
 
 describe('Neural Phrase Distiller', () => {
   beforeEach(() => {
@@ -152,5 +152,21 @@ describe('Neural Phrase Distiller', () => {
     expect(phrases.length).toBeGreaterThanOrEqual(2);
     expect(phrases[0]).toContain("будем пытаться давать доступ");
     expect(phrases[1]).toContain("все присутствующие сами");
+  });
+
+  it('normalizes common ASR errors in IT terms', () => {
+    expect(normalizeItTerms("была на бэтенде")).toBe("была на бэкенде");
+    expect(normalizeItTerms("нужно пошерить этот контакт")).toBe("нужно пошарить этот контакт");
+    expect(normalizeItTerms("в рамках спейс")).toBe("в рамках Space");
+  });
+
+  it('suppresses meeting operational noise check-ins without sending to hearth', async () => {
+    expect(isMeetingOperationalNoise("ты слышишь?")).toBe(true);
+    expect(isMeetingOperationalNoise("меня слышно")).toBe(true);
+    expect(isMeetingOperationalNoise("денис дополни что нибудь")).toBe(true);
+
+    const res = await distillWithNeuralFallback("ты слышишь?", defaultLexiconIndex);
+    expect(res.feelings.length).toBe(0);
+    expect(res.desires.length).toBe(0);
   });
 });

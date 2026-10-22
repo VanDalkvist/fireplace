@@ -770,6 +770,48 @@
    - Сборка `vite build` — 287 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 23 - 2026-10-22 - Speaker Turn Memory Buffer & Few-Shot Distillation
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-23-speaker-memory-buffer-and-few-shot-distillation.md`
+- Scope:
+  1. Создание чистого доменного модуля `SpeakerTurnBuffer` (`src/domain/speaker-turn-buffer.ts`):
+     - Агрегация последовательных чанков одного спикера с дебаунсом 2.2 с (и до 3.5 с при незавершенных мыслях).
+     - Детекция висячих предлогов/союзов (`для`, `как`, `что`, `в`, `на`) с автоматическим удержанием чанка до прихода продолжения мысли.
+     - Немедленный сброс предыдущей реплики при смене спикера (`speakerSeat`).
+     - Скользящее кольцевое окно памяти `recentHistory` (последние 3 реплики встречи).
+  2. Усиление нейродистиллятора `phrase-distiller.ts`:
+     - Few-Shot системный промпт с адаптацией под IT-созвоны (бэкенд, спейс, боты, нетворкинг).
+     - Нормализатор искажений ASR в IT-терминах (`бэтенд` -> `бэкенд`, `пошерить` -> `пошарить`, `нетворкинг пэйс` -> `Networking Space`).
+     - Исправление бага `isAmputationOrLeak`: чистый дроп зум-шума (`«ты слышишь»`, `«смотрел»`) и обрубков без насильного подмешивания в костер.
+     - Передача `recentContext` (истории реплик) в промпт Qwen для контекстной точности.
+  3. Интеграция буфера памяти в `useSalonSpeech.ts`:
+     - Очередь накопления реплики `turnBufferRef` и таймер дебаунса `flushTimerRef`.
+     - Все файлы $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+
+### Findings Fixed
+- [P1] Isolated Chunk Fragmentation — RESOLVED via `SpeakerTurnBuffer` turn aggregation & dangling stitching.
+- [P1] Defective `isAmputationOrLeak` Override — RESOLVED by honoring empty drops on noise/fillers.
+- [P2] Stateless Neural Distillation — RESOLVED via `recentContext` memory prompt.
+- [P2] IT Lexicon Mishearings — RESOLVED via `normalizeItTerms`.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 119/119 тестов Vitest GREEN (30 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Сценарий 1 (Склеивание чанков одного спикера): подтверждено `tests/speaker-turn-buffer.test.ts`.
+   - Сценарий 2 (Отсев зум-шума и висячих предлогов): подтверждено `tests/phrase-distiller.test.ts`.
+   - Сценарий 3 (Нормализация IT-терминов бэтенд->бэкенд): подтверждено `tests/phrase-distiller.test.ts`.
+   - Сборка `vite build` — 269 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

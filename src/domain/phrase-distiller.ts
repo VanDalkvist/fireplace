@@ -21,44 +21,85 @@ interface LlmDistillPayload {
   kind?: "feeling" | "desire" | "pass";
 }
 
+const IT_TERM_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/(^|[\s.,;:!?"'()])бэтенд([а-яё]*)(?=[\s.,;:!?"'()]|$)/gi, "$1бэкенд$2"],
+  [/(^|[\s.,;:!?"'()])пошер([а-яё]*)(?=[\s.,;:!?"'()]|$)/gi, "$1пошар$2"],
+  [/(^|[\s.,;:!?"'()])сценарий вещи(?=[\s.,;:!?"'()]|$)/gi, "$1сценарий фичи"],
+  [/(^|[\s.,;:!?"'()])нетворкинг пэйс(?=[\s.,;:!?"'()]|$)/gi, "$1Networking Space"],
+  [/(^|[\s.,;:!?"'()])в рамках спейс(?=[\s.,;:!?"'()]|$)/gi, "$1в рамках Space"],
+];
+
+export function normalizeItTerms(text: string): string {
+  let res = text;
+  for (const [pattern, repl] of IT_TERM_REPLACEMENTS) res = res.replace(pattern, repl);
+  return res;
+}
+
+const MEETING_NOISE_PATTERNS = [
+  /^(?:ты\s+)?слышишь(?:\s+меня)?\??$/i,
+  /^(?:меня|вас)\s+слышно\??$/i,
+  /^смотр(?:ел|ишь)\??$/i,
+  /^(?:да-да|ага|угу|ну\s+да)\.?$/i,
+  /^(?:денис|виктор|саша|маша|дима)\s+дополни(?:\s+что[- ]?нибудь)?$/i,
+];
+
+export function isMeetingOperationalNoise(text: string): boolean {
+  return MEETING_NOISE_PATTERNS.some((p) => p.test(text.trim()));
+}
+
+export function isDanglingFragment(text: string): boolean {
+  return /(?:\s|^)(?:для|как|на|в|с|к|по|от|о|об|обо|за|из|под|над|при|без|про|что|чтобы|если|или|но|а|и)\s*$/i.test(text.trim());
+}
+
 export async function distillWithNeuralFallback(
   rawText: string,
   idx: LexiconIndex,
-  options: NeuralDistillerOptions = {}
+  options: NeuralDistillerOptions = {},
+  recentContext: string[] = []
 ): Promise<EnrichedDistillationResult> {
-  const trimmed = rawText.trim();
-  const lower = trimmed.toLowerCase();
+  const normalized = normalizeItTerms(rawText.trim());
+  const lower = normalized.toLowerCase();
 
   // Fast-track explicit pass
   if (lower === "пас" || lower === "я пас" || lower === "пас сегодня") {
     return { feelings: [], desires: [], pass: true, neuralDistilled: false, engineUsed: "qwen2.5:1.5b" };
   }
 
-  // Fast-track pure conversational fillers (e.g. "как раз", "в общем", "ну вот")
-  if (isPureFillerPhrase(trimmed)) {
-    return { feelings: [], desires: [], pass: false, repairedText: trimmed, neuralDistilled: false, engineUsed: "lexicon-fallback" };
+  // Fast-track pure conversational fillers or meeting operational noise
+  if (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized)) {
+    return { feelings: [], desires: [], pass: false, repairedText: normalized, neuralDistilled: false, engineUsed: "lexicon-fallback" };
   }
 
-  // Pure Neural Routing: everything flows to Qwen to preserve essence, metaphor, and depth
   const ollamaUrl = options.ollamaUrl || "http://127.0.0.1:11434";
   const model = options.model || "qwen2.5:1.5b";
   const timeoutMs = options.timeoutMs ?? 2000;
 
   try {
     const client = new OllamaClient(ollamaUrl);
-    const prompt = `Ты — созерцательный слушатель у костра. Твоя задача:
-1. Очисти высказывание от слов-паразитов и вводных связок («как раз», «в общем», «ну вот», «так сказать», «то есть», «короче», «собственно», «по сути»).
-2. Если высказывание состоит ТОЛЬКО из связок/мусора — верни phrase: "".
-3. Сохрани живую смысловую мысль человека целиком (2–6 слов).
+    const contextLines = recentContext.length > 0
+      ? `Контекст предыдущих реплик:\n${recentContext.map((c) => `- "${c}"`).join("\n")}\n\n`
+      : "";
 
-Высказывание: "${trimmed}"
+    const prompt = `Ты — созерцательный редактор речи у костра на IT-созвоне.
+Извлеки из спонтанной речи участника емкую чистую мысль (2–5 слов) для круга огня.
+ПРАВИЛА:
+1. Исправляй опечатки ASR: бэтенд->бэкенд, спейс->Space, пошерить->пошарить, сценарий вещи->сценарий фичи.
+2. Убирай паразиты: «в общем», «как раз», «как бы», «ну вот», «так сказать», «короче».
+3. Зум-шум («ты слышишь», «смотри», «ага») и обрубки («была на бэтенде для») -> верни phrase: "".
+4. Для мыслей верни фразу (2–5 слов). Не сжимай до 1 слова.
+ПРИМЕРЫ:
+"была на бэтенде для" -> {"phrase": "", "family": "покой", "valence": 0.0}
+"ты слышишь меня?" -> {"phrase": "", "family": "покой", "valence": 0.0}
+"Почему бы нам не создать бота для участников" -> {"phrase": "создать бота для участников", "family": "интерес", "valence": 0.8}
+"Владелец данных давал возможность поделиться описанием своего опыта" -> {"phrase": "поделиться описанием своего опыта", "family": "открытость", "valence": 0.7}
+"В общем, будем пытаться как бы давать доступ к системе, там все шире" -> {"phrase": "давать доступ к системе", "family": "интерес", "valence": 0.7}
 
-Выведи JSON:
-- repaired_text (строка: чистая фраза без слов-паразитов и опечаток)
-- phrase (строка: емкая мысль от 2 до 6 слов или пустая строка если нет мысли)
-- family (одно слово: покой, тепло, грусть, благодарность, уязвимость, радость, усталость или другое точное слово)
-- valence (число от -1.0 до 1.0)
-
+${contextLines}Текущее высказывание: "${normalized}"
+Выведи строго JSON:
+- repaired_text (чистая фраза без паразитов и опечаток)
+- phrase (емкая мысль 2-5 слов или "" если мусор)
+- family (покой, тепло, интерес, открытость, ясность, радость, усталость)
+- valence (-1.0..1.0)
 JSON:`;
 
     const data = await client.generate(
@@ -75,23 +116,26 @@ JSON:`;
     if (data?.response) {
       const parsed = JSON.parse(data.response) as LlmDistillPayload;
       const phraseClean = (parsed.phrase || "").trim();
-      const repaired = (parsed.repaired_text || "").trim() || trimmed;
+      const repaired = (parsed.repaired_text || "").trim() || normalized;
+
+      if (!phraseClean && (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized) || isDanglingFragment(normalized))) {
+        return { feelings: [], desires: [], pass: false, repairedText: repaired, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
+      }
 
       const phraseWords = phraseClean.split(/\s+/).filter(Boolean);
       const repairedWords = repaired.split(/\s+/).filter(Boolean);
 
-      // Guard against 1-word amputations (e.g. "работает", "поиграй", "туш") when utterance had full thought
+      // Guard against 1-word amputations when utterance had full thought
       const isAmputationOrLeak =
-        phraseClean.length === 0 ||
         phraseClean.includes("глубинный смысл") ||
         phraseClean.includes("живая метафора") ||
         phraseClean.includes("извлеченное чувство") ||
-        (phraseWords.length <= 1 && repairedWords.length >= 2);
+        (phraseWords.length <= 1 && repairedWords.length >= 2 && phraseClean.length > 0);
 
-      const effectivePhrase = isAmputationOrLeak ? repaired : phraseClean;
+      const effectivePhrase = isAmputationOrLeak ? repaired : (phraseClean || repaired);
 
       // Suppress pure filler leakage after neural step
-      if (isPureFillerPhrase(effectivePhrase)) {
+      if (isPureFillerPhrase(effectivePhrase) || isMeetingOperationalNoise(effectivePhrase)) {
         return {
           feelings: [],
           desires: [],
