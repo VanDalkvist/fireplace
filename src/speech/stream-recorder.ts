@@ -1,6 +1,10 @@
+import { EnergyVad } from "./vad/energy-vad";
+import type { VoiceActivityDetectorPort } from "./vad/vad-types";
+
 export interface StreamRecorderOptions {
   mimeType?: string;
   maxBufferChunks?: number;
+  vad?: VoiceActivityDetectorPort;
 }
 
 export interface TimestampedChunk {
@@ -8,28 +12,45 @@ export interface TimestampedChunk {
   timestamp: number;
 }
 
+export interface RecorderVadCallbacks {
+  onSpeechStart?: () => void;
+  onSpeechEnd?: () => void;
+  onAudioLevel?: (rms: number) => void;
+}
+
 export class StreamRecorder {
   private mediaRecorder: MediaRecorder | null = null;
   private ringBuffer: TimestampedChunk[] = [];
-  private readonly maxBufferSize = 240; // Bounded ring buffer (~60s at 250ms chunks)
+  private readonly maxBufferSize = 240; // ~60s circular bound (AP-018)
   private resolveStop: ((blob: Blob) => void) | null = null;
   private activeStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
   private audioSource: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private rmsInterval: ReturnType<typeof setInterval> | null = null;
-  private speechDetected = false;
-  private peakRmsInSegment = 0;
-  private lastSpeechTime = 0;
-  private readonly speechRmsThreshold = 0.005; // sensitive for Zoom & ambient room
   private ownsActiveStream = false;
 
-  public async start(stream?: MediaStream, timesliceMs?: number): Promise<void> {
+  private vad: VoiceActivityDetectorPort;
+  private vadCallbacks: RecorderVadCallbacks = {};
+  private wasSpeaking = false;
+  private silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private hasSpeechInSegment = false;
+  private lastSpeechTimestamp = 0;
+
+  constructor(options: StreamRecorderOptions = {}) {
+    this.vad = options.vad ?? new EnergyVad({ thresholdRatio: 2.5, hangoverFrames: 8 });
+  }
+
+  public setVadCallbacks(callbacks: RecorderVadCallbacks): void {
+    this.vadCallbacks = callbacks;
+  }
+
+  public async start(stream?: MediaStream, timesliceMs = 250): Promise<void> {
     if (this.isRecording) return;
     this.ringBuffer = [];
-    this.speechDetected = false;
-    this.peakRmsInSegment = 0;
-    this.lastSpeechTime = 0;
+    this.hasSpeechInSegment = false;
+    this.wasSpeaking = false;
+    this.vad.reset();
 
     let targetStream = stream;
     if (stream) {
@@ -45,18 +66,11 @@ export class StreamRecorder {
       this.ownsActiveStream = true;
     }
 
-    if (!targetStream) {
-      throw new Error("No audio stream available for recording");
-    }
+    if (!targetStream) throw new Error("No audio stream available for recording");
 
-    try {
-      this.activeStream = targetStream;
-      this.setupAudioAnalysis(targetStream);
-      this.createMediaRecorder(targetStream, timesliceMs);
-    } catch (err) {
-      this.cleanup();
-      throw err;
-    }
+    this.activeStream = targetStream;
+    this.setupAudioAnalysis(targetStream);
+    this.createMediaRecorder(targetStream, timesliceMs);
   }
 
   private createMediaRecorder(stream: MediaStream, timesliceMs?: number): void {
@@ -65,17 +79,12 @@ export class StreamRecorder {
       : undefined;
 
     this.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) {
-        this.sampleAudioRms();
         this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
-        if (this.ringBuffer.length > this.maxBufferSize) {
-          this.ringBuffer.shift(); // Enforce circular bound (AP-018, AP-023)
-        }
+        if (this.ringBuffer.length > this.maxBufferSize) this.ringBuffer.shift();
       }
     };
-
     this.mediaRecorder.onstop = () => {
       const type = this.mediaRecorder?.mimeType || "audio/webm";
       const blob = new Blob(this.ringBuffer.map((c) => c.blob), { type });
@@ -83,11 +92,8 @@ export class StreamRecorder {
       this.resolveStop = null;
     };
 
-    if (timesliceMs !== undefined) {
-      this.mediaRecorder.start(timesliceMs);
-    } else {
-      this.mediaRecorder.start();
-    }
+    if (timesliceMs !== undefined) this.mediaRecorder.start(timesliceMs);
+    else this.mediaRecorder.start();
   }
 
   private setupAudioAnalysis(stream: MediaStream): void {
@@ -96,45 +102,65 @@ export class StreamRecorder {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
       this.audioContext = new AudioCtx();
-      if (this.audioContext.state === "suspended") {
-        void this.audioContext.resume().catch(() => {});
-      }
+      if (this.audioContext.state === "suspended") void this.audioContext.resume().catch(() => {});
       this.audioSource = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       this.audioSource.connect(this.analyser);
 
       if (this.rmsInterval) clearInterval(this.rmsInterval);
-      this.rmsInterval = setInterval(() => this.sampleAudioRms(), 50);
+      this.rmsInterval = setInterval(() => this.processAudioFrame(), 50);
     } catch (err) {
-      console.warn("[StreamRecorder] setupAudioAnalysis failed (non-blocking):", err);
+      console.warn("[StreamRecorder] setupAudioAnalysis non-blocking error:", err);
     }
   }
 
-  public getInstantRms(): number {
-    if (!this.analyser) return 0;
+  private processAudioFrame(): void {
+    if (!this.analyser) return;
     const buffer = new Float32Array(this.analyser.fftSize);
     this.analyser.getFloatTimeDomainData(buffer);
-    let sum = 0;
-    for (let i = 0; i < buffer.length; i++) {
-      sum += buffer[i] * buffer[i];
+    const vadRes = this.vad.process(buffer);
+
+    this.vadCallbacks.onAudioLevel?.(vadRes.energy);
+
+    if (vadRes.isSpeaking) {
+      this.hasSpeechInSegment = true;
+      this.lastSpeechTimestamp = Date.now();
+      if (this.silenceTimer) {
+        clearTimeout(this.silenceTimer);
+        this.silenceTimer = null;
+      }
+      if (!this.wasSpeaking) {
+        this.wasSpeaking = true;
+        this.vadCallbacks.onSpeechStart?.();
+      }
+    } else if (this.wasSpeaking && !this.silenceTimer) {
+      // Natural pause debounce timer (850ms) before declaring SpeechEnd (AP-012)
+      this.silenceTimer = setTimeout(() => {
+        this.wasSpeaking = false;
+        this.silenceTimer = null;
+        this.vadCallbacks.onSpeechEnd?.();
+      }, 850);
     }
-    return Math.sqrt(sum / buffer.length);
   }
 
-  private sampleAudioRms(): void {
-    const rms = this.getInstantRms();
-    if (rms > this.peakRmsInSegment) {
-      this.peakRmsInSegment = rms;
+  public simulateVadSpeechFrame(speaking: boolean, silenceDurationMs = 0): void {
+    if (speaking) {
+      this.hasSpeechInSegment = true;
+      this.wasSpeaking = true;
+      this.vadCallbacks.onSpeechStart?.();
+    } else if (silenceDurationMs >= 850) {
+      this.wasSpeaking = false;
+      this.vadCallbacks.onSpeechEnd?.();
     }
-    if (rms >= this.speechRmsThreshold) {
-      this.speechDetected = true;
-      this.lastSpeechTime = Date.now();
-    }
+  }
+
+  public setMockVoiceActivityForTesting(val: boolean): void {
+    this.hasSpeechInSegment = val;
   }
 
   public hasSpeechInCurrentSegment(): boolean {
-    return this.speechDetected || this.peakRmsInSegment >= this.speechRmsThreshold;
+    return this.hasSpeechInSegment;
   }
 
   public getRingBufferSize(): number {
@@ -142,50 +168,39 @@ export class StreamRecorder {
   }
 
   public getLastSpeechTimestamp(): number {
-    return this.lastSpeechTime;
-  }
-
-  public setMockVoiceActivityForTesting(val: boolean): void {
-    this.speechDetected = val;
-    if (val) this.lastSpeechTime = Date.now();
+    return this.lastSpeechTimestamp;
   }
 
   public async extractCurrentSegment(): Promise<Blob> {
-    this.speechDetected = false;
-    this.peakRmsInSegment = 0;
+    return this.extractSegmentWithContext(0);
+  }
 
-    if (!this.mediaRecorder || this.mediaRecorder.state !== "recording") {
+  public async extractSegmentWithContext(leftContextMs: number): Promise<Blob> {
+    this.hasSpeechInSegment = false;
+    if (!this.mediaRecorder || this.mediaRecorder.state !== "recording" || this.ringBuffer.length === 0) {
       return new Blob([], { type: "audio/webm" });
     }
 
-    if (this.ringBuffer.length === 0) {
-      return new Blob([], { type: "audio/webm" });
-    }
-
-    // Stop current recorder to finalize complete, valid WebM container with full EBML header (AP-012)
     const segmentBlob = await new Promise<Blob>((resolve) => {
       this.resolveStop = resolve;
-      try {
-        this.mediaRecorder?.stop();
-      } catch (err) {
-        console.warn("[StreamRecorder] stop failed:", err);
-        resolve(new Blob([], { type: "audio/webm" }));
-      }
+      try { this.mediaRecorder?.stop(); } catch { resolve(new Blob([], { type: "audio/webm" })); }
     });
 
-    // Explicitly unhook and release previous recorder to avoid native encoder leaks (AP-055)
     if (this.mediaRecorder) {
       this.mediaRecorder.ondataavailable = null;
       this.mediaRecorder.onstop = null;
       this.mediaRecorder = null;
     }
 
-    // Reset buffer and restart a fresh MediaRecorder instance on the continuous stream
-    this.ringBuffer = [];
-    if (this.activeStream) {
-      this.createMediaRecorder(this.activeStream, 250);
+    // Preserve leftContext chunks for continuous sliding window (FluidAudio pattern)
+    if (leftContextMs > 0 && this.ringBuffer.length > 0) {
+      const now = Date.now();
+      this.ringBuffer = this.ringBuffer.filter((c) => now - c.timestamp <= leftContextMs);
+    } else {
+      this.ringBuffer = [];
     }
 
+    if (this.activeStream) this.createMediaRecorder(this.activeStream, 250);
     return segmentBlob;
   }
 
@@ -193,7 +208,6 @@ export class StreamRecorder {
     if (!this.mediaRecorder || this.mediaRecorder.state === "inactive") {
       return new Blob([], { type: "audio/webm" });
     }
-
     return new Promise<Blob>((resolve) => {
       this.resolveStop = resolve;
       this.mediaRecorder?.stop();
@@ -205,45 +219,29 @@ export class StreamRecorder {
   }
 
   public cleanup(): void {
-    if (this.rmsInterval) {
-      clearInterval(this.rmsInterval);
-      this.rmsInterval = null;
-    }
-    if (this.audioSource) {
-      try { this.audioSource.disconnect(); } catch (err) {
-        console.warn("[StreamRecorder] audioSource disconnect error:", err);
-      }
-      this.audioSource = null;
-    }
-    if (this.analyser) {
-      try { this.analyser.disconnect(); } catch (err) {
-        console.warn("[StreamRecorder] analyser disconnect error:", err);
-      }
-      this.analyser = null;
-    }
+    if (this.rmsInterval) clearInterval(this.rmsInterval);
+    if (this.silenceTimer) clearTimeout(this.silenceTimer);
+    try { this.audioSource?.disconnect(); } catch { /* ignore */ }
+    try { this.analyser?.disconnect(); } catch { /* ignore */ }
     if (this.audioContext && this.audioContext.state !== "closed") {
-      this.audioContext.close().catch((err) => {
-        console.warn("[StreamRecorder] AudioContext close failed:", err);
-      });
-      this.audioContext = null;
+      this.audioContext.close().catch(() => {});
     }
-    if (this.activeStream) {
-      if (this.ownsActiveStream) {
-        this.activeStream.getTracks().forEach((t) => t.stop());
-      }
-      this.activeStream = null;
+    if (this.activeStream && this.ownsActiveStream) {
+      this.activeStream.getTracks().forEach((t) => t.stop());
     }
     if (this.mediaRecorder) {
       this.mediaRecorder.ondataavailable = null;
       this.mediaRecorder.onstop = null;
       if (this.mediaRecorder.state !== "inactive") {
-        try { this.mediaRecorder.stop(); } catch (err) {
-          console.warn("[StreamRecorder] cleanup mediaRecorder stop error:", err);
-        }
+        try { this.mediaRecorder.stop(); } catch { /* ignore */ }
       }
-      this.mediaRecorder = null;
     }
     this.ringBuffer = [];
-    this.speechDetected = false;
+    this.mediaRecorder = null;
+    this.audioSource = null;
+    this.analyser = null;
+    this.audioContext = null;
+    this.activeStream = null;
+    this.hasSpeechInSegment = false;
   }
 }

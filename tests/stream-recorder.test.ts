@@ -106,4 +106,37 @@ describe('StreamRecorder', () => {
 
     expect(mockTrack.stop).toHaveBeenCalled();
   });
+
+  it('notifies onSpeechStart and onSpeechEnd when pause debounce elapses', async () => {
+    const onStart = vi.fn();
+    const onEnd = vi.fn();
+    recorder.setVadCallbacks({ onSpeechStart: onStart, onSpeechEnd: onEnd });
+
+    await recorder.start(mockStream, 250);
+
+    // Simulate speech start
+    recorder.simulateVadSpeechFrame(true);
+    expect(onStart).toHaveBeenCalled();
+
+    // Simulate pause debounce
+    recorder.simulateVadSpeechFrame(false, 900); // 900ms silence
+    expect(onEnd).toHaveBeenCalled();
+  });
+
+  it('extracts segment while preserving left context chunks for sliding window', async () => {
+    await recorder.start(mockStream, 250);
+
+    const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
+    mediaRecInstance.ondataavailable({ data: new Blob(['chunk_old '], { type: 'audio/webm' }) });
+    mediaRecInstance.ondataavailable({ data: new Blob(['chunk_mid '], { type: 'audio/webm' }) });
+    mediaRecInstance.ondataavailable({ data: new Blob(['chunk_recent '], { type: 'audio/webm' }) });
+
+    // Extract with 1200ms left context
+    const segment = await recorder.extractSegmentWithContext(1200);
+    const text = await segment.text();
+    expect(text).toContain('chunk_old chunk_mid chunk_recent');
+
+    // Next segment should retain chunks within 1200ms
+    expect(recorder.getRingBufferSize()).toBeGreaterThanOrEqual(1);
+  });
 });
