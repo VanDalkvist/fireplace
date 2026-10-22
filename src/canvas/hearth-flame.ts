@@ -69,17 +69,14 @@ export class HearthFlameSimulator {
     ctx.restore();
 
     // 2. Natural Organic Hearth: Back Stones -> Glowing Ash Bed -> Logs -> Front Stones
-    const stoneCoords = HEARTH_STONES.map((st) => {
-      const rx = 128 + st.dr * 1.35;
-      const ry = 42 + st.dr * 0.45;
-      const sx = cx + Math.cos(st.ang) * rx;
-      const sy = cy + 4 + Math.sin(st.ang) * ry;
-      return { st, sx, sy, isBack: sy < cy + 4 };
-    });
-
-    // 2a. Back stones behind ash and flame
-    for (const sc of stoneCoords) {
-      if (sc.isBack) drawHearthStone(ctx, sc.st, sc.sx, sc.sy, cx, cy, t, clampedHeat);
+    // 2a. Back stones behind ash and flame (zero-allocation indexed loop - AP-055)
+    for (let i = 0; i < HEARTH_STONES.length; i++) {
+      const st = HEARTH_STONES[i];
+      if (Math.sin(st.ang) < 0) {
+        const sx = cx + Math.cos(st.ang) * (128 + st.dr * 1.35);
+        const sy = cy + 4 + Math.sin(st.ang) * (42 + st.dr * 0.45);
+        drawHearthStone(ctx, st, sx, sy, cx, cy, t, clampedHeat);
+      }
     }
 
     // 2b. Organic Ash Bed with undulating perimeter
@@ -96,26 +93,30 @@ export class HearthFlameSimulator {
     ctx.closePath();
     ctx.fill();
 
-    // 2c. Glowing charcoal and ember core beneath logs
-    const emberGrad = ctx.createRadialGradient(cx, cy + 4, 4, cx, cy + 4, 105);
+    // 2c. Glowing charcoal and ember core beneath logs (scales organically with heat)
     const emberAlpha = 0.24 + clampedHeat * 0.28;
+    const emberRx = 78 + clampedHeat * 32;
+    const emberRy = 26 + clampedHeat * 10;
+    const emberGrad = ctx.createRadialGradient(cx, cy + 4, 4, cx, cy + 4, emberRx);
     emberGrad.addColorStop(0.0, `rgba(240, 95, 20, ${emberAlpha})`);
     emberGrad.addColorStop(0.38, `rgba(180, 50, 10, ${emberAlpha * 0.60})`);
     emberGrad.addColorStop(0.72, `rgba(60, 15, 5, ${emberAlpha * 0.20})`);
     emberGrad.addColorStop(1.0, 'rgba(10, 7, 5, 0.0)');
     ctx.fillStyle = emberGrad;
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 4, 110, 36, 0, 0, TAU);
+    ctx.ellipse(cx, cy + 4, emberRx, emberRy, 0, 0, TAU);
     ctx.fill();
 
     // 2c-ii. Oxygen blue combustion root at log junctions
-    const blueFootGrad = ctx.createRadialGradient(cx, cy + 6, 2, cx, cy + 6, 85);
+    const blueRx = 60 + clampedHeat * 25;
+    const blueRy = 20 + clampedHeat * 8;
+    const blueFootGrad = ctx.createRadialGradient(cx, cy + 6, 2, cx, cy + 6, blueRx);
     blueFootGrad.addColorStop(0.0, 'rgba(65, 115, 255, 0.28)');
     blueFootGrad.addColorStop(0.42, 'rgba(50, 80, 220, 0.14)');
     blueFootGrad.addColorStop(1.0, 'rgba(20, 30, 100, 0.0)');
     ctx.fillStyle = blueFootGrad;
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 6, 85, 28, 0, 0, TAU);
+    ctx.ellipse(cx, cy + 6, blueRx, blueRy, 0, 0, TAU);
     ctx.fill();
     ctx.restore();
 
@@ -162,9 +163,14 @@ export class HearthFlameSimulator {
       }
     }
 
-    // 2d. Front stones overlapping foreground ash
-    for (const sc of stoneCoords) {
-      if (!sc.isBack) drawHearthStone(ctx, sc.st, sc.sx, sc.sy, cx, cy, t, clampedHeat);
+    // 2d. Front stones overlapping foreground ash (zero-allocation indexed loop - AP-055)
+    for (let i = 0; i < HEARTH_STONES.length; i++) {
+      const st = HEARTH_STONES[i];
+      if (Math.sin(st.ang) >= 0) {
+        const sx = cx + Math.cos(st.ang) * (128 + st.dr * 1.35);
+        const sy = cy + 4 + Math.sin(st.ang) * (42 + st.dr * 0.45);
+        drawHearthStone(ctx, st, sx, sy, cx, cy, t, clampedHeat);
+      }
     }
 
     // 4. Dense Living Asymmetric Bezier Flame Tongues (50 tongues with curl turbulence)
@@ -191,6 +197,9 @@ export class HearthFlameSimulator {
     mantleGrad.addColorStop(0.52, 'rgba(195, 55, 16, 0.05)');
     mantleGrad.addColorStop(1.0, 'rgba(85, 15, 5, 0.0)');
 
+    // Flame envelope radial scale: expands overall footprint with heat, strictly inside stone ring
+    const flameRadiusScale = 0.62 + clampedHeat * 0.66;
+
     for (let i = 0; i < TONGUES.length; i++) {
       const fl = TONGUES[i];
       const cycle = Math.sin(t * fl.speed + fl.phase);
@@ -199,10 +208,10 @@ export class HearthFlameSimulator {
 
       const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * (5 + clampedHeat * 4) + globalWind;
       const stretch = fl.baseH * (0.80 + activity * 0.40 + clampedHeat * 0.70);
-      const width = fl.width * (0.85 + activity * 0.35 + clampedHeat * 0.50);
-      const baseX = cx + fl.relX;
-      const baseY = cy + fl.relY;
-      const tipX = cx + fl.relX * 0.35 + localSway;
+      const width = fl.width * (0.80 + activity * 0.35 + clampedHeat * 0.48);
+      const baseX = cx + fl.relX * flameRadiusScale;
+      const baseY = cy + fl.relY * flameRadiusScale;
+      const tipX = cx + fl.relX * (0.24 * flameRadiusScale) + localSway;
       const tipY = cy - stretch;
       const flick = Math.sin(t * 4.2 + fl.phase) * 3.5;
 

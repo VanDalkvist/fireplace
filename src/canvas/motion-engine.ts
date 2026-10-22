@@ -26,6 +26,7 @@ export class SalonMotionEngine {
   public floorRx = 0;
   public floorRy = 0;
   public currentHeat = 0.0;
+  private lastPersistTime = 0;
 
   private knownTokenIds = new Set<string>();
 
@@ -39,8 +40,9 @@ export class SalonMotionEngine {
   }
 
   public computeTargetHeat(wordCount: number, isSpeaking: boolean): number {
-    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 9)) * 0.96 : 0.0;
-    const speechBoost = isSpeaking ? 0.16 : 0.0;
+    // 1-hour session curve (asymptotic saturation over 30-60 phrases, k = 28)
+    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 28)) * 0.88 : 0.0;
+    const speechBoost = isSpeaking ? 0.12 : 0.0;
     return Math.min(1.0, wordContribution + speechBoost);
   }
 
@@ -162,7 +164,8 @@ export class SalonMotionEngine {
     const isSpeaking = activeSpeakerId !== null || this.words.flightSparks.length > 0;
     const targetHeat = this.computeTargetHeat(this.words.words.length, isSpeaking);
     this.currentHeat += (targetHeat - this.currentHeat) * 0.035;
-    if (Math.round(time) % 60 === 0) {
+    if (time - this.lastPersistTime >= 5000) {
+      this.lastPersistTime = time;
       updatePersistedHeat(this.currentHeat);
     }
 

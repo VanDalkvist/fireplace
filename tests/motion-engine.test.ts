@@ -94,10 +94,34 @@ describe("SalonMotionEngine", () => {
     const heat15 = engine.computeTargetHeat(15, false);
     const heat30 = engine.computeTargetHeat(30, false);
 
-    expect(heat5).toBeGreaterThan(0.25);
+    expect(heat5).toBeGreaterThan(0.10);
     expect(heat15).toBeGreaterThan(heat5);
     expect(heat30).toBeGreaterThan(heat15);
     expect(heat30).toBeLessThanOrEqual(1.0);
+  });
+
+  it("scales target heat gradually across a 1-hour session (30-60 phrases) without premature saturation", () => {
+    const engine = new SalonMotionEngine();
+
+    // 1 phrase (first minutes): subtle warm awakening (~0.03)
+    const heat1 = engine.computeTargetHeat(1, false);
+    expect(heat1).toBeGreaterThanOrEqual(0.02);
+    expect(heat1).toBeLessThanOrEqual(0.06);
+
+    // 15 phrases (~15-20 mins): comfortable sustained warmth (~0.35)
+    const heat15 = engine.computeTargetHeat(15, false);
+    expect(heat15).toBeGreaterThanOrEqual(0.30);
+    expect(heat15).toBeLessThanOrEqual(0.45);
+
+    // 30 phrases (~30-40 mins): vibrant communal flame (~0.55-0.65)
+    const heat30 = engine.computeTargetHeat(30, false);
+    expect(heat30).toBeGreaterThanOrEqual(0.55);
+    expect(heat30).toBeLessThanOrEqual(0.70);
+
+    // 60 phrases (~60 mins): mature circle warmth (~0.75-0.85), never overflow
+    const heat60 = engine.computeTargetHeat(60, false);
+    expect(heat60).toBeGreaterThanOrEqual(0.75);
+    expect(heat60).toBeLessThanOrEqual(0.88);
   });
 
   it("smoothly interpolates current heat during render loop", () => {
