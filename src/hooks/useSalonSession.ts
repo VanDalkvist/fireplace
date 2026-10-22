@@ -17,6 +17,7 @@ import {
   saveSessionPersistence,
   clearAllSalonPersistence,
 } from "@/infrastructure/salon-persistence";
+import { getPersistedSessionAnalytics } from "@/domain/session-analytics";
 
 export interface UseSalonSessionReturn {
   state: SessionState;
@@ -45,6 +46,10 @@ export function useSalonSession(): UseSalonSessionReturn {
 
   useEffect(() => {
     saveSessionPersistence(state, 0.0);
+    if (typeof window !== "undefined") {
+      (window as unknown as { __getSalonAnalytics: typeof getPersistedSessionAnalytics }).__getSalonAnalytics =
+        getPersistedSessionAnalytics;
+    }
   }, [state]);
 
   if (!audioRef.current && typeof window !== "undefined") {

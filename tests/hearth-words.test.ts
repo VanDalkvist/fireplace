@@ -98,4 +98,38 @@ describe('HearthWordsManager', () => {
 
     expect(manager.words.length).toBe(40);
   });
+
+  it('disperses consecutive words from a speaker across diverse organic radial depths', () => {
+    const manager = new HearthWordsManager();
+    const mockCtx = {
+      font: '',
+      measureText: vi.fn(() => ({ width: 70 })),
+    } as unknown as CanvasRenderingContext2D;
+
+    const cx = 500;
+    const cy = 300;
+    const rx = 400;
+    const ry = 200;
+
+    const seat: IsometricSeat = {
+      id: 3,
+      angle: 0.8,
+      x: cx + Math.cos(0.8) * rx,
+      y: cy + Math.sin(0.8) * ry,
+      depth: 0.5,
+      pulse: 0,
+      spokenCount: 0,
+    };
+
+    for (let i = 0; i < 6; i++) {
+      manager.addWord(`disp-${i}`, `мысль ${i}`, 'интерес', seat, cx, cy, rx, ry, mockCtx);
+    }
+
+    const radii = manager.words.map((w) => w.relRadius ?? 0);
+    const minR = Math.min(...radii);
+    const maxR = Math.max(...radii);
+
+    // Consecutive words must disperse across radial depths (difference >= 0.28)
+    expect(maxR - minR).toBeGreaterThanOrEqual(0.28);
+  });
 });

@@ -958,6 +958,46 @@
    - Сборка `vite build` — 239 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 28 - 2026-10-22 - Multi-Depth Word Dispersion & Dialogue Analytics Engine
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-28-multi-depth-word-dispersion-and-dialogue-analytics.md`
+- Scope:
+  1. Ликвидация скучивания слов на одном радиусе (`src/canvas/hearth-words.ts`):
+     - Вместо фиксированного радиуса 0.66 внедрена многоуровневая радиальная палитра `RADIAL_TIERS = [0.72, 0.44, 0.84, 0.52, 0.78, 0.46, 0.88]`, органично распределяющая входящие мысли по 7 концентрическим слоям глубины.
+     - Добавлено циклическое чередование стартовых уровней для каждого высказывания.
+     - Увеличена дистанция отталкивания между словами (горизонтальный отступ +28px, вертикальный +24px).
+     - Сакральный коридор отступа от огня переведен на точное изометрическое эллиптическое уравнение (`inHearthBase`), что позволяет словам свободно и красиво располагаться на внутренних ярусах поляны (с $R=0.44$) без искусственного горизонтального выталкивания.
+  2. Верификация сбора связей и создание аналитического модуля (`src/domain/session-analytics.ts`):
+     - Подтверждено, что `recordLink` непрерывно фиксирует все переходы диалога: `fromSeat`, `toSeat`, `fromWord`, `toWord`, `timestamp` в `localStorage.salon_presence_links`.
+     - Создан модуль `buildSessionAnalytics` и `getPersistedSessionAnalytics`:
+       - `totalTurns`: общее число реплик.
+       - `speakers`: аналитика по каждому участнику (высказанные фразы, распределение эмоций, средняя валентность/настроение).
+       - `handoffs`: цепочка диалоговых связей (кто за кем говорил, смена спикера, временные задержки).
+       - `trajectory`: полная поминутная хронологическая кривая разговора.
+     - Модуль привязан к глобальному окну `window.__getSalonAnalytics()` для мгновенного экспорта или программного анализа.
+  3. Строгий лимит AP-019: `hearth-words.ts` (239 строк), `session-analytics.ts` (144 строки) $\le 250$.
+
+### Findings Fixed
+- [P1] Single-Radius Word Congestion — RESOLVED via 7-tier radial palette ($R \in [0.44, 0.88]$).
+- [P1] Verifiable Post-Circle Dialogue Analytics — RESOLVED via `SessionAnalytics` engine & `window.__getSalonAnalytics()`.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 123/123 тестов Vitest GREEN (31 тест-сьют, добавлен `session-analytics.test.ts`).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Слова больше не образуют плотный «ошейник» вокруг костра — они естественно и свободно рассеяны по всей поляне (ближе к огню и дальше к стульям).
+   - Все связи между людьми, репликами и временем сохранены и доступны для аналитики.
+   - Сборка `vite build` — 244 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

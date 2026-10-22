@@ -39,7 +39,7 @@ export class HearthWordsManager {
   public findSlot(
     speakerAngle: number, wordWidth: number, cx: number, cy: number, rx: number, ry: number
   ): { x: number; y: number } {
-    const baseR = 0.66;
+    const RADIAL_TIERS = [0.72, 0.44, 0.84, 0.52, 0.78, 0.46, 0.88];
     const halfW = wordWidth / 2;
     let targetBaseAngle = speakerAngle;
 
@@ -53,28 +53,36 @@ export class HearthWordsManager {
       targetBaseAngle = speakerAngle + diff * 0.22; // 22% conversational gravity
     }
 
-    let bestX = cx + Math.cos(targetBaseAngle) * (rx * baseR);
-    let bestY = cy + Math.sin(targetBaseAngle) * (ry * baseR);
+    const startTier = (this.words.length * 3) % RADIAL_TIERS.length;
+    let bestX = cx + Math.cos(targetBaseAngle) * (rx * RADIAL_TIERS[startTier]);
+    let bestY = cy + Math.sin(targetBaseAngle) * (ry * RADIAL_TIERS[startTier]);
     let attempts = 0;
 
-    while (attempts < 28) {
-      const shift = attempts === 0 ? 0 : (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * 0.18;
+    while (attempts < 36) {
+      const tierIdx = (startTier + attempts) % RADIAL_TIERS.length;
+      const testR = RADIAL_TIERS[tierIdx];
+      const shift = attempts === 0 ? 0 : (attempts % 2 === 0 ? 1 : -1) * Math.ceil(attempts / 2) * 0.16;
       const testAng = targetBaseAngle + shift;
-      const testR = baseR + ((attempts % 3) - 1) * 0.08;
       let testX = cx + Math.cos(testAng) * (rx * testR);
       let testY = cy + Math.sin(testAng) * (ry * testR);
 
-      // Sacred fire clearance (expanded clearing around central campfire)
-      const distFireX = Math.abs(testX - cx);
-      const distFireY = testY - cy;
-      if (distFireX < (225 + halfW) && distFireY < 110 && distFireY > -290) {
-        testX = cx + (testX >= cx ? 1 : -1) * (235 + halfW);
+      // Sacred fire clearance: ensure words clear the central campfire
+      const dx = testX - cx;
+      const dy = testY - cy;
+      const inFlameZone = dy < 75 && dy > -260 && Math.abs(dx) < (155 + halfW);
+      if (inFlameZone) {
+        const pushR = Math.max(testR, 0.58);
+        testX = cx + Math.cos(testAng) * (rx * pushR);
+        testY = cy + Math.sin(testAng) * (ry * pushR);
+        if (Math.abs(testX - cx) < (160 + halfW) && testY - cy < 75 && testY - cy > -260) {
+          testX = cx + (testX >= cx ? 1 : -1) * (162 + halfW);
+        }
       }
 
       let overlaps = false;
       for (let i = 0; i < this.words.length; i++) {
         const w = this.words[i];
-        if (Math.abs(testX - w.targetX) < (halfW + w.width / 2 + 22) && Math.abs(testY - w.targetY) < 22) {
+        if (Math.abs(testX - w.targetX) < (halfW + w.width / 2 + 28) && Math.abs(testY - w.targetY) < 24) {
           overlaps = true;
           break;
         }
