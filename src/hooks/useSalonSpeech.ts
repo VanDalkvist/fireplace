@@ -3,7 +3,6 @@ import type { SessionPhase } from "@/domain/types";
 import { isPureFillerPhrase } from "@/domain/lexicon-engine";
 import { distillWithNeuralFallback, splitIntoSemanticPhrases } from "@/domain/phrase-distiller";
 import { SpeakerTurnBuffer } from "@/domain/speaker-turn-buffer";
-import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { createSpeechEngine } from "@/speech/speech-factory";
 import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
 import type { SalonAudioEngine } from "@/audio/audio-engine";
@@ -12,6 +11,7 @@ import { createSpeakerIdentifier } from "@/speaker/speaker-factory";
 
 interface UseSalonSpeechOptions {
   sttEngine: SpeechEngineKind;
+  distillerEngine?: "openrouter" | "ollama";
   phase: SessionPhase;
   audioRef: React.MutableRefObject<SalonAudioEngine | null>;
   isVerbatimMode?: boolean;
@@ -24,6 +24,7 @@ interface UseSalonSpeechOptions {
 
 export function useSalonSpeech({
   sttEngine,
+  distillerEngine = "openrouter",
   phase,
   audioRef,
   isVerbatimMode = false,
@@ -52,8 +53,8 @@ export function useSalonSpeech({
   const speakerPort = useRef(createSpeakerIdentifier()).current;
 
   // Stabilize callbacks against re-render cascades (AP-053, AP-054)
-  const callbacksRef = useRef({ phase, isVerbatimMode, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper });
-  callbacksRef.current = { phase, isVerbatimMode, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper };
+  const callbacksRef = useRef({ phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper });
+  callbacksRef.current = { phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper };
 
   const turnBufferRef = useRef(new SpeakerTurnBuffer(2200));
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,7 +87,7 @@ export function useSalonSpeech({
 
     setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
     const recentContext = turnBufferRef.current.getRecentHistory(3);
-    const res = await distillWithNeuralFallback(text, defaultLexiconIndex, {}, recentContext);
+    const res = await distillWithNeuralFallback(text, { engine: callbacksRef.current.distillerEngine }, recentContext);
     const settled = res.repairedText || text;
 
     turnBufferRef.current.commitCompletedTurn(settled);

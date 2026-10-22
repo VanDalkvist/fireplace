@@ -23,6 +23,25 @@ export function useSalonUiState() {
     return localStorage.getItem("salon_verbatim_mode") === "true";
   });
 
+  const [distillerEngine, setDistillerEngineState] = useState<"openrouter" | "ollama">(() => {
+    if (typeof window === "undefined") return "openrouter";
+    const urlEngine = new URLSearchParams(window.location.search).get("distiller_engine");
+    if (urlEngine === "ollama" || urlEngine === "openrouter") return urlEngine;
+    const local = localStorage.getItem("salon_distiller_engine");
+    if (local === "ollama" || local === "openrouter") return local;
+    return "openrouter";
+  });
+
+  const toggleDistillerEngine = () => {
+    setDistillerEngineState((prev) => {
+      const next = prev === "openrouter" ? "ollama" : "openrouter";
+      if (typeof window !== "undefined") {
+        localStorage.setItem("salon_distiller_engine", next);
+      }
+      return next;
+    });
+  };
+
   const setIsVerbatimMode = (val: boolean | ((prev: boolean) => boolean)) => {
     setIsVerbatimModeState((prev) => {
       const next = typeof val === "function" ? val(prev) : val;
@@ -49,6 +68,8 @@ export function useSalonUiState() {
     setVolume,
     sttEngine,
     setSttEngine,
+    distillerEngine,
+    toggleDistillerEngine,
     isDemoActive,
     setIsDemoActive,
   };

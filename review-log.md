@@ -74,4 +74,39 @@
 - Pressing `Esc` or clicking the icon again closes it.
 - Tested in `tests/technical-gear-pult.test.tsx` (136 tests passing).
 
+## Cycle 38: Lexicon Ballast Elimination, OpenRouter DI Adapter & Runtime Configurable Model (2026-10-22)
+
+### Context & Goal
+- User requested complete removal of the hardcoded `upstream/lexicon.json` dictionary ballast and all regex normalizers.
+- Implement a clean OpenRouter adapter for fast free models via Dependency Injection & Registry pattern.
+- Keep Ollama adapter intact and switch default active distiller to OpenRouter.
+- Make the model configurable at runtime without code modification.
+
+### Decisions & Architecture Invariants
+1. **Lexicon Ballast Excision**:
+   - Deleted `upstream/lexicon.json` and `src/domain/lexicon-provider.ts` saving 37 kB of JS bundle.
+   - Deleted artificial regex normalizers (`speech-normalizer.ts`), delegating semantic understanding, ASR repair, and operational noise suppression directly to LLM intelligence.
+   - Retained only lightweight conversational filler filter in `filler-filter.ts` (`isPureFillerPhrase`).
+2. **Dependency Injection & Pluggable Registry**:
+   - `LlmDistillerPort` domain interface in `src/domain/distiller-types.ts`.
+   - `OpenRouterDistillerAdapter` in `src/infrastructure/openrouter-distiller-adapter.ts` with Vite server token proxying (`/api/openrouter`).
+   - `OllamaDistillerAdapter` in `src/infrastructure/ollama-distiller-adapter.ts` preserving existing Ollama logic.
+   - `DistillerRegistry` in `src/domain/distiller-registry.ts` allowing dynamic runtime registration and switching.
+3. **Runtime Configurable Model**:
+   - `getDistillerConfig()` in `src/config/distiller-config.ts`.
+   - Defaults to `openrouter` with model `openrouter/free`.
+   - Overridable dynamically via `localStorage` (`salon_distiller_model`, `salon_distiller_engine`) and URL query params (`?distiller_model=...&distiller_engine=...`) without touching code.
+   - Toggled directly in `TechnicalGearPult` via `llm: openrouter` / `llm: ollama`.
+4. **Code Quality Constraints**:
+   - AP-019 compliant: All files strictly $\le 250$ lines.
+   - AP-025 compliant: 0 circular dependencies.
+   - AP-029 compliant: Strict TypeScript with 0 `any`.
+
+### Verification
+- Vitest: 34 test files, 134 tests passing cleanly.
+- TypeScript: `tsc --noEmit` 0 errors.
+- Vite: Production build succeeds in 218ms.
+- End-to-end curl verification of `/api/openrouter/chat/completions` returning valid Russian emotional distillation.
+- PM2 restarted cleanly on port 4343.
+
 

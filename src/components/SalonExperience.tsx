@@ -42,6 +42,8 @@ export const SalonExperience: React.FC = () => {
     setVolume,
     sttEngine,
     setSttEngine,
+    distillerEngine,
+    toggleDistillerEngine,
     isDemoActive,
     setIsDemoActive,
   } = useSalonUiState();
@@ -59,6 +61,7 @@ export const SalonExperience: React.FC = () => {
     resetVoiceprints,
   } = useSalonSpeech({
     sttEngine,
+    distillerEngine,
     phase: state.phase,
     audioRef,
     isVerbatimMode,
@@ -129,6 +132,8 @@ export const SalonExperience: React.FC = () => {
           onToggleSttEngine={() =>
             setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
           }
+          distillerEngine={distillerEngine}
+          onToggleDistillerEngine={toggleDistillerEngine}
           isVerbatimMode={isVerbatimMode}
           onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
           isAudioOn={isAudioOn}

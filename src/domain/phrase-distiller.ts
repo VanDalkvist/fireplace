@@ -1,16 +1,20 @@
-import { isPureFillerPhrase, type DistillationResult, type LexiconIndex } from "./lexicon-engine";
+import { isPureFillerPhrase, type DistillationResult } from "./lexicon-engine";
 import { OllamaClient } from "@/infrastructure/ollama-client";
+import type { LlmDistillerPort } from "./distiller-types";
+import { defaultDistillerRegistry } from "./distiller-registry";
 
 export interface NeuralDistillerOptions {
   ollamaUrl?: string;
   model?: string;
   timeoutMs?: number;
+  engine?: "openrouter" | "ollama";
+  distillerPort?: LlmDistillerPort;
 }
 
 export interface EnrichedDistillationResult extends DistillationResult {
   repairedText?: string;
   neuralDistilled?: boolean;
-  engineUsed: "qwen2.5:1.5b" | "qwen2.5:0.5b" | "verbatim" | "lexicon-fallback";
+  engineUsed: string;
 }
 
 interface LlmDistillPayload {
@@ -23,66 +27,44 @@ interface LlmDistillPayload {
   kind?: "feeling" | "desire" | "pass";
 }
 
-const IT_TERM_REPLACEMENTS: Array<[RegExp, string]> = [
-  [/(^|[\s.,;:!?"'()])бэтенд([а-яё]*)(?=[\s.,;:!?"'()]|$)/gi, "$1бэкенд$2"],
-  [/(^|[\s.,;:!?"'()])пошер([а-яё]*)(?=[\s.,;:!?"'()]|$)/gi, "$1пошар$2"],
-  [/(^|[\s.,;:!?"'()])сценарий вещи(?=[\s.,;:!?"'()]|$)/gi, "$1сценарий фичи"],
-  [/(^|[\s.,;:!?"'()])нетворкинг пэйс(?=[\s.,;:!?"'()]|$)/gi, "$1Networking Space"],
-  [/(^|[\s.,;:!?"'()])в рамках спейс(?=[\s.,;:!?"'()]|$)/gi, "$1в рамках Space"],
-];
-
-export function normalizeItTerms(text: string): string {
-  let res = text;
-  for (const [pattern, repl] of IT_TERM_REPLACEMENTS) res = res.replace(pattern, repl);
-  return res;
-}
-
-const MEETING_NOISE_PATTERNS = [
-  /^(?:ты\s+)?слышишь(?:\s+меня)?\??$/i,
-  /^(?:меня|вас)\s+слышно\??$/i,
-  /^смотр(?:ел|ишь)\??$/i,
-  /^(?:да-да|ага|угу|ну\s+да)\.?$/i,
-  /^(?:денис|виктор|саша|маша|дима)\s+дополни(?:\s+что[- ]?нибудь)?$/i,
-];
-
-export function isMeetingOperationalNoise(text: string): boolean {
-  return MEETING_NOISE_PATTERNS.some((p) => p.test(text.trim()));
-}
-
-export function isDanglingFragment(text: string): boolean {
-  return /(?:\s|^)(?:для|как|на|в|с|к|по|от|о|об|обо|за|из|под|над|при|без|про|что|чтобы|если|или|но|а|и)\s*$/i.test(text.trim());
+function parseJsonPayload(raw: string): LlmDistillPayload | null {
+  try {
+    const cleaned = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    return JSON.parse(cleaned) as LlmDistillPayload;
+  } catch {
+    return null;
+  }
 }
 
 export async function distillWithNeuralFallback(
   rawText: string,
-  idx: LexiconIndex,
   options: NeuralDistillerOptions = {},
   recentContext: string[] = []
 ): Promise<EnrichedDistillationResult> {
-  const normalized = normalizeItTerms(rawText.trim());
+  const normalized = rawText.trim();
   const lower = normalized.toLowerCase();
 
   // Fast-track explicit pass
   if (lower === "пас" || lower === "я пас" || lower === "пас сегодня") {
-    return { feelings: [], desires: [], pass: true, neuralDistilled: false, engineUsed: "qwen2.5:1.5b" };
+    return { feelings: [], desires: [], pass: true, neuralDistilled: false, engineUsed: "pass" };
   }
 
-  // Fast-track pure conversational fillers or meeting operational noise
-  if (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized)) {
+  // Fast-track pure conversational fillers
+  if (isPureFillerPhrase(normalized)) {
     return { feelings: [], desires: [], pass: false, repairedText: normalized, neuralDistilled: false, engineUsed: "verbatim" };
   }
 
-  const ollamaUrl = options.ollamaUrl || "http://127.0.0.1:11434";
-  const model = options.model || "qwen2.5:1.5b";
-  const timeoutMs = options.timeoutMs ?? 4500;
+  const port = options.distillerPort
+    || (options.engine ? defaultDistillerRegistry.get(options.engine) : undefined)
+    || (options.ollamaUrl ? defaultDistillerRegistry.get("ollama") : undefined)
+    || defaultDistillerRegistry.getActive();
 
   try {
-    const client = new OllamaClient(ollamaUrl);
     const contextLines = recentContext.length > 0
       ? `Контекст реплик:\n${recentContext.map((c) => `- "${c}"`).join("\n")}\n\n`
       : "";
 
-    const prompt = `Ты — чуткий слушатель в созерцательном круге чувств у костра.
+    const systemPrompt = `Ты — чуткий слушатель в созерцательном круге чувств у костра.
 Участник делится переживаниями. Собери из его спонтанной речи емкую, живую мысль для круга.
 ПРАВИЛА:
 1. Убирай слова-паразиты («ну как бы», «в общем», «типа», «так сказать», «короче»), заикания и повторы.
@@ -95,9 +77,9 @@ export async function distillWithNeuralFallback(
 "ну мы вчера долго сидели и я прям почувствовал такую усталость" -> {"full_thought": "почувствовал сильную усталость после долгого дня", "phrase": "сильная усталость", "family": "усталость", "valence": -0.4}
 "хочется просто выдохнуть и побыть в тишине" -> {"full_thought": "хочется просто выдохнуть и побыть в тишине", "phrase": "выдохнуть и побыть в тишине", "family": "покой", "valence": 0.8}
 "мне сейчас немного тревожно, но чувствую тепло круга" -> {"full_thought": "чувствую тревогу, но ощущаю тепло круга", "phrases": ["немного тревожно", "тепло круга"], "family": "тепло", "valence": 0.5}
-"алло раз два слышно меня да" -> {"phrase": "", "family": "покой", "valence": 0.0}
+"алло раз два слышно меня да" -> {"phrase": "", "family": "покой", "valence": 0.0}`;
 
-${contextLines}Высказывание: "${normalized}"
+    const userPrompt = `${contextLines}Высказывание: "${normalized}"
 Выведи строго JSON:
 - full_thought (связная очищенная мысль целиком)
 - phrase (емкая мысль 3–7 слов или "" если мусор)
@@ -106,25 +88,27 @@ ${contextLines}Высказывание: "${normalized}"
 - valence (-1.0..1.0)
 JSON:`;
 
-    const data = await client.generate(
+    const data = await port.complete(
       {
-        model,
-        prompt,
-        format: "json",
-        stream: false,
-        keep_alive: "1h",
-        options: { temperature: 0.15, num_predict: 96 },
+        prompt: userPrompt,
+        systemPrompt,
+        model: options.model,
+        jsonFormat: true,
+        temperature: 0.15,
+        maxTokens: 96,
       },
-      timeoutMs
+      options.timeoutMs
     );
 
-    if (data?.response) {
-      const parsed = JSON.parse(data.response) as LlmDistillPayload;
-      const phraseClean = (parsed.phrase || "").trim();
-      const repaired = (parsed.full_thought || parsed.repaired_text || "").trim() || normalized;
+    if (data?.content) {
+      const parsed = parseJsonPayload(data.content);
+      const phraseClean = (parsed?.phrase || "").trim();
+      const repaired = (parsed?.full_thought || parsed?.repaired_text || "").trim() || normalized;
 
-      if (!phraseClean && !parsed.phrases?.length && (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized) || isDanglingFragment(normalized))) {
-        return { feelings: [], desires: [], pass: false, repairedText: repaired, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
+      const engineId = port.id === "ollama" ? (options.model || "ollama") : port.id;
+
+      if (!phraseClean && !parsed?.phrases?.length) {
+        return { feelings: [], desires: [], pass: false, repairedText: repaired, neuralDistilled: true, engineUsed: engineId };
       }
 
       const phraseWords = phraseClean.split(/\s+/).filter(Boolean);
@@ -139,15 +123,15 @@ JSON:`;
 
       const singlePhrase = isAmputationOrLeak ? repaired : (phraseClean || repaired);
 
-      const rawPhrases = Array.isArray(parsed.phrases) && parsed.phrases.length > 0
-        ? parsed.phrases.map((p) => p.trim()).filter((p) => p.length > 0 && !isPureFillerPhrase(p))
+      const rawPhrases = Array.isArray(parsed?.phrases) && (parsed?.phrases?.length ?? 0) > 0
+        ? (parsed?.phrases ?? []).map((p) => p.trim()).filter((p) => p.length > 0 && !isPureFillerPhrase(p))
         : [];
       const phraseList = rawPhrases.length > 0 ? rawPhrases : (singlePhrase ? [singlePhrase] : []);
 
       if (phraseList.length > 0) {
-        const kind = parsed.kind || "feeling";
+        const kind = parsed?.kind || "feeling";
         if (kind === "pass") {
-          return { feelings: [], desires: [], pass: true, repairedText: repaired, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
+          return { feelings: [], desires: [], pass: true, repairedText: repaired, neuralDistilled: true, engineUsed: engineId };
         }
         if (kind === "desire") {
           return {
@@ -157,14 +141,14 @@ JSON:`;
             isDesirePhrase: true,
             repairedText: repaired,
             neuralDistilled: true,
-            engineUsed: model as "qwen2.5:1.5b",
+            engineUsed: engineId,
           };
         }
         return {
           feelings: phraseList.map((p) => ({
             lemma: p,
-            family: parsed.family || "живость",
-            valence: parsed.valence ?? 0.5,
+            family: parsed?.family || "живость",
+            valence: parsed?.valence ?? 0.5,
             arousal: 0.3,
             form: p,
             intensity: 1,
@@ -173,7 +157,7 @@ JSON:`;
           pass: false,
           repairedText: repaired,
           neuralDistilled: true,
-          engineUsed: model as "qwen2.5:1.5b",
+          engineUsed: engineId,
         };
       }
     }

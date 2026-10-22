@@ -15,6 +15,8 @@ import {
 interface TechnicalGearPultProps {
   sttEngine: SpeechEngineKind;
   onToggleSttEngine: () => void;
+  distillerEngine?: "openrouter" | "ollama";
+  onToggleDistillerEngine?: () => void;
   isVerbatimMode: boolean;
   onToggleVerbatimMode: () => void;
   isAudioOn: boolean;
@@ -36,6 +38,8 @@ const PHASES: Array<{ id: SessionPhase; label: string }> = [
 export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
   sttEngine,
   onToggleSttEngine,
+  distillerEngine = "openrouter",
+  onToggleDistillerEngine,
   isVerbatimMode,
   onToggleVerbatimMode,
   isAudioOn,
@@ -88,6 +92,19 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
             <span className="opacity-50 mr-1">текст:</span>
             <span>{isVerbatimMode ? "целиком" : "сжатие"}</span>
           </button>
+
+          {/* Distiller Engine Switcher (OpenRouter / Ollama) */}
+          {!isVerbatimMode && onToggleDistillerEngine && (
+            <button
+              type="button"
+              onClick={onToggleDistillerEngine}
+              title="Переключить движок дистилляции (OpenRouter / Ollama)"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+            >
+              <span className="opacity-50">llm:</span>
+              <span className="font-semibold text-primary/90">{distillerEngine}</span>
+            </button>
+          )}
 
           {/* Audio Engine */}
           <button
