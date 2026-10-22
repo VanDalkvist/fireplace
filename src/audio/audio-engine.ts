@@ -1,5 +1,6 @@
 import { FAMILY_SEMITONES, BELL_STEPS, semitoneToHz } from "./audio-constants";
 import { MeetingAudioCapture } from "./meeting-audio-capture";
+import { AudioStreamMixer } from "./audio-mixer";
 
 export { FAMILY_SEMITONES, BELL_STEPS, semitoneToHz };
 
@@ -12,6 +13,7 @@ export class SalonAudioEngine {
   private isEnabled: boolean = false;
   private volume: number = 0.6;
   private meeting = new MeetingAudioCapture();
+  private mixer = new AudioStreamMixer();
 
   private init(): void {
     if (this.ac) return;
@@ -198,6 +200,16 @@ export class SalonAudioEngine {
 
   public disconnectMeetingAudio(): void {
     this.meeting.disconnect();
+    this.mixer.cleanup();
+  }
+
+  public mixWithMicrophone(micStream: MediaStream, meetingStream: MediaStream): MediaStream {
+    this.init();
+    return this.mixer.mix(micStream, meetingStream, this.ac);
+  }
+
+  public cleanupMixer(): void {
+    this.mixer.cleanup();
   }
 
   public get isMeetingAudioConnected(): boolean {

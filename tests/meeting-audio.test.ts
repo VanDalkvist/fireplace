@@ -39,6 +39,7 @@ describe('SalonAudioEngine Meeting Audio Capture', () => {
       }),
       createGain: vi.fn().mockReturnValue({ gain: { setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() }, connect: vi.fn() }),
       createDynamicsCompressor: vi.fn().mockReturnValue({ connect: vi.fn(), threshold: {}, knee: {}, ratio: {}, attack: {}, release: {} }),
+      createMediaStreamDestination: vi.fn().mockReturnValue({ stream: { id: 'dest-stream' } }),
       destination: {},
     };
 
@@ -72,5 +73,15 @@ describe('SalonAudioEngine Meeting Audio Capture', () => {
 
     expect(audioTrack.stop).toHaveBeenCalled();
     expect(engine.isMeetingAudioConnected).toBe(false);
+  });
+
+  it('mixes microphone and meeting audio into a unified combined stream', async () => {
+    await engine.captureMeetingAudio();
+    const meetingStream = engine.getMeetingStream();
+    expect(meetingStream).toBeDefined();
+
+    const mockMicStream = { id: 'mic', getAudioTracks: () => [{}] } as unknown as MediaStream;
+    const mixed = engine.mixWithMicrophone(mockMicStream, meetingStream!);
+    expect(mixed).toBeDefined();
   });
 });

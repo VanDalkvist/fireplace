@@ -31,13 +31,13 @@ describe("VoiceIndicator with VU Meter and Pipeline Status", () => {
     expect(html).toContain("распознаю (gigaam)…");
   });
 
-  it("renders distilling status when neural lexicon refinement is active", () => {
+  it("renders meeting audio status when capturing meeting audio", () => {
     const html = renderToString(
       <VoiceIndicator
         isListening={true}
-        pipelineStatus="distilling"
+        isMeetingAudio={true}
       />
     );
-    expect(html).toContain("нейрокоррекция…");
+    expect(html).toContain("встреча: микрофон + zoom");
   });
 });

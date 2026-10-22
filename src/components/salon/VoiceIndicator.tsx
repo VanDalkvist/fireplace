@@ -43,7 +43,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
     if (pipelineStatus === "hearing") return "слышу речь…";
     if (pipelineStatus === "transcribing") return `распознаю (${engineType})…`;
     if (pipelineStatus === "distilling") return "нейрокоррекция…";
-    if (isMeetingAudio) return "слушаю встречу (zoom)...";
+    if (isMeetingAudio) return "встреча: микрофон + zoom";
     return `слушаю круг (${engineType})...`;
   };
 

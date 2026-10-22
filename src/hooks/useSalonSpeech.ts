@@ -123,14 +123,36 @@ export function useSalonSpeech({
       const ok = await audioRef.current.captureMeetingAudio();
       setIsMeetingConnected(ok);
       if (ok) {
-        const stream = audioRef.current.getMeetingStream();
-        if (stream) {
-          void speechRef.current?.stop();
-          void speechRef.current?.start(stream);
+        const meetingStream = audioRef.current.getMeetingStream();
+        if (meetingStream) {
+          try {
+            const micStream = await navigator.mediaDevices.getUserMedia({
+              audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
+            });
+            const mixed = audioRef.current.mixWithMicrophone(micStream, meetingStream);
+            void speechRef.current?.stop();
+            void speechRef.current?.start(mixed);
+          } catch {
+            void speechRef.current?.stop();
+            void speechRef.current?.start(meetingStream);
+          }
         }
+      } else {
+        setSpeechError("Звук экрана не обнаружен. Выберите 'Весь экран' и включите галочку 'Поделиться аудио'");
       }
     }
   }, [audioRef, isMeetingConnected, sttEngine]);
+
+  useEffect(() => {
+    audioRef.current?.onMeetingAudioEnded(() => {
+      setIsMeetingConnected(false);
+      audioRef.current?.cleanupMixer();
+      if (wasListeningRef.current) {
+        void speechRef.current?.stop();
+        void speechRef.current?.start();
+      }
+    });
+  }, [audioRef]);
 
   const wasListeningRef = useRef(false);
 
