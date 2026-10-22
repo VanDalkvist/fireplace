@@ -130,7 +130,10 @@ export function useSalonSpeech({
     }
   }, [audioRef, isMeetingConnected, sttEngine]);
 
+  const wasListeningRef = useRef(false);
+
   useEffect(() => {
+    const wasListening = isListening || wasListeningRef.current;
     void speechRef.current?.stop();
     speechRef.current = createSpeechEngine(sttEngine, {
       onInterimPhrase: (text) => {
@@ -149,13 +152,20 @@ export function useSalonSpeech({
       onFinalPhrase: handleSpeechResult,
       onError: (err) => {
         setSpeechError(err);
-        setIsListening(false);
       },
       onStatusChange: (active) => {
         setIsListening(active);
+        wasListeningRef.current = active;
         if (active) setSpeechError(null);
       },
     }, undefined, speakerPort);
+
+    if (wasListening) {
+      const activeStream = isMeetingConnected && audioRef.current?.isMeetingAudioConnected
+        ? audioRef.current.getMeetingStream() ?? undefined
+        : undefined;
+      void speechRef.current.start(activeStream);
+    }
 
     return () => {
       void speechRef.current?.stop();

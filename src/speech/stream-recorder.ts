@@ -17,22 +17,31 @@ export class StreamRecorder {
   private audioContext: AudioContext | null = null;
   private audioSource: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
+  private rmsInterval: ReturnType<typeof setInterval> | null = null;
   private speechDetected = false;
+  private peakRmsInSegment = 0;
   private lastSpeechTime = 0;
-  private readonly speechRmsThreshold = 0.015;
+  private readonly speechRmsThreshold = 0.005; // sensitive for Zoom & ambient room
   private ownsActiveStream = false;
 
   public async start(stream?: MediaStream, timesliceMs?: number): Promise<void> {
     if (this.isRecording) return;
     this.ringBuffer = [];
     this.speechDetected = false;
+    this.peakRmsInSegment = 0;
     this.lastSpeechTime = 0;
 
     let targetStream = stream;
     if (stream) {
       this.ownsActiveStream = false;
     } else if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-      targetStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      try {
+        targetStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
+        });
+      } catch {
+        targetStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      }
       this.ownsActiveStream = true;
     }
 
@@ -82,14 +91,21 @@ export class StreamRecorder {
   }
 
   private setupAudioAnalysis(stream: MediaStream): void {
-    if (typeof window === "undefined" || !("AudioContext" in window || "webkitAudioContext" in window)) return;
+    if (typeof window === "undefined") return;
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
       this.audioContext = new AudioCtx();
+      if (this.audioContext.state === "suspended") {
+        void this.audioContext.resume().catch(() => {});
+      }
       this.audioSource = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
       this.audioSource.connect(this.analyser);
+
+      if (this.rmsInterval) clearInterval(this.rmsInterval);
+      this.rmsInterval = setInterval(() => this.sampleAudioRms(), 50);
     } catch (err) {
       console.warn("[StreamRecorder] setupAudioAnalysis failed (non-blocking):", err);
     }
@@ -108,6 +124,9 @@ export class StreamRecorder {
 
   private sampleAudioRms(): void {
     const rms = this.getInstantRms();
+    if (rms > this.peakRmsInSegment) {
+      this.peakRmsInSegment = rms;
+    }
     if (rms >= this.speechRmsThreshold) {
       this.speechDetected = true;
       this.lastSpeechTime = Date.now();
@@ -115,7 +134,11 @@ export class StreamRecorder {
   }
 
   public hasSpeechInCurrentSegment(): boolean {
-    return this.speechDetected;
+    return this.speechDetected || this.peakRmsInSegment >= this.speechRmsThreshold;
+  }
+
+  public getRingBufferSize(): number {
+    return this.ringBuffer.length;
   }
 
   public getLastSpeechTimestamp(): number {
@@ -129,6 +152,7 @@ export class StreamRecorder {
 
   public async extractCurrentSegment(): Promise<Blob> {
     this.speechDetected = false;
+    this.peakRmsInSegment = 0;
 
     if (!this.mediaRecorder || this.mediaRecorder.state !== "recording") {
       return new Blob([], { type: "audio/webm" });
@@ -181,6 +205,10 @@ export class StreamRecorder {
   }
 
   public cleanup(): void {
+    if (this.rmsInterval) {
+      clearInterval(this.rmsInterval);
+      this.rmsInterval = null;
+    }
     if (this.audioSource) {
       try { this.audioSource.disconnect(); } catch (err) {
         console.warn("[StreamRecorder] audioSource disconnect error:", err);

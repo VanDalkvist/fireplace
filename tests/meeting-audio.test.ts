@@ -8,12 +8,12 @@ describe('SalonAudioEngine Meeting Audio Capture', () => {
     getVideoTracks: () => Array<{ stop: ReturnType<typeof vi.fn> }>;
   };
 
-  let audioTrack: { stop: ReturnType<typeof vi.fn>; readyState: string };
-  let videoTrack: { stop: ReturnType<typeof vi.fn>; readyState: string };
+  let audioTrack: { stop: ReturnType<typeof vi.fn>; readyState: string; enabled?: boolean };
+  let videoTrack: { stop: ReturnType<typeof vi.fn>; readyState: string; enabled?: boolean };
 
   beforeEach(() => {
-    audioTrack = { stop: vi.fn(), readyState: 'live' };
-    videoTrack = { stop: vi.fn(), readyState: 'live' };
+    audioTrack = { stop: vi.fn(), readyState: 'live', enabled: true };
+    videoTrack = { stop: vi.fn(), readyState: 'live', enabled: true };
     mockStream = {
       getAudioTracks: vi.fn(() => [audioTrack]),
       getVideoTracks: vi.fn(() => [videoTrack]),
@@ -58,11 +58,11 @@ describe('SalonAudioEngine Meeting Audio Capture', () => {
     delete (globalThis as unknown as { window?: unknown }).window;
   });
 
-  it('captures meeting audio via getDisplayMedia and stops video track immediately', async () => {
+  it('captures meeting audio via getDisplayMedia and disables video track safely', async () => {
     const success = await engine.captureMeetingAudio();
 
     expect(success).toBe(true);
-    expect(videoTrack.stop).toHaveBeenCalled();
+    expect(videoTrack.enabled).toBe(false);
     expect(engine.isMeetingAudioConnected).toBe(true);
   });
 

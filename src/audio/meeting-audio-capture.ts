@@ -14,9 +14,16 @@ export class MeetingAudioCapture {
         video: true,
         audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
       });
-      stream.getVideoTracks().forEach((t) => t.stop());
+      // Disable video rendering instead of hard-stopping track (stopping video track terminates stream in Chromium)
+      stream.getVideoTracks().forEach((t) => {
+        t.enabled = false;
+      });
       const audioTracks = stream.getAudioTracks();
-      if (!audioTracks.length) return false;
+      if (!audioTracks.length) {
+        console.warn("[MeetingAudioCapture] No audio track available in display stream. Select Entire Screen with audio enabled.");
+        this.disconnect();
+        return false;
+      }
 
       audioTracks.forEach((track) => {
         track.addEventListener?.("ended", () => {

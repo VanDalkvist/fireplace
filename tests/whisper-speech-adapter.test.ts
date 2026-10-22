@@ -58,10 +58,16 @@ describe('WhisperSpeechAdapter', () => {
     };
     (adapter as unknown as { speakerPort: typeof mockSpeaker }).speakerPort = mockSpeaker;
 
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ text: 'тихий покой' }),
-    } as unknown as Response);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (String(url).includes('/api/client-log')) {
+        return { ok: true, status: 200 } as unknown as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ text: 'тихий покой' }),
+      } as unknown as Response;
+    });
 
     await adapter.start();
     expect(callbacks.onStatusChange).toHaveBeenCalledWith(true);
@@ -96,13 +102,16 @@ describe('WhisperSpeechAdapter', () => {
       .processCurrentSegment(false);
     await new Promise((r) => setTimeout(r, 10));
 
-    // Whisper should NOT be called on silence!
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // ASR endpoint should NOT be called on silence!
+    const asrCalls = fetchSpy.mock.calls.filter(([url]) =>
+      String(url).includes(':8085') || String(url).includes(':9876')
+    );
+    expect(asrCalls.length).toBe(0);
     expect(callbacks.onFinalPhrase).not.toHaveBeenCalled();
   });
 
-  it('synchronizes listening state and stops silence timer on Whisper network error', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Whisper server connection refused'));
+  it('synchronizes listening state and stops silence timer after consecutive fatal ASR network errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Whisper server connection refused'));
 
     const mockRecorder = {
       start: vi.fn().mockResolvedValue(undefined),
@@ -115,8 +124,12 @@ describe('WhisperSpeechAdapter', () => {
     (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
 
     await adapter.start();
+    // 3 consecutive failures to trigger shutdown
     adapter.flush();
-
+    await new Promise((r) => setTimeout(r, 10));
+    adapter.flush();
+    await new Promise((r) => setTimeout(r, 10));
+    adapter.flush();
     await new Promise((r) => setTimeout(r, 10));
 
     expect(callbacks.onError).toHaveBeenCalled();

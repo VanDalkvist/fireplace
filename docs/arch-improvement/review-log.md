@@ -595,5 +595,38 @@
    - Сборка `vite build` 270 мс без ошибок.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 18 - 2026-10-22 - Audio Capture Fix, Zoom Speaker Capture, VAD Gate & Speech Resilience
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-18-audio-capture-resilience.md`
+- Scope:
+  1. Ликвидация «черной дыры VAD»: `AudioContext` в `StreamRecorder` стартовал в состоянии `suspended`, RMS всегда возвращал `0.0`, из-за чего VAD-гейт в адаптере речи молча отбрасывал аудиосегменты. Добавлен `audioContext.resume()` и непрерывный таймер выборки пикового RMS с повышенной чувствительностью (`0.005`) для удаленных голосов.
+  2. Захват звука Zoom/динамиков: микрофонные ограничения переконфигурированы с отключением браузерного эхоподавления (`echoCancellation: false, noiseSuppression: false, autoGainControl: true`), устраняя вырезание звуков из колонок/Zoom CoreAudio драйвером macOS.
+  3. Исправление `MeetingAudioCapture`: видео-трек экрана переводится в `enabled = false` вместо агрессивного `.stop()`, предотвращая принудительное закрытие медиа-потока в Chromium 120+.
+  4. Бесшовный hot-reload движков в `useSalonSpeech`: сохранение состояния `wasListening` и автоматический вызов `.start(activeStream)` при смене движка ASR в открытой панели настроек.
+  5. Отказоустойчивость ASR (AP-012): единичный сбой запроса транскрипции больше не убивает прослушивание. Добавлен счетчик последовательных ошибок (до 3), логирование диагностики в `clientLogger` и непрерывное удержание открытого микрофона.
+
+### Findings Fixed
+- [P0] VAD Silent Drop & Suspended AudioContext (AP-012, AP-054) — RESOLVED.
+- [P1] Acoustic Echo Cancellation (AEC) cancels Zoom speakers (AP-054) — RESOLVED.
+- [P1] DisplayMedia stream killed on video track stop (AP-012, AP-054) — RESOLVED.
+- [P1] Engine Hot-Swap Desync (AP-054) — RESOLVED.
+- [P1] Single ASR error terminates listening loop (AP-012) — RESOLVED.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 93/93 тестов Vitest GREEN (26 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы $\le 249$ строк (AP-019 PASS).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Сервисы `gigaam-asr`, `whisper-asr`, `sherpa-speaker`, `salon-presence` онлайн и синхронизированы.
+   - Сборка `vite build` 280 мс без предупреждений.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 

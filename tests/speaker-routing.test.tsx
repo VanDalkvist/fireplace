@@ -45,10 +45,16 @@ describe("Autonomous Speaker Routing (Cycle 12)", () => {
     };
     (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
 
-    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ text: "спокойствие и тепло" }),
-    } as unknown as Response);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
+      if (String(url).includes("/api/client-log")) {
+        return { ok: true, status: 200 } as unknown as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ text: "спокойствие и тепло" }),
+      } as unknown as Response;
+    });
 
     await adapter.start();
     adapter.flush();

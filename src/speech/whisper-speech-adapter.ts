@@ -12,6 +12,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   private asrPort: SpeechToTextPort;
   private speakerPort: SpeakerIdentificationPort;
   private silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private consecutiveErrors = 0;
 
   constructor(
     callbacks: SpeechEngineCallbacks = {},
@@ -78,12 +79,14 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
     // VAD Gate: if no speech was detected in this segment, keep listening without calling Whisper (AP-012)
     const hasSpeech = this.recorder.hasSpeechInCurrentSegment?.() ?? true;
     if (!hasSpeech && !isExplicitFlush) {
+      clientLogger.info(`[${this.asrPort.name}] segment skipped: quiet/silence (ringBuffer: ${this.recorder.getRingBufferSize?.() ?? 0})`);
       return;
     }
 
     const blob = await this.recorder.extractCurrentSegment();
     if (!blob || blob.size === 0) return;
 
+    clientLogger.info(`[${this.asrPort.name}] processing segment: ${blob.size} bytes (${blob.type})`);
     this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
     try {
       const [text, speakerResult] = await Promise.all([
@@ -91,17 +94,27 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
         this.speakerPort.identify(blob),
       ]);
 
+      this.consecutiveErrors = 0;
+
       if (text && text.trim().length > 0) {
+        clientLogger.info(`[${this.asrPort.name}] Final phrase recognized: "${text.trim()}" (seat: ${speakerResult?.seatNumber ?? "none"})`);
         this.callbacks.onFinalPhrase?.(text, speakerResult?.seatNumber);
+      } else {
+        clientLogger.info(`[${this.asrPort.name}] Clean audio had no verbal words`);
       }
     } catch (err) {
-      if (this.silenceTimer) clearTimeout(this.silenceTimer);
-      this.isListeningActive = false;
-      this.callbacks.onStatusChange?.(false);
-      clientLogger.error(`${this.asrPort.name} speech segment processing error`, err);
+      this.consecutiveErrors++;
+      clientLogger.error(`${this.asrPort.name} segment error (${this.consecutiveErrors}/3)`, err);
       this.callbacks.onError?.(
         `Ошибка ${this.asrPort.name}: ${err instanceof Error ? err.message : String(err)}`
       );
+
+      // Only terminate listening after 3 consecutive failures (resilient recovery AP-012)
+      if (this.consecutiveErrors >= 3) {
+        if (this.silenceTimer) clearTimeout(this.silenceTimer);
+        this.isListeningActive = false;
+        this.callbacks.onStatusChange?.(false);
+      }
     }
   }
 
