@@ -29,8 +29,7 @@ interface LlmDistillPayload {
 
 function parseJsonPayload(raw: string): LlmDistillPayload | null {
   try {
-    const cleaned = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-    return JSON.parse(cleaned) as LlmDistillPayload;
+    return JSON.parse(raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim()) as LlmDistillPayload;
   } catch {
     return null;
   }
@@ -64,102 +63,83 @@ export async function distillWithNeuralFallback(
       ? `Контекст реплик:\n${recentContext.map((c) => `- "${c}"`).join("\n")}\n\n`
       : "";
 
-    const systemPrompt = `Ты — чуткий слушатель в созерцательном круге чувств у костра.
-Участник делится переживаниями. Собери из его спонтанной речи емкую, живую мысль для круга.
-ПРАВИЛА:
-1. Убирай слова-паразиты («ну как бы», «в общем», «типа», «так сказать», «короче»), заикания и повторы.
-2. Сохраняй живой голос и суть переживания (без сухого канцелярита).
-3. Если мыслей несколько — выдели phrases: ["первая мысль", "вторая мысль"].
-4. Не разбивай мысль на вводные частицы или наречия («всё равно», «как будто», «вроде бы» не являются отдельными мыслями, а дополняют целое переживание).
-5. Фоновый шум или обрывки («меня слышно?», «смотри») -> верни phrase: "".
-ПРИМЕРЫ:
-"чувствую, что всё равно остается напряжение" -> {"full_thought": "чувствую, что всё равно остается напряжение", "phrase": "остается напряжение", "family": "тревога", "valence": -0.4}
-"ну мы вчера долго сидели и я прям почувствовал такую усталость" -> {"full_thought": "почувствовал сильную усталость после долгого дня", "phrase": "сильная усталость", "family": "усталость", "valence": -0.4}
-"хочется просто выдохнуть и побыть в тишине" -> {"full_thought": "хочется просто выдохнуть и побыть в тишине", "phrase": "выдохнуть и побыть в тишине", "family": "покой", "valence": 0.8}
-"мне сейчас немного тревожно, но чувствую тепло круга" -> {"full_thought": "чувствую тревогу, но ощущаю тепло круга", "phrases": ["немного тревожно", "тепло круга"], "family": "тепло", "valence": 0.5}
-"алло раз два слышно меня да" -> {"phrase": "", "family": "покой", "valence": 0.0}`;
+    const systemPrompt = `Ты — слушатель в созерцательном круге чувств у костра.
+Участник делится тем, что у него внутри. В спонтанной речи часто бывают длинные рассуждения, истории, рабочий контекст и бытовые факты.
+Твоя задача — услышать за длинным рассказом живое переживание и ВЫТАЩИТЬ САМИ ФРАЗЫ С ЧУВСТВАМИ.
 
-    const userPrompt = `${contextLines}Высказывание: "${normalized}"
-Выведи строго JSON:
-- full_thought (связная очищенная мысль целиком)
-- phrase (емкая мысль 3–7 слов или "" если мусор)
-- phrases (массив строк, если мыслей несколько)
-- family (покой, тепло, радость, открытость, ясность, тревога, усталость, грусть)
-- valence (-1.0..1.0)
-JSON:`;
+ПРАВИЛА:
+1. НЕ ПЕРЕСКАЗЫВАЙ СВОИМИ СЛОВАМИ. Сохраняй язык и самовыражение человека — вырезай фразы переживания прямо из его речи (точные или пространные образные фразы), без литературных переделок.
+2. Отсекай внешнюю сюжетную канву и обстоятельства («спорили с командой», «куча созвонов»), оставляя внутреннее ощущение («остается фоновое напряжение в груди», «голова гудит»).
+3. Если чувств несколько (или они сменяют друг друга) — выдели каждое отдельной фразой в массиве phrases.
+4. Если в реплике нет чувств и переживаний (технический шум, проверка связи, сухие факты) — верни phrases: [].
+
+Формат строго JSON:
+{
+  "phrases": ["фраза переживания 1", "фраза переживания 2"],
+  "family": "тревога|покой|усталость|тепло|радость|грусть|живость",
+  "valence": число от -1.0 до 1.0
+}`;
 
     const data = await port.complete(
       {
-        prompt: userPrompt,
+        prompt: `Реплика: "${normalized}"`,
         systemPrompt,
         model: options.model,
         jsonFormat: true,
-        temperature: 0.15,
-        maxTokens: 96,
+        temperature: 0.1,
+        maxTokens: 350,
       },
       options.timeoutMs
     );
 
     if (data?.content) {
       const parsed = parseJsonPayload(data.content);
-      const phraseClean = (parsed?.phrase || "").trim();
-      const repaired = (parsed?.full_thought || parsed?.repaired_text || "").trim() || normalized;
-
       const engineId = port.id === "ollama" ? (options.model || "ollama") : port.id;
 
-      if (!phraseClean && !parsed?.phrases?.length) {
-        return { feelings: [], desires: [], pass: false, repairedText: repaired, neuralDistilled: true, engineUsed: engineId };
+      const rawPhrases: string[] = [];
+      if (Array.isArray(parsed?.phrases)) {
+        for (const p of parsed.phrases) {
+          const s = String(p).trim();
+          if (s) rawPhrases.push(s);
+        }
+      } else if (parsed?.phrase && String(parsed.phrase).trim()) {
+        rawPhrases.push(String(parsed.phrase).trim());
       }
 
-      const phraseWords = phraseClean.split(/\s+/).filter(Boolean);
-      const repairedWords = repaired.split(/\s+/).filter(Boolean);
+      if (rawPhrases.length === 0) {
+        return { feelings: [], desires: [], pass: false, repairedText: normalized, neuralDistilled: true, engineUsed: engineId };
+      }
 
-      // Guard against 1-word amputations and prompt template leaks
-      const isAmputationOrLeak =
-        phraseClean.includes("глубинный смысл") ||
-        phraseClean.includes("живая метафора") ||
-        phraseClean.includes("извлеченное чувство") ||
-        (phraseWords.length <= 1 && repairedWords.length >= 2 && phraseClean.length > 0);
-
-      const singlePhrase = isAmputationOrLeak ? repaired : (phraseClean || repaired);
-
-      const rawPhrases = Array.isArray(parsed?.phrases) && (parsed?.phrases?.length ?? 0) > 0
-        ? (parsed?.phrases ?? []).map((p) => p.trim()).filter((p) => p.length > 0 && !isPureFillerPhrase(p))
-        : [];
-      const phraseList = rawPhrases.length > 0 ? rawPhrases : (singlePhrase ? [singlePhrase] : []);
-
-      if (phraseList.length > 0) {
-        const kind = parsed?.kind || "feeling";
-        if (kind === "pass") {
-          return { feelings: [], desires: [], pass: true, repairedText: repaired, neuralDistilled: true, engineUsed: engineId };
-        }
-        if (kind === "desire") {
-          return {
-            feelings: [],
-            desires: phraseList.map((p) => ({ text: p, object: p, who: null })),
-            pass: false,
-            isDesirePhrase: true,
-            repairedText: repaired,
-            neuralDistilled: true,
-            engineUsed: engineId,
-          };
-        }
+      const kind = parsed?.kind || "feeling";
+      if (kind === "pass") {
+        return { feelings: [], desires: [], pass: true, repairedText: normalized, neuralDistilled: true, engineUsed: engineId };
+      }
+      if (kind === "desire") {
         return {
-          feelings: phraseList.map((p) => ({
-            lemma: p,
-            family: parsed?.family || "живость",
-            valence: parsed?.valence ?? 0.5,
-            arousal: 0.3,
-            form: p,
-            intensity: 1,
-          })),
-          desires: [],
+          feelings: [],
+          desires: rawPhrases.map((p) => ({ text: p, object: p, who: null })),
           pass: false,
-          repairedText: repaired,
+          isDesirePhrase: true,
+          repairedText: normalized,
           neuralDistilled: true,
           engineUsed: engineId,
         };
       }
+      return {
+        feelings: rawPhrases.map((p) => ({
+          lemma: p,
+          family: parsed?.family || "живость",
+          valence: parsed?.valence ?? 0.0,
+          arousal: 0.3,
+          form: p,
+          intensity: 1,
+        })),
+        desires: [],
+        pass: false,
+        repairedText: normalized,
+        neuralDistilled: true,
+        engineUsed: engineId,
+      };
     }
   } catch (err) {
     console.warn("[distillWithNeuralFallback] Neural pipeline error, keeping verbatim text without lexicon slicing:", err);

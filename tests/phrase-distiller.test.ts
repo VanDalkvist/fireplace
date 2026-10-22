@@ -66,13 +66,18 @@ describe('Neural Phrase Distiller', () => {
     expect(res.feelings[0].lemma).toBe(longUtterance);
   });
 
-  it('guards against prompt template leakage and falls back to original phrase', async () => {
+  it('extracts multiple emotional phrases from rambling speech directly through LLM', async () => {
     const fakeLlmResponse = {
-      response: JSON.stringify({
-        phrase: "глубинный смысл или живая метафора",
-        family: "спокойствие",
-        valence: 0.5,
-      })
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            phrases: ["накатила тревога и растерянность", "глубокое тихое тепло"],
+            family: "тепло",
+            valence: 0.6,
+          })
+        }
+      }],
+      model: "nvidia/nemotron-3.5-lightning:free",
     };
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -80,18 +85,19 @@ describe('Neural Phrase Distiller', () => {
       json: async () => fakeLlmResponse,
     } as unknown as Response);
 
-    const rawUtterance = "мне очень тепло и уютно у костра";
-    const res = await distillWithNeuralFallback(rawUtterance);
+    const utterance = "Вчера было тяжело из-за новостей, прям накатила тревога и растерянность, а сейчас вот сижу с вами в кругу и чувствую очень глубокое тихое тепло.";
+    const res = await distillWithNeuralFallback(utterance);
 
-    expect(res.feelings[0].lemma).toBe("мне очень тепло и уютно у костра");
-    expect(res.feelings[0].lemma).not.toContain("глубинный смысл");
+    expect(res.neuralDistilled).toBe(true);
+    expect(res.feelings.length).toBe(2);
+    expect(res.feelings[0].lemma).toBe("накатила тревога и растерянность");
+    expect(res.feelings[1].lemma).toBe("глубокое тихое тепло");
   });
 
-  it('repairs ASR recognition errors in Pass 2 and returns repairedText alongside feelings', async () => {
+  it('routes utterances to Qwen when ollamaUrl is specified', async () => {
     const fakeLlmResponse = {
       response: JSON.stringify({
-        repaired_text: "покой у огня и замедление",
-        phrase: "покой у огня",
+        phrases: ["покой у огня и замедление"],
         family: "спокойствие",
         valence: 0.8,
       })
@@ -107,8 +113,7 @@ describe('Neural Phrase Distiller', () => {
       ollamaUrl: "http://127.0.0.1:11434",
     });
 
-    expect(res.repairedText).toBe("покой у огня и замедление");
-    expect(res.feelings[0].lemma).toBe("покой у огня");
+    expect(res.feelings[0].lemma).toBe("покой у огня и замедление");
   });
 
   it('checks real Ollama status and identifies presence of target model', async () => {
@@ -122,14 +127,19 @@ describe('Neural Phrase Distiller', () => {
     expect(status.hasModel).toBe(true);
   });
 
-  it('guards against single-word amputations from LLM and preserves full meaningful phrase', async () => {
+  it('handles desire phrases directly from neural output', async () => {
     const fakeLlmResponse = {
-      response: JSON.stringify({
-        repaired_text: "Распознавание голоса работает",
-        phrase: "работает", // 1-word amputation
-        family: "радость",
-        valence: 0.8,
-      })
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            kind: "desire",
+            phrases: ["хочется просто выдохнуть и побыть в тишине"],
+            family: "покой",
+            valence: 0.8,
+          })
+        }
+      }],
+      model: "nvidia/nemotron-3.5-lightning:free",
     };
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -137,11 +147,11 @@ describe('Neural Phrase Distiller', () => {
       json: async () => fakeLlmResponse,
     } as unknown as Response);
 
-    const utterance = "Распознавание голоса работает";
+    const utterance = "хочется просто выдохнуть и побыть в тишине";
     const res = await distillWithNeuralFallback(utterance);
 
-    // Must NOT be severed to "работает" alone — must preserve full meaningful utterance
-    expect(res.feelings[0].lemma).toBe("Распознавание голоса работает");
+    expect(res.desires.length).toBe(1);
+    expect(res.desires[0].text).toBe("хочется просто выдохнуть и побыть в тишине");
   });
 
   it('splits long conversational compound sentences into multiple meaningful semantic phrases', () => {

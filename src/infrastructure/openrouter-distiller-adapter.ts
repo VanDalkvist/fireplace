@@ -71,8 +71,9 @@ export class OpenRouterDistillerAdapter implements LlmDistillerPort {
         body: JSON.stringify({
           model: targetModel,
           messages,
-          temperature: req.temperature ?? 0.15,
-          max_tokens: req.maxTokens ?? 96,
+          temperature: req.temperature ?? 0.1,
+          max_tokens: req.maxTokens ?? 350,
+          reasoning: { max_tokens: 0 },
           response_format: req.jsonFormat ? { type: "json_object" } : undefined,
         }),
       });

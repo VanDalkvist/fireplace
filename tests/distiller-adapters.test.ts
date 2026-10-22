@@ -84,9 +84,9 @@ describe("OpenRouter & Ollama Distiller Adapters (DI & Registry)", () => {
     expect(() => registry.setActive("unknown-engine")).toThrowError();
   });
 
-  it("getDistillerConfig returns configurable model that defaults to openrouter/free", () => {
+  it("getDistillerConfig returns configurable model that defaults to nvidia/nemotron-3.5-lightning:free", () => {
     const config = getDistillerConfig();
     expect(config.defaultEngine).toBe("openrouter");
-    expect(config.openrouter.model).toBe("openrouter/free");
+    expect(config.openrouter.model).toBe("nvidia/nemotron-3.5-lightning:free");
   });
 });

@@ -32,7 +32,7 @@ export function getDistillerConfig(): DistillerConfig {
   return {
     defaultEngine: engineOverride || "openrouter",
     openrouter: {
-      model: modelOverride || "openrouter/free",
+      model: modelOverride || "nvidia/nemotron-3.5-lightning:free",
       baseUrl: "/api/openrouter",
       timeoutMs: 8000,
     },
