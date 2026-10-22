@@ -1,5 +1,7 @@
 export type SpeechEngineKind = "gigaam" | "whisper" | "google";
 
+export type SpeechPipelineStatus = "idle" | "hearing" | "transcribing" | "distilling" | "error";
+
 export interface SpeechToTextPort {
   readonly id: string;
   readonly name: string;
@@ -13,6 +15,8 @@ export interface SpeechEngineCallbacks {
   onFinalPhrase?: (text: string, speakerSeat?: number) => void;
   onError?: (error: string) => void;
   onStatusChange?: (active: boolean) => void;
+  onAudioLevel?: (level: number) => void;
+  onPipelineStatus?: (status: SpeechPipelineStatus) => void;
 }
 
 export interface SpeechEnginePort {
