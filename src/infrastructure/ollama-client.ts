@@ -3,6 +3,7 @@ export interface OllamaGenerateRequest {
   prompt: string;
   format?: string;
   stream?: boolean;
+  keep_alive?: string | number;
   options?: {
     temperature?: number;
     num_predict?: number;

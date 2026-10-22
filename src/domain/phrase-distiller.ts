@@ -1,4 +1,4 @@
-import { distillSpokenPhrase, isPureFillerPhrase, type DistillationResult, type LexiconIndex } from "./lexicon-engine";
+import { isPureFillerPhrase, type DistillationResult, type LexiconIndex } from "./lexicon-engine";
 import { OllamaClient } from "@/infrastructure/ollama-client";
 
 export interface NeuralDistillerOptions {
@@ -10,7 +10,7 @@ export interface NeuralDistillerOptions {
 export interface EnrichedDistillationResult extends DistillationResult {
   repairedText?: string;
   neuralDistilled?: boolean;
-  engineUsed: "qwen2.5:1.5b" | "qwen2.5:0.5b" | "lexicon-fallback";
+  engineUsed: "qwen2.5:1.5b" | "qwen2.5:0.5b" | "verbatim" | "lexicon-fallback";
 }
 
 interface LlmDistillPayload {
@@ -69,12 +69,12 @@ export async function distillWithNeuralFallback(
 
   // Fast-track pure conversational fillers or meeting operational noise
   if (isPureFillerPhrase(normalized) || isMeetingOperationalNoise(normalized)) {
-    return { feelings: [], desires: [], pass: false, repairedText: normalized, neuralDistilled: false, engineUsed: "lexicon-fallback" };
+    return { feelings: [], desires: [], pass: false, repairedText: normalized, neuralDistilled: false, engineUsed: "verbatim" };
   }
 
   const ollamaUrl = options.ollamaUrl || "http://127.0.0.1:11434";
   const model = options.model || "qwen2.5:1.5b";
-  const timeoutMs = options.timeoutMs ?? 2000;
+  const timeoutMs = options.timeoutMs ?? 4500;
 
   try {
     const client = new OllamaClient(ollamaUrl);
@@ -88,8 +88,10 @@ export async function distillWithNeuralFallback(
 1. Убирай слова-паразиты («ну как бы», «в общем», «типа», «так сказать», «короче»), заикания и повторы.
 2. Сохраняй живой голос и суть переживания (без сухого канцелярита).
 3. Если мыслей несколько — выдели phrases: ["первая мысль", "вторая мысль"].
-4. Фоновый шум или обрывки («меня слышно?», «смотри») -> верни phrase: "".
+4. Не разбивай мысль на вводные частицы или наречия («всё равно», «как будто», «вроде бы» не являются отдельными мыслями, а дополняют целое переживание).
+5. Фоновый шум или обрывки («меня слышно?», «смотри») -> верни phrase: "".
 ПРИМЕРЫ:
+"чувствую, что всё равно остается напряжение" -> {"full_thought": "чувствую, что всё равно остается напряжение", "phrase": "остается напряжение", "family": "тревога", "valence": -0.4}
 "ну мы вчера долго сидели и я прям почувствовал такую усталость" -> {"full_thought": "почувствовал сильную усталость после долгого дня", "phrase": "сильная усталость", "family": "усталость", "valence": -0.4}
 "хочется просто выдохнуть и побыть в тишине" -> {"full_thought": "хочется просто выдохнуть и побыть в тишине", "phrase": "выдохнуть и побыть в тишине", "family": "покой", "valence": 0.8}
 "мне сейчас немного тревожно, но чувствую тепло круга" -> {"full_thought": "чувствую тревогу, но ощущаю тепло круга", "phrases": ["немного тревожно", "тепло круга"], "family": "тепло", "valence": 0.5}
@@ -110,6 +112,7 @@ JSON:`;
         prompt,
         format: "json",
         stream: false,
+        keep_alive: "1h",
         options: { temperature: 0.15, num_predict: 96 },
       },
       timeoutMs
@@ -175,11 +178,27 @@ JSON:`;
       }
     }
   } catch (err) {
-    console.warn("[distillWithNeuralFallback] Neural pipeline fallback to lexicon:", err);
+    console.warn("[distillWithNeuralFallback] Neural pipeline error, keeping verbatim text without lexicon slicing:", err);
   }
 
-  const baseResult = distillSpokenPhrase(rawText, idx);
-  return { ...baseResult, neuralDistilled: false, engineUsed: "lexicon-fallback" };
+  // NO SILENT DICTIONARY FALLBACK:
+  // If neural inference fails or is offline, keep the utterance intact as spoken words.
+  return {
+    feelings: [{
+      lemma: normalized,
+      family: "живость",
+      valence: 0,
+      arousal: 0.3,
+      form: normalized,
+      intensity: 1,
+    }],
+    desires: [],
+    pass: false,
+    repairedText: normalized,
+    fallbackText: normalized,
+    neuralDistilled: false,
+    engineUsed: "verbatim",
+  };
 }
 
 export function splitIntoSemanticPhrases(text: string, maxWordsPerPhrase = 8): string[] {

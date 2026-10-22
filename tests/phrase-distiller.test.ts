@@ -52,19 +52,19 @@ describe('Neural Phrase Distiller', () => {
     expect(res.feelings[0].family).toBe("спокойствие");
   });
 
-  it('gracefully degrades to Tier 1 semantic core when neural endpoint times out or errors', async () => {
+  it('preserves intact verbatim speech without lexicon slicing when neural endpoint times out or errors', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error("Network timeout"));
 
-    const longUtterance = "Ну знаете мне сейчас прямо как-то расфокусированно и сумбурно в мыслях";
+    const longUtterance = "чувствую, что всё равно остается напряжение";
     const res = await distillWithNeuralFallback(longUtterance, defaultLexiconIndex, {
       ollamaUrl: "http://127.0.0.1:11434",
       timeoutMs: 100
     });
 
     expect(res.neuralDistilled).toBe(false);
-    expect(res.engineUsed).toBe("lexicon-fallback");
-    expect(res.fallbackText).toBeDefined();
-    expect(res.fallbackText).toContain("сумбурно");
+    expect(res.engineUsed).toBe("verbatim");
+    expect(res.feelings.length).toBe(1);
+    expect(res.feelings[0].lemma).toBe(longUtterance);
   });
 
   it('guards against prompt template leakage and falls back to original phrase', async () => {

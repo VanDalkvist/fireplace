@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { SessionPhase } from "@/domain/types";
-import { distillSpokenPhrase, isPureFillerPhrase } from "@/domain/lexicon-engine";
+import { isPureFillerPhrase } from "@/domain/lexicon-engine";
 import { distillWithNeuralFallback, splitIntoSemanticPhrases } from "@/domain/phrase-distiller";
 import { SpeakerTurnBuffer } from "@/domain/speaker-turn-buffer";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
@@ -194,11 +194,11 @@ export function useSalonSpeech({
     speechRef.current = createSpeechEngine(sttEngine, {
       onInterimPhrase: (text) => {
         setInterimPhrase(text);
-        const p = distillSpokenPhrase(text, defaultLexiconIndex);
-        if (p.pass) setInterimBadge({ text: "пас", type: "pass" });
-        else if (p.feelings.length > 0) setInterimBadge({ text: p.feelings[0].form || p.feelings[0].lemma, type: "feeling" });
-        else if (p.desires.length > 0) setInterimBadge({ text: p.desires[0].text, type: "desire" });
-        else setInterimBadge(null);
+        if (text.toLowerCase().trim() === "пас") {
+          setInterimBadge({ text: "пас", type: "pass" });
+        } else {
+          setInterimBadge(null);
+        }
       },
       onFinalPhrase: handleSpeechResult,
       onError: (err) => setSpeechError(err),
