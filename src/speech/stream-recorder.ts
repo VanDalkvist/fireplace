@@ -82,7 +82,12 @@ export class StreamRecorder {
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) {
         this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
-        if (this.ringBuffer.length > this.maxBufferSize) this.ringBuffer.shift();
+        const inSilence = !this.wasSpeaking && !this.hasSpeechInSegment;
+        if (inSilence && this.ringBuffer.length > 2) {
+          this.ringBuffer.shift(); // Bound memory to 500ms pre-roll in silence (AP-018)
+        } else if (this.ringBuffer.length > this.maxBufferSize) {
+          this.ringBuffer.shift();
+        }
       }
     };
     this.mediaRecorder.onstop = () => {
@@ -176,8 +181,8 @@ export class StreamRecorder {
   }
 
   public async extractSegmentWithContext(leftContextMs: number): Promise<Blob> {
-    this.hasSpeechInSegment = false;
     if (!this.mediaRecorder || this.mediaRecorder.state !== "recording" || this.ringBuffer.length === 0) {
+      this.hasSpeechInSegment = false;
       return new Blob([], { type: "audio/webm" });
     }
 
@@ -185,6 +190,8 @@ export class StreamRecorder {
       this.resolveStop = resolve;
       try { this.mediaRecorder?.stop(); } catch { resolve(new Blob([], { type: "audio/webm" })); }
     });
+
+    this.hasSpeechInSegment = false;
 
     if (this.mediaRecorder) {
       this.mediaRecorder.ondataavailable = null;
@@ -223,18 +230,12 @@ export class StreamRecorder {
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     try { this.audioSource?.disconnect(); } catch { /* ignore */ }
     try { this.analyser?.disconnect(); } catch { /* ignore */ }
-    if (this.audioContext && this.audioContext.state !== "closed") {
-      this.audioContext.close().catch(() => {});
-    }
-    if (this.activeStream && this.ownsActiveStream) {
-      this.activeStream.getTracks().forEach((t) => t.stop());
-    }
+    if (this.audioContext && this.audioContext.state !== "closed") void this.audioContext.close().catch(() => {});
+    if (this.activeStream && this.ownsActiveStream) this.activeStream.getTracks().forEach((t) => t.stop());
     if (this.mediaRecorder) {
       this.mediaRecorder.ondataavailable = null;
       this.mediaRecorder.onstop = null;
-      if (this.mediaRecorder.state !== "inactive") {
-        try { this.mediaRecorder.stop(); } catch { /* ignore */ }
-      }
+      if (this.mediaRecorder.state !== "inactive") try { this.mediaRecorder.stop(); } catch { /* ignore */ }
     }
     this.ringBuffer = [];
     this.mediaRecorder = null;

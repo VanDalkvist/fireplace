@@ -64,6 +64,7 @@ describe('StreamRecorder', () => {
 
   it('extracts current segment as a complete valid Blob and immediately restarts recorder for next segment', async () => {
     await recorder.start(mockStream, 250);
+    recorder.setMockVoiceActivityForTesting(true);
 
     const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
     mediaRecInstance.ondataavailable({ data: new Blob(['chunk1 '], { type: 'audio/webm' }) });
@@ -125,6 +126,7 @@ describe('StreamRecorder', () => {
 
   it('extracts segment while preserving left context chunks for sliding window', async () => {
     await recorder.start(mockStream, 250);
+    recorder.setMockVoiceActivityForTesting(true);
 
     const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
     mediaRecInstance.ondataavailable({ data: new Blob(['chunk_old '], { type: 'audio/webm' }) });
@@ -138,5 +140,18 @@ describe('StreamRecorder', () => {
 
     // Next segment should retain chunks within 1200ms
     expect(recorder.getRingBufferSize()).toBeGreaterThanOrEqual(1);
+  });
+
+  it('restricts ring buffer to 2 chunks (~500ms pre-roll) during silence to prevent memory growth', async () => {
+    await recorder.start(mockStream, 250);
+
+    const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
+    // Simulate 20 chunks arriving during silence
+    for (let i = 0; i < 20; i++) {
+      mediaRecInstance.ondataavailable({ data: new Blob([`silence_${i} `], { type: 'audio/webm' }) });
+    }
+
+    // In silence, buffer must strictly hold only ~2 chunks (500ms pre-roll), NOT 20!
+    expect(recorder.getRingBufferSize()).toBeLessThanOrEqual(2);
   });
 });
