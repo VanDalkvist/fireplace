@@ -6,6 +6,7 @@ import { useSalonSpeech } from "@/hooks/useSalonSpeech";
 import { useSalonCanvas } from "@/hooks/useSalonCanvas";
 import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
+import { TechnicalGearPult } from "./salon/TechnicalGearPult";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ export const SalonExperience: React.FC = () => {
     handleAdvanceTurn,
     triggerNextTurn,
     handleSelectSpeaker,
+    handleResetCircle,
   } = useSalonSession();
 
   const {
@@ -54,6 +56,7 @@ export const SalonExperience: React.FC = () => {
     interimBadge,
     speechError,
     speechRef,
+    resetVoiceprints,
   } = useSalonSpeech({
     sttEngine,
     phase: state.phase,
@@ -118,9 +121,27 @@ export const SalonExperience: React.FC = () => {
     <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
       <canvas ref={canvasRef} onClick={handleCanvasClick} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
 
-      {/* Floating Header */}
-      <div className={cn("fixed top-3 left-4 right-4 z-10 transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>
+      {/* Floating Header & Top Controls */}
+      <div className={cn("fixed top-3 left-4 right-4 z-10 flex items-center justify-between transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>
         <SalonHeader />
+        <TechnicalGearPult
+          sttEngine={sttEngine}
+          onToggleSttEngine={() =>
+            setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
+          }
+          isVerbatimMode={isVerbatimMode}
+          onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
+          isAudioOn={isAudioOn}
+          onAudioToggle={handleAudioToggle}
+          phase={state.phase}
+          onPhaseSelect={handlePhaseSelect}
+          isDemoActive={isDemoActive}
+          onToggleDemo={() => setIsDemoActive((prev) => !prev)}
+          onResetCircle={() => {
+            resetVoiceprints();
+            handleResetCircle();
+          }}
+        />
       </div>
 
       {/* Floating Bottom HUD */}
