@@ -32,4 +32,12 @@
   4) Всегда оснащать кнопку микрофона реактивным VU-метром (масштаб/свечение от RMS в реальном времени) и понятными статусами («слышу речь…», «распознаю…», «нейрокоррекция…»).
 - Evidence: `src/speech/vad/energy-vad.ts`, `src/speech/stream-recorder.ts`, `src/speech/whisper-speech-adapter.ts`, `src/components/salon/VoiceIndicator.tsx`, 105/105 тестов GREEN.
 
+## 2026-10-22 - Web Audio Dual-Stream Mixer vs Driver Overhead
+- Context: Одновременный захват звука встречи из наушников и голоса пользователя с отдельного микрофона в веб-приложении.
+- Symptom: Иллюзия необходимости внешних виртуальных аудио-драйверов (BlackHole) или системных демонов на Swift при использовании наушников.
+- Cause: Ошибочная реализация «микрофон ИЛИ встреча», когда подключение встречи глушило собственный микрофон пользователя.
+- Use next time: Использовать нативный узел `AudioContext.createMediaStreamDestination()`: подавать вход с микрофона (`getUserMedia`) и вход со встречи (`getDisplayMedia` с системным аудио) на общий `GainNode` и отдавать единый результирующий `destination.stream` в рекордер. 0 сторонних драйверов, 0 конфликтов с кнопками громкости macOS, 100% реальное время.
+- Evidence: `src/audio/audio-mixer.ts`, `tests/audio-mixer.test.ts`, 110/110 тестов GREEN.
+
+
 

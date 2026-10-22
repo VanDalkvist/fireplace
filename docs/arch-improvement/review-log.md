@@ -663,6 +663,39 @@
    - Сборка `vite build` — 269 мс.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 20 - 2026-10-22 - Dual-Stream Meeting Audio Mixer, Continuous Call Stability & Memory Bounding
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-20-realtime-meeting-audio-mixer.md`
+- Scope:
+  1. Реализация нативного браузерного микшера `AudioStreamMixer` (`src/audio/audio-mixer.ts`): объединение физического микрофона пользователя (`getUserMedia`) и системного аудиопотока встречи (`getDisplayMedia`) через узел `MediaStreamAudioDestinationNode` в единый совместный аудиопоток без внешних драйверов или программ.
+  2. Исправление логики кнопки `встреча (zoom)` в `useSalonSpeech.ts`: устранена взаимная изоляция («микрофон ИЛИ встреча»). Теперь при старте встречи микрофон пользователя не глушится, а бесшовно микшируется со звуком встречи из наушников.
+  3. Bounded Memory для долгих созвонов (1–2+ часа, AP-018): в `StreamRecorder` во время тишины размер кольцевого буфера строго ограничен 2 чанками (~500 мс преролла), предотвращая раздувание памяти и отправку минутных файлов тишины на сервер.
+  4. Обновление UI `VoiceIndicator`: явный статус `«встреча: микрофон + zoom»` и понятное сообщение об ошибке, если пользователь забыл включить чекбокс передачи системного звука.
+  5. Бесшовный фоллбек: при завершении шаринга экрана (собеседник закончил встречу) Салон автоматически возвращается на чистый микрофон без прерывания сессии.
+
+### Findings Fixed
+- [P1] Mutual Exclusion Bug in Meeting Audio (AP-010, AP-054) — RESOLVED via `AudioStreamMixer`.
+- [P1] Memory Explosion & Lag after Prolonged Silence (AP-018) — RESOLVED via strict 500ms silence pre-roll clamp.
+- [P2] Missing User Guidance on Silent Display Capture (AP-054) — RESOLVED via diagnostic error banner.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 110/110 тестов Vitest GREEN (29 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 248$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Сценарий 1 (Двухпоточный микшер Zoom в наушниках + отдельный микрофон): подтвержден `tests/audio-mixer.test.ts` и `tests/meeting-audio.test.ts`.
+   - Сценарий 2 (Долгие встречи без накопления тишины): подтвержден `tests/stream-recorder.test.ts`.
+   - Сценарий 3 (Подсказка при отсутствии аудиодорожки экрана): подтвержден тестами и UI.
+   - Сборка `vite build` — 304 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

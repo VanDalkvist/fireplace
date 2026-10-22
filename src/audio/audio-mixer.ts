@@ -21,12 +21,14 @@ export class AudioStreamMixer {
     this.sourceA = this.audioContext.createMediaStreamSource(streamA);
     this.gainA = this.audioContext.createGain();
     this.gainA.gain.value = 1.0;
-    this.sourceA.connect(this.gainA).connect(this.destination);
+    this.sourceA.connect(this.gainA);
+    this.gainA.connect(this.destination);
 
     this.sourceB = this.audioContext.createMediaStreamSource(streamB);
     this.gainB = this.audioContext.createGain();
     this.gainB.gain.value = 1.0;
-    this.sourceB.connect(this.gainB).connect(this.destination);
+    this.sourceB.connect(this.gainB);
+    this.gainB.connect(this.destination);
 
     this.active = true;
     return this.destination.stream;
