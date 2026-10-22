@@ -10,7 +10,6 @@ export interface UseSalonHotkeysOptions {
   onPass: () => void;
   onToggleAudio: () => void;
   onToggleSpeech?: () => void;
-  onToggleInput?: () => void;
   onAdvanceTurn?: () => void;
   onSelectPhase: (phase: SessionPhase) => void;
 }
@@ -24,7 +23,6 @@ export function useSalonHotkeys({
   onPass,
   onToggleAudio,
   onToggleSpeech,
-  onToggleInput,
   onAdvanceTurn,
   onSelectPhase,
 }: UseSalonHotkeysOptions): void {
@@ -50,9 +48,6 @@ export function useSalonHotkeys({
         onPass();
       } else if ((e.key === "v" || e.key === "м") && onToggleSpeech) {
         onToggleSpeech();
-      } else if (e.key === "Enter" && onToggleInput) {
-        e.preventDefault();
-        onToggleInput();
       } else if (e.key === "ArrowRight" && onAdvanceTurn) {
         e.preventDefault();
         onAdvanceTurn();
@@ -74,7 +69,6 @@ export function useSalonHotkeys({
     onPass,
     onToggleAudio,
     onToggleSpeech,
-    onToggleInput,
     onAdvanceTurn,
     onSelectPhase,
   ]);

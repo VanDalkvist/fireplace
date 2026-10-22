@@ -6,6 +6,7 @@
  */
 
 import type { Participant } from '@/domain/types';
+import { calculatePhyllotaxisAngle } from '@/domain/session-fsm';
 
 const TAU = Math.PI * 2;
 
@@ -49,7 +50,7 @@ export class HearthSeatsLayout {
       let seat = this.seats.find((s) => s.id === p.id);
       if (!seat) {
         // Natural phyllotaxis distribution around the clearing
-        const ang = p.angle ?? index * 2.3999632 - Math.PI / 2;
+        const ang = p.angle ?? calculatePhyllotaxisAngle(index);
         const x = this.cx + Math.cos(ang) * this.rx;
         const y = this.cy + Math.sin(ang) * this.ry;
         const depth = (Math.sin(ang) + 1) / 2;

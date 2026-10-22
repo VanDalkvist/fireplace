@@ -127,9 +127,15 @@ export function ensureParticipant(state: SessionState, speakerId: number): Sessi
     angle: calculatePhyllotaxisAngle(idx),
   };
 
+  // Enforce single speaker invariant: mute previous speakers (AP-013)
+  const updatedParticipants = state.participants.map((p) => ({
+    ...p,
+    isSpeaking: false,
+  }));
+
   return {
     ...state,
-    participants: [...state.participants, newParticipant],
+    participants: [...updatedParticipants, newParticipant],
     activeSpeakerId: speakerId,
   };
 }

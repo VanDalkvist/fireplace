@@ -5,7 +5,6 @@ import {
   nextSpeaker,
   passTurn,
   setSpeaker,
-  ensureParticipant,
   resetParticipants,
   addFeelingToken,
   addDesireToken,
@@ -33,7 +32,7 @@ export interface UseSalonSessionReturn {
 export function useSalonSession(): UseSalonSessionReturn {
   const [state, setState] = useState<SessionState>(() => createInitialState(0));
   const [isAudioOn, setIsAudioOn] = useState(false);
-  const [demoIdx, setDemoIdx] = useState(0);
+  const demoIdxRef = useRef(0);
   const audioRef = useRef<SalonAudioEngine | null>(null);
 
   if (!audioRef.current && typeof window !== "undefined") {
@@ -55,12 +54,7 @@ export function useSalonSession(): UseSalonSessionReturn {
       audioRef.current?.playFeeling(family, valence);
       setState((prev: SessionState) => {
         const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
-        const ensured = ensureParticipant(prev, speakerId);
-        const withSpeaker: SessionState = {
-          ...ensured,
-          activeSpeakerId: speakerId,
-          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
-        };
+        const withSpeaker = setSpeaker(prev, speakerId);
         return addFeelingToken(withSpeaker, {
           id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           text: phrase,
@@ -82,12 +76,7 @@ export function useSalonSession(): UseSalonSessionReturn {
       audioRef.current?.playDesire();
       setState((prev: SessionState) => {
         const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
-        const ensured = ensureParticipant(prev, speakerId);
-        const withSpeaker: SessionState = {
-          ...ensured,
-          activeSpeakerId: speakerId,
-          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
-        };
+        const withSpeaker = setSpeaker(prev, speakerId);
         return addDesireToken(withSpeaker, {
           id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           text: desireText,
@@ -114,57 +103,59 @@ export function useSalonSession(): UseSalonSessionReturn {
   }, []);
 
   const triggerNextTurn = useCallback(() => {
-    setState((prev: SessionState) => {
-      const item = DEMO_PHRASES[demoIdx % DEMO_PHRASES.length];
-      setDemoIdx((d) => d + 1);
-      const currId = prev.activeSpeakerId ?? 1;
-      const candidates = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((id) => id !== currId);
-      const nextId = candidates[Math.floor(Math.random() * candidates.length)];
+    const idx = demoIdxRef.current;
+    demoIdxRef.current += 1;
+    const item = DEMO_PHRASES[idx % DEMO_PHRASES.length];
 
-      if (item.isPass) {
-        audioRef.current?.playPass();
+    if (item.isPass) {
+      audioRef.current?.playPass();
+      setState((prev: SessionState) => {
+        const currId = prev.activeSpeakerId ?? 1;
         return passTurn(prev, currId);
-      }
-      if (item.desire) {
-        audioRef.current?.playDesire();
-        const ensured = ensureParticipant(prev, nextId);
-        const withSpeaker: SessionState = {
-          ...ensured,
-          activeSpeakerId: nextId,
-          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
-        };
+      });
+      return;
+    }
+
+    if (item.desire) {
+      audioRef.current?.playDesire();
+      setState((prev: SessionState) => {
+        const currId = prev.activeSpeakerId ?? 1;
+        const candidates = [1, 2, 3, 4, 5, 6, 7, 8].filter((id) => id !== currId);
+        const nextId = candidates[Math.floor(Math.random() * candidates.length)];
+        const withSpeaker = setSpeaker(prev, nextId);
         return addDesireToken(withSpeaker, {
           id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          text: item.desire,
-          object: item.desire,
+          text: item.desire || "",
+          object: item.desire || "",
           who: "",
           speakerId: nextId,
           timestamp: Date.now(),
         });
-      }
-      if (item.family) {
-        audioRef.current?.playFeeling(item.family, item.valence ?? 0);
-        const ensured = ensureParticipant(prev, nextId);
-        const withSpeaker: SessionState = {
-          ...ensured,
-          activeSpeakerId: nextId,
-          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
-        };
+      });
+      return;
+    }
+
+    if (item.family) {
+      audioRef.current?.playFeeling(item.family, item.valence ?? 0);
+      setState((prev: SessionState) => {
+        const currId = prev.activeSpeakerId ?? 1;
+        const candidates = [1, 2, 3, 4, 5, 6, 7, 8].filter((id) => id !== currId);
+        const nextId = candidates[Math.floor(Math.random() * candidates.length)];
+        const withSpeaker = setSpeaker(prev, nextId);
         return addFeelingToken(withSpeaker, {
           id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          text: item.text,
-          lemma: item.text,
-          family: item.family,
+          text: item.text || "",
+          lemma: item.text || "",
+          family: item.family || "живость",
           valence: item.valence ?? 0,
           arousal: 0.5,
           intensity: 1.2,
           speakerId: nextId,
           timestamp: Date.now(),
         });
-      }
-      return prev;
-    });
-  }, [demoIdx]);
+      });
+    }
+  }, []);
 
   const handleSelectSpeaker = useCallback((speakerId: number) => {
     setState((prev: SessionState) => setSpeaker(prev, speakerId));
@@ -178,7 +169,7 @@ export function useSalonSession(): UseSalonSessionReturn {
     state,
     audioRef,
     isAudioOn,
-    demoIdx,
+    demoIdx: demoIdxRef.current,
     handlePhaseSelect,
     handleAudioToggle,
     handleAddFeeling,

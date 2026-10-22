@@ -42,6 +42,16 @@ describe("Dynamic Emergent Seating (Cycle 13)", () => {
     expect(state.participants.length).toBe(2);
   });
 
+  it("enforces single speaker invariant when new participants speak", () => {
+    let state = createInitialState(0);
+    state = ensureParticipant(state, 1);
+    expect(state.participants[0].isSpeaking).toBe(true);
+
+    state = ensureParticipant(state, 2);
+    expect(state.participants.find((p) => p.id === 1)?.isSpeaking).toBe(false);
+    expect(state.participants.find((p) => p.id === 2)?.isSpeaking).toBe(true);
+  });
+
   it("resets participants cleanly on resetParticipants", () => {
     let state = createInitialState(0);
     state = ensureParticipant(state, 1);

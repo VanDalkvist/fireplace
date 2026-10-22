@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { SessionPhase } from "@/domain/types";
 import { cn } from "@/lib/utils";
 import {
@@ -49,6 +49,17 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   onToggleDemo,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
 
   const handleReset = () => {
     onResetVoiceprints?.();
