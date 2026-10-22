@@ -56,7 +56,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   private armSilenceTimer(): void {
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     this.silenceTimer = setTimeout(() => {
-      this.processCurrentSegment();
+      void this.processCurrentSegment();
       if (this.isListeningActive) {
         this.armSilenceTimer();
       }
@@ -106,9 +106,12 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       const blob = await this.recorder.stop();
       if (blob.size > 200) {
         this.callbacks.onInterimPhrase?.("распознавание whisper...");
-        const text = await transcribeAudioBlob(blob, { url: this.whisperUrl });
-        if (text) {
-          this.callbacks.onFinalPhrase?.(text);
+        const [text, speakerResult] = await Promise.all([
+          transcribeAudioBlob(blob, { url: this.whisperUrl }),
+          this.speakerPort.identify(blob),
+        ]);
+        if (text && text.trim().length > 0) {
+          this.callbacks.onFinalPhrase?.(text, speakerResult?.seatNumber);
         }
       }
     } catch (err) {

@@ -127,4 +127,40 @@ describe('WhisperSpeechAdapter', () => {
     adapter.toggle();
     expect(startSpy).toHaveBeenCalled();
   });
+
+  it('identifies speaker on stop() during final phrase processing', async () => {
+    const finalChunk = new Uint8Array(300); // > 200 bytes
+    const mockRecorder = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(new Blob([finalChunk], { type: 'audio/webm' })),
+      extractCurrentSegment: vi.fn().mockReturnValue(new Blob([])),
+      cleanup: vi.fn(),
+      isRecording: true,
+    };
+    (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
+
+    const mockSpeaker = {
+      identify: vi.fn().mockResolvedValue({
+        matched: true,
+        speakerId: 'seat_5',
+        seatNumber: 5,
+        score: 0.91,
+      }),
+      reset: vi.fn().mockResolvedValue(true),
+      getEnrolledSpeakers: vi.fn().mockResolvedValue([]),
+      isAvailable: vi.fn().mockResolvedValue(true),
+    };
+    (adapter as unknown as { speakerPort: typeof mockSpeaker }).speakerPort = mockSpeaker;
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: 'завершающее слово' }),
+    } as unknown as Response);
+
+    await adapter.start();
+    await adapter.stop();
+
+    expect(mockSpeaker.identify).toHaveBeenCalled();
+    expect(callbacks.onFinalPhrase).toHaveBeenCalledWith('завершающее слово', 5);
+  });
 });

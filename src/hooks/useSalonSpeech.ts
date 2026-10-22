@@ -155,7 +155,7 @@ export function useSalonSpeech({
         setIsListening(active);
         if (active) setSpeechError(null);
       },
-    });
+    }, "http://127.0.0.1:8085", speakerPort);
 
     return () => {
       void speechRef.current?.stop();
