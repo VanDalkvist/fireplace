@@ -33,3 +33,35 @@
 - Vite: Production build succeeds in 245ms.
 - Architectural Reviewer (`thr_qe4k97td97`): VERDICT: PASS (all P2s resolved).
 - Product Reviewer (`thr_bsdsrjz3pa`): VERDICT: PASS.
+
+## Cycle 37: Pure Minimal Floating Interface & Borderless Atmosphere (2026-10-22)
+
+### Context & Goal
+- Remove all artificial button and container borders across the application, centering visual focus entirely on the campfire and the contemplative meadow clearing.
+- Strip away redundant interface chrome: analytics buttons, pult buttons, technical controls drawer, meeting audio toggle, phase selectors, and music controls.
+- Transform header to clean, borderless typography: `салон присутствия · разговор у костра`.
+- Retain only the quiet, borderless floating microphone toggle at the bottom HUD.
+
+### Decisions & Changes
+1. **SalonHeader**:
+   - Removed borders, analytics trigger, pult trigger, and heavy backdrop.
+   - Text updated: `салон присутствия · разговор у костра`.
+2. **VoiceIndicator**:
+   - Stripped all border frames (`border-0`, no border classes on button, error toasts, or badges).
+   - Floats cleanly on subtle dark glass `bg-black/25 hover:bg-black/45 rounded-full`.
+3. **Button Component (`src/components/ui/button.tsx`)**:
+   - Removed borders from all variants (`default`, `primary`, `destructive`, `outline`).
+4. **SalonControls Removal**:
+   - Eliminated Zoom meeting audio toggle, music toggle, phase selector buttons, and drawer from `SalonExperience.tsx`.
+5. **Code Hygiene & Boundaries (AP-019, AP-029)**:
+   - `SalonExperience.tsx`: 152 lines ($\le 250$).
+   - `SalonHeader.tsx`: 12 lines ($\le 250$).
+   - `VoiceIndicator.tsx`: 119 lines ($\le 250$).
+   - 0 TypeScript warnings, 0 unused variables.
+
+### Verification
+- Vitest: 33 test files, 135 tests passing cleanly.
+- TypeScript: `tsc --noEmit` 0 errors.
+- Vite: Production build succeeds in 318ms.
+- PM2: restarted cleanly on port 4343.
+

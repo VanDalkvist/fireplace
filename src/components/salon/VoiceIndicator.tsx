@@ -58,10 +58,9 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
         title={isListening ? "остановить микрофон (v)" : "включить микрофон (v)"}
         disabled={!isSupported}
         className={cn(
-          "relative flex items-center justify-center gap-2 px-3.5 py-1 min-w-[132px] bg-black/40 border rounded-full backdrop-blur-md transition-all duration-300",
+          "relative flex items-center justify-center gap-2 px-3.5 py-1 min-w-[132px] bg-black/25 hover:bg-black/45 rounded-full backdrop-blur-md transition-all duration-300",
           isSupported ? "cursor-pointer" : "opacity-50 cursor-not-allowed",
-          !isListening && "border-border/60 text-muted/80 hover:border-muted hover:text-foreground",
-          isListening && "border-primary/50 text-primary shadow-sm shadow-primary/20"
+          isListening ? "text-primary/90" : "text-muted/70 hover:text-foreground"
         )}
       >
         {/* Dynamic VU Meter Ring: subtle breathing pulse without button resizing or flashing */}
@@ -98,15 +97,15 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
 
       <div className="h-5 flex items-center justify-center pointer-events-none">
         {errorMessage ? (
-          <div className="flex items-center gap-2 px-3 py-0.5 bg-destructive/15 border border-destructive/40 rounded-[2px] text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
+          <div className="flex items-center gap-2 px-3 py-0.5 bg-destructive/15 rounded-full text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
             <span>{cleanErrorMessage(errorMessage)}</span>
           </div>
         ) : interimText ? (
           <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary/90 italic max-w-sm text-center truncate animate-pulse">
             <span>«{interimText}…»</span>
             {interimBadge && (
-              <span className="not-italic text-[10px] px-1.5 py-0.2 bg-primary/20 text-primary border border-primary/40 rounded-[2px]">
-                [{interimBadge.text}]
+              <span className="not-italic text-[10px] px-1.5 py-0.5 bg-primary/20 text-primary rounded-full">
+                {interimBadge.text}
               </span>
             )}
           </div>

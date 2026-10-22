@@ -6,7 +6,6 @@ import { useSalonSpeech } from "@/hooks/useSalonSpeech";
 import { useSalonCanvas } from "@/hooks/useSalonCanvas";
 import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
-import { SalonControls } from "./salon/SalonControls";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ export const SalonExperience: React.FC = () => {
     handleAdvanceTurn,
     triggerNextTurn,
     handleSelectSpeaker,
-    handleResetCircle,
   } = useSalonSession();
 
   const {
@@ -56,8 +54,6 @@ export const SalonExperience: React.FC = () => {
     interimBadge,
     speechError,
     speechRef,
-    handleToggleMeetingAudio,
-    resetVoiceprints,
   } = useSalonSpeech({
     sttEngine,
     phase: state.phase,
@@ -123,11 +119,8 @@ export const SalonExperience: React.FC = () => {
       <canvas ref={canvasRef} onClick={handleCanvasClick} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
 
       {/* Floating Header */}
-      <div className={cn("fixed top-3 left-4 right-4 z-10 transition-all duration-300", isZen && "-translate-y-4 opacity-0 pointer-events-none")}>
-        <SalonHeader
-          onOpenPult={() => setIsPultOpen(true)}
-          onOpenAnalytics={() => setIsAnalyticsOpen(true)}
-        />
+      <div className={cn("fixed top-3 left-4 right-4 z-10 transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>
+        <SalonHeader />
       </div>
 
       {/* Floating Bottom HUD */}
@@ -144,24 +137,6 @@ export const SalonExperience: React.FC = () => {
           isMeetingAudio={isMeetingConnected}
           onToggleListening={() => speechRef.current?.toggle()}
           isSupported={speechRef.current?.isSupported()}
-        />
-        <SalonControls
-          phase={state.phase}
-          isAudioOn={isAudioOn}
-          isDemoActive={isDemoActive}
-          isVerbatimMode={isVerbatimMode}
-          onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
-          isMeetingAudioConnected={isMeetingConnected}
-          sttEngine={sttEngine}
-          onToggleSttEngine={() =>
-            setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
-          }
-          onResetVoiceprints={resetVoiceprints}
-          onResetCircle={handleResetCircle}
-          onToggleMeetingAudio={handleToggleMeetingAudio}
-          onPhaseSelect={handlePhaseSelect}
-          onAudioToggle={handleAudioToggle}
-          onToggleDemo={() => setIsDemoActive((prev) => !prev)}
         />
       </div>
 
