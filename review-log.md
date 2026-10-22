@@ -65,3 +65,13 @@
 - Vite: Production build succeeds in 318ms.
 - PM2: restarted cleanly on port 4343.
 
+## Cycle 37b: Top-Right Subtle Gear Pult (2026-10-22)
+
+### Changes
+- Implemented `TechnicalGearPult` in the top-right corner, tucked away behind a tiny subtle gear icon (`Settings`, `w-7 h-7 rounded-full bg-black/20 hover:bg-black/50`).
+- Clicking the gear smoothly slides out a horizontal control bar to the left (`slide-in-from-right-4 fade-in`), completely borderless (`bg-[#0a0705]/85 backdrop-blur-xl rounded-full`).
+- Retained full technical debug suite: STT engine cycling, verbatim/distill mode toggle, procedural fire audio toggle, phase selector, demo mode, and circle reset.
+- Pressing `Esc` or clicking the icon again closes it.
+- Tested in `tests/technical-gear-pult.test.tsx` (136 tests passing).
+
+
