@@ -9,10 +9,12 @@ interface SalonControlsProps {
   isListening?: boolean;
   isDemoActive: boolean;
   engineStatus?: { online: boolean; hasModel: boolean };
+  sttEngine?: "whisper" | "google";
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
   onSpeechToggle?: () => void;
   onInputToggle?: () => void;
+  onToggleSttEngine?: () => void;
   onTriggerTurn: () => void;
   onToggleDemo: () => void;
   onAddPhrase: (text: string, family: string, kind?: 'feeling' | 'desire' | 'pass') => void;
@@ -33,10 +35,12 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   isListening = false,
   isDemoActive,
   engineStatus,
+  sttEngine = "whisper",
   onPhaseSelect,
   onAudioToggle,
   onSpeechToggle,
   onInputToggle,
+  onToggleSttEngine,
   onTriggerTurn,
   onToggleDemo,
   onAddPhrase,
@@ -90,6 +94,17 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
           >
             {isListening ? <Mic className="w-3.5 h-3.5 text-primary" /> : <MicOff className="w-3.5 h-3.5" />}
             <span>голос (v)</span>
+          </button>
+        )}
+
+        {onToggleSttEngine && (
+          <button
+            onClick={onToggleSttEngine}
+            title="Переключить движок распознавания речи (whisper vs google)"
+            className="flex items-center gap-1 px-2 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-[10px] text-muted hover:text-foreground transition-colors"
+          >
+            <span className="opacity-60">stt:</span>
+            <span className="font-bold text-primary">{sttEngine}</span>
           </button>
         )}
 

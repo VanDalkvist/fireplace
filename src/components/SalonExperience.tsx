@@ -5,7 +5,8 @@ import { DEMO_PHRASES } from "@/domain/demo-script";
 import { distillSpokenPhrase } from "@/domain/lexicon-engine";
 import { distillWithNeuralFallback, checkOllamaStatus } from "@/domain/phrase-distiller";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
-import { SalonSpeechEngine } from "@/speech/speech-engine";
+import { createSpeechEngine } from "@/speech/speech-factory";
+import type { SpeechEnginePort, SpeechEngineKind } from "@/speech/speech-types";
 import { SalonAudioEngine } from "@/audio/audio-engine";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
 import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
@@ -28,6 +29,9 @@ export const SalonExperience: React.FC = () => {
   const [isZen, setIsZen] = useState(false);
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [engineStatus, setEngineStatus] = useState({ online: false, hasModel: false });
+  const [sttEngine, setSttEngine] = useState<SpeechEngineKind>(() =>
+    typeof window !== "undefined" && window.location.search.includes("stt=google") ? "google" : "whisper"
+  );
   const [isDemoActive, setIsDemoActive] = useState(() => typeof window !== "undefined" && window.location.search.includes("demo=1"));
   const [lastPhrase, setLastPhrase] = useState("тишина у огня");
   const [interimPhrase, setInterimPhrase] = useState(isVoiceInit ? "я чувствую замедление" : "");
@@ -38,7 +42,7 @@ export const SalonExperience: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioRef = useRef<SalonAudioEngine | null>(null);
   const motionRef = useRef<SalonMotionEngine | null>(null);
-  const speechRef = useRef<SalonSpeechEngine | null>(null);
+  const speechRef = useRef<SpeechEnginePort | null>(null);
   if (!audioRef.current) audioRef.current = new SalonAudioEngine();
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
   useEffect(() => { checkOllamaStatus().then(setEngineStatus); }, []);
@@ -116,8 +120,9 @@ export const SalonExperience: React.FC = () => {
     });
   }, []);
 
-  if (!speechRef.current) {
-    speechRef.current = new SalonSpeechEngine({
+  useEffect(() => {
+    speechRef.current?.stop();
+    speechRef.current = createSpeechEngine(sttEngine, {
       onInterimPhrase: (text) => {
         setInterimPhrase(text);
         const p = distillSpokenPhrase(text, defaultLexiconIndex);
@@ -130,7 +135,7 @@ export const SalonExperience: React.FC = () => {
       onError: (err) => { setSpeechError(err); setIsListening(false); },
       onStatusChange: (active) => { setIsListening(active); if (active) setSpeechError(null); },
     });
-  }
+  }, [sttEngine, handleSpeechResult]);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -148,17 +153,15 @@ export const SalonExperience: React.FC = () => {
   }, []);
 
   useSalonHotkeys({
-    onTogglePult: () => setIsPultOpen((prev) => !prev), onToggleHelp: () => setIsIntroOpen((prev) => !prev),
-    onToggleZen: () => setIsZen((prev) => !prev),
+    onTogglePult: () => setIsPultOpen((p) => !p), onToggleHelp: () => setIsIntroOpen((p) => !p),
+    onToggleZen: () => setIsZen((p) => !p),
     onToggleFullscreen: () => {
       if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
       else document.exitFullscreen?.();
     },
     onTriggerTurn: triggerNextTurn, onPass: handlePass, onToggleAudio: handleAudioToggle,
-    onToggleSpeech: () => speechRef.current?.toggle(),
-    onToggleInput: () => setIsInputOpen((prev) => !prev),
-    onAdvanceTurn: handleAdvanceTurn,
-    onSelectPhase: (phase) => setState((prev) => setPhase(prev, phase)),
+    onToggleSpeech: () => speechRef.current?.toggle(), onToggleInput: () => setIsInputOpen((p) => !p),
+    onAdvanceTurn: handleAdvanceTurn, onSelectPhase: (phase) => setState((prev) => setPhase(prev, phase)),
   });
 
   useEffect(() => {
@@ -204,13 +207,15 @@ export const SalonExperience: React.FC = () => {
         <VoiceIndicator
           isListening={isListening} activeSpeakerNumber={state.activeSpeakerId}
           lastPhraseText={lastPhrase} interimText={interimPhrase} interimBadge={interimBadge}
-          errorMessage={speechError}
+          errorMessage={speechError} engineType={sttEngine}
           onToggleListening={() => speechRef.current?.toggle()} isSupported={speechRef.current?.isSupported()}
         />
         <div className="w-full max-w-[1100px]">
           <SalonControls
             phase={state.phase} isAudioOn={isAudioOn} isListening={isListening} isDemoActive={isDemoActive}
-            engineStatus={engineStatus} onInputToggle={() => setIsInputOpen((prev) => !prev)}
+            engineStatus={engineStatus} sttEngine={sttEngine}
+            onToggleSttEngine={() => setSttEngine((prev) => (prev === "whisper" ? "google" : "whisper"))}
+            onInputToggle={() => setIsInputOpen((prev) => !prev)}
             onPhaseSelect={(p: SessionPhase) => setState((prev) => setPhase(prev, p))}
             onAudioToggle={handleAudioToggle} onSpeechToggle={() => speechRef.current?.toggle()}
             onTriggerTurn={triggerNextTurn}
@@ -218,8 +223,7 @@ export const SalonExperience: React.FC = () => {
             onAddPhrase={(text, family, kind) => {
               if (kind === "pass") handlePass();
               else if (kind === "desire") handleAddDesire(text);
-              else if (family) handleAddFeeling(text, family);
-              else handleSpeechResult(text);
+              else handleAddFeeling(text, family || "спокойствие");
             }}
           />
         </div>
@@ -239,10 +243,7 @@ export const SalonExperience: React.FC = () => {
         isListening={isListening} onToggleListening={() => speechRef.current?.toggle()}
         isSpeechSupported={speechRef.current?.isSupported()}
       />
-      <IntroDialog
-        open={isIntroOpen} onOpenChange={setIsIntroOpen}
-        onEnterCircle={() => { setIsIntroOpen(false); if (!isAudioOn) handleAudioToggle(); }}
-      />
+      <IntroDialog open={isIntroOpen} onOpenChange={setIsIntroOpen} onEnterCircle={() => { setIsIntroOpen(false); if (!isAudioOn) handleAudioToggle(); }} />
     </div>
   );
 };

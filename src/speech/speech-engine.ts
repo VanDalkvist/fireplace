@@ -3,14 +3,12 @@ import type {
   SpeechRecognitionInstanceLike,
   SpeechRecognitionEventLike,
   SpeechRecognitionErrorEventLike,
+  SpeechEnginePort,
+  SpeechEngineKind,
+  SpeechEngineCallbacks,
 } from "./speech-types";
 
-export interface SpeechEngineCallbacks {
-  onInterimPhrase?: (text: string) => void;
-  onFinalPhrase?: (text: string) => void;
-  onError?: (error: string) => void;
-  onStatusChange?: (isListening: boolean) => void;
-}
+export type { SpeechEngineCallbacks };
 
 export function isElectron(): boolean {
   if (typeof window === "undefined") return false;
@@ -18,7 +16,7 @@ export function isElectron(): boolean {
   return ua.includes(" electron/") || Boolean((window as unknown as { process?: { type?: string } }).process);
 }
 
-export class SalonSpeechEngine {
+export class SalonSpeechEngine implements SpeechEnginePort {
   private recognition: SpeechRecognitionInstanceLike | null = null;
   private isListeningActive = false;
   private shouldRestart = false;
@@ -39,6 +37,10 @@ export class SalonSpeechEngine {
       webkitSpeechRecognition?: SpeechRecognitionConstructor;
     };
     return Boolean(nav.SpeechRecognition || nav.webkitSpeechRecognition);
+  }
+
+  public getEngineType(): SpeechEngineKind {
+    return "google";
   }
 
   private initRecognition(): void {

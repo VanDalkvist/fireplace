@@ -1,3 +1,21 @@
+export type SpeechEngineKind = "whisper" | "google";
+
+export interface SpeechEngineCallbacks {
+  onInterimPhrase?: (text: string) => void;
+  onFinalPhrase?: (text: string) => void;
+  onError?: (error: string) => void;
+  onStatusChange?: (active: boolean) => void;
+}
+
+export interface SpeechEnginePort {
+  start(): void;
+  stop(): void;
+  toggle(): void;
+  flush(): void;
+  isSupported(): boolean;
+  getEngineType(): SpeechEngineKind;
+}
+
 export interface SpeechRecognitionAlternativeLike {
   readonly transcript: string;
   readonly confidence: number;

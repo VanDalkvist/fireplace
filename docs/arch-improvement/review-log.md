@@ -265,8 +265,47 @@
    - Паузы: тайм-аут 4.5с дает участникам пространство для размышления без обрыва.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 8 - 2026-10-22 - Pluggable Dual-Engine STT Architecture (Whisper vs Google)
+
+### Context
+- Branch: `main` (commit head, remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Реализация канонической архитектуры портов и адаптеров (AP-010) для движков распознавания речи по указанию Вани:
+  1. Выделен доменный контракт `SpeechEnginePort` (`start`, `stop`, `toggle`, `flush`, `isSupported`, `getEngineType`) и общий интерфейс обратных вызовов `SpeechEngineCallbacks`.
+  2. Адаптер 1 (`SalonSpeechEngine` / Google Speech Adapter): потоковый STT через `webkitSpeechRecognition`.
+  3. Адаптер 2 (`WhisperSpeechAdapter`): локальный ASR через `StreamRecorder` + нативный Metal M4 сервер `whisper-server` (порт 8085).
+  4. Фабрика `createSpeechEngine(kind, callbacks)` в `src/speech/speech-factory.ts` (AP-020 Composition Root).
+  5. Переключатель `stt: whisper | google` в `SalonControls.tsx` и поддержка query-параметра `?stt=whisper` / `?stt=google` (по дефолту — локальный Whisper). Идентичный показ в UI (`VoiceIndicator.tsx`) и полная сопоставимость качества.
+- Source docs:
+  - `docs/superpowers/plans/2026-10-21-arch-improvement-cycle-8.md`
+  - `src/speech/speech-types.ts`, `src/speech/speech-engine.ts`, `src/speech/whisper-speech-adapter.ts`, `src/speech/speech-factory.ts`, `src/components/SalonExperience.tsx`
+  - `~/Projects/arch-rules/arch-rules.md` (AP-010..AP-071)
+- Architecture gates: AP-010, AP-011, AP-018, AP-019 (лимит <= 250 строк/файл), AP-020 (Composition Root), AP-025 (0 циклов), AP-028 (TDD детерминизм), AP-029 (TypeScript strictness), AP-054 (удобство сравнения), AP-064 (S1 дизайн-система).
+
+### Findings & Resolution
+- [P1] Жесткая привязка к Web Speech без возможности выбора и сравнения - fixed
+  - Resolution: Выделен порт `SpeechEnginePort`, созданы независимые адаптеры `SalonSpeechEngine` и `WhisperSpeechAdapter` под единым API.
+  - Rule: AP-010, AP-018.
+- [P2] Отсутствие переключателя движков в UI - fixed
+  - Resolution: В `SalonControls.tsx` добавлена кнопка `stt: whisper` / `stt: google` с динамическим переключением инстанса на лету и сохранением единого потока событий.
+  - Rule: AP-020, AP-054.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - Лимиты строк: Все 40 файлов в `src/` строго `<= 249` строк (лимит 250, AP-019). Самый длинный файл — `SalonExperience.tsx` (249 строк).
+   - Тесты: 52/52 теста Vitest GREEN по 17 тест-сьютам (`whisper-speech-adapter`, `whisper-client`, `stream-recorder`, `phrase-distiller`, `speech-resilience`, `hearth-input`, etc.).
+   - Сборка: `vite build` успешен за 381 мс.
+   - Тайпчек: `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - Циклические зависимости: 0 circular dependencies (AP-025, `madge`).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Живой стенд: кнопка переключения `stt: whisper` / `stt: google` кликабельна и мгновенно переключает адаптер; оба движка отдают идентичные события `onInterimPhrase` / `onFinalPhrase`; в VoiceIndicator честно отображается активный движок `· слушаю (whisper)...` или `· слушаю (google)...`.
+   - **Вердикт:** `VERDICT: PASS`.
+
 ### Residual Risk
-- Для работы транскрипции Whisper демон `whisper-asr` поднят в PM2 на порту 8085; при его остановке или перезагрузке система корректно информирует пользователя о статусе.
+- При работе в режиме `whisper` локальный процесс `whisper-asr` слушает порт 8085; в режиме `google` требуется Google Chrome с доступом к сети.
+
 
 
 
