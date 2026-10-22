@@ -127,10 +127,11 @@ export function useSalonSession(): UseSalonSessionReturn {
       }
       if (item.desire) {
         audioRef.current?.playDesire();
+        const ensured = ensureParticipant(prev, nextId);
         const withSpeaker: SessionState = {
-          ...prev,
+          ...ensured,
           activeSpeakerId: nextId,
-          participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
+          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
         };
         return addDesireToken(withSpeaker, {
           id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -143,10 +144,11 @@ export function useSalonSession(): UseSalonSessionReturn {
       }
       if (item.family) {
         audioRef.current?.playFeeling(item.family, item.valence ?? 0);
+        const ensured = ensureParticipant(prev, nextId);
         const withSpeaker: SessionState = {
-          ...prev,
+          ...ensured,
           activeSpeakerId: nextId,
-          participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
+          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === nextId })),
         };
         return addFeelingToken(withSpeaker, {
           id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

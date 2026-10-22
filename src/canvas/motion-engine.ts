@@ -47,6 +47,12 @@ export class SalonMotionEngine {
 
     this.seats.syncParticipants(participants, activeSpeakerId);
 
+    // If session was reset, clear active floating words and token cache
+    if (feelings.length === 0 && desires.length === 0 && this.knownTokenIds.size > 0) {
+      this.knownTokenIds.clear();
+      this.words.words = [];
+    }
+
     // Synchronize feelings into hearth ring
     feelings.forEach((token) => {
       if (!this.knownTokenIds.has(token.id)) {
