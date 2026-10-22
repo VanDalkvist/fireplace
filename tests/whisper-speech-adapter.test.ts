@@ -35,7 +35,7 @@ describe('WhisperSpeechAdapter', () => {
     expect(adapter.isSupported()).toBe(true);
   });
 
-  it('keeps listening active after flushing an utterance in continuous open-mic mode', async () => {
+  it('keeps listening active after flushing an utterance in continuous open-mic mode and identifies speaker', async () => {
     const mockRecorder = {
       start: vi.fn().mockResolvedValue(undefined),
       stop: vi.fn().mockResolvedValue(new Blob(['chunk'])),
@@ -44,6 +44,19 @@ describe('WhisperSpeechAdapter', () => {
       isRecording: true,
     };
     (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
+
+    const mockSpeaker = {
+      identify: vi.fn().mockResolvedValue({
+        matched: true,
+        speakerId: 'seat_3',
+        seatNumber: 3,
+        score: 0.89,
+      }),
+      reset: vi.fn().mockResolvedValue(true),
+      getEnrolledSpeakers: vi.fn().mockResolvedValue([]),
+      isAvailable: vi.fn().mockResolvedValue(true),
+    };
+    (adapter as unknown as { speakerPort: typeof mockSpeaker }).speakerPort = mockSpeaker;
 
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
@@ -59,7 +72,7 @@ describe('WhisperSpeechAdapter', () => {
     // Give microtask tick for async fetch
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(callbacks.onFinalPhrase).toHaveBeenCalledWith('тихий покой');
+    expect(callbacks.onFinalPhrase).toHaveBeenCalledWith('тихий покой', 3);
     // In Open-Mic mode, status change to false MUST NOT be called!
     expect(callbacks.onStatusChange).not.toHaveBeenCalledWith(false);
   });

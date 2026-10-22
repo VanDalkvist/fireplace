@@ -1,17 +1,25 @@
 import type { SpeechEnginePort, SpeechEngineCallbacks, SpeechEngineKind } from "./speech-types";
 import { StreamRecorder } from "./stream-recorder";
 import { transcribeAudioBlob } from "./whisper-client";
+import { SherpaSpeakerAdapter } from "@/speaker/sherpa-speaker-adapter";
+import type { SpeakerIdentificationPort } from "@/speaker/speaker-types";
 
 export class WhisperSpeechAdapter implements SpeechEnginePort {
   private recorder: StreamRecorder;
   private callbacks: SpeechEngineCallbacks;
   private isListeningActive = false;
   private whisperUrl: string;
+  private speakerPort: SpeakerIdentificationPort;
   private silenceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(callbacks: SpeechEngineCallbacks = {}, whisperUrl = "http://127.0.0.1:8085") {
+  constructor(
+    callbacks: SpeechEngineCallbacks = {},
+    whisperUrl = "http://127.0.0.1:8085",
+    speakerPort?: SpeakerIdentificationPort
+  ) {
     this.callbacks = callbacks;
     this.whisperUrl = whisperUrl;
+    this.speakerPort = speakerPort || new SherpaSpeakerAdapter();
     this.recorder = new StreamRecorder();
   }
 
@@ -69,9 +77,13 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
     this.callbacks.onInterimPhrase?.("распознавание whisper...");
     try {
-      const text = await transcribeAudioBlob(blob, { url: this.whisperUrl });
+      const [text, speakerResult] = await Promise.all([
+        transcribeAudioBlob(blob, { url: this.whisperUrl }),
+        this.speakerPort.identify(blob),
+      ]);
+
       if (text && text.trim().length > 0) {
-        this.callbacks.onFinalPhrase?.(text);
+        this.callbacks.onFinalPhrase?.(text, speakerResult?.seatNumber);
       }
     } catch (err) {
       if (this.silenceTimer) clearTimeout(this.silenceTimer);

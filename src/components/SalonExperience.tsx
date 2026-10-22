@@ -52,10 +52,12 @@ export const SalonExperience: React.FC = () => {
     lastPhrase,
     interimPhrase,
     interimBadge,
+    identifiedSpeaker,
     speechError,
     speechRef,
     handleSpeechResult,
     handleToggleMeetingAudio,
+    resetVoiceprints,
   } = useSalonSpeech({
     sttEngine,
     phase: state.phase,
@@ -63,6 +65,7 @@ export const SalonExperience: React.FC = () => {
     onPass: handlePass,
     onAddFeeling: handleAddFeeling,
     onAddDesire: handleAddDesire,
+    onSelectSpeaker: handleSelectSpeaker,
     onSwitchToWhisper: () => setSttEngine("whisper"),
   });
 
@@ -138,6 +141,7 @@ export const SalonExperience: React.FC = () => {
         <VoiceIndicator
           isListening={isListening}
           activeSpeakerNumber={state.activeSpeakerId}
+          identifiedSpeaker={identifiedSpeaker}
           lastPhraseText={lastPhrase}
           interimText={interimPhrase}
           interimBadge={interimBadge}
@@ -157,6 +161,7 @@ export const SalonExperience: React.FC = () => {
             engineStatus={engineStatus}
             sttEngine={sttEngine}
             onToggleSttEngine={() => setSttEngine((prev) => (prev === "whisper" ? "google" : "whisper"))}
+            onResetVoiceprints={resetVoiceprints}
             onToggleMeetingAudio={handleToggleMeetingAudio}
             onInputToggle={() => setIsInputOpen((prev) => !prev)}
             onPhaseSelect={handlePhaseSelect}

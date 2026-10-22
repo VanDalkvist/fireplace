@@ -17,6 +17,7 @@ interface SalonControlsProps {
   onToggleMeetingAudio?: () => void;
   onInputToggle?: () => void;
   onToggleSttEngine?: () => void;
+  onResetVoiceprints?: () => void;
   onTriggerTurn: () => void;
   onToggleDemo: () => void;
   onAddPhrase: (text: string, family: string, kind?: 'feeling' | 'desire' | 'pass') => void;
@@ -45,6 +46,7 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   onToggleMeetingAudio,
   onInputToggle,
   onToggleSttEngine,
+  onResetVoiceprints,
   onTriggerTurn,
   onToggleDemo,
   onAddPhrase,
@@ -130,6 +132,17 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
           >
             <span className="opacity-60">stt:</span>
             <span className="font-bold text-primary">{sttEngine}</span>
+          </button>
+        )}
+
+        {onResetVoiceprints && (
+          <button
+            onClick={onResetVoiceprints}
+            title="Сбросить акустические отпечатки участников для нового круга (sherpa CAM++)"
+            className="flex items-center gap-1 px-2 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-[10px] text-muted hover:text-foreground transition-colors"
+          >
+            <span className="opacity-60">голоса:</span>
+            <span className="font-semibold text-foreground/80 hover:text-primary">сброс</span>
           </button>
         )}
 

@@ -2,7 +2,7 @@ export type SpeechEngineKind = "whisper" | "google";
 
 export interface SpeechEngineCallbacks {
   onInterimPhrase?: (text: string) => void;
-  onFinalPhrase?: (text: string) => void;
+  onFinalPhrase?: (text: string, speakerSeat?: number) => void;
   onError?: (error: string) => void;
   onStatusChange?: (active: boolean) => void;
 }

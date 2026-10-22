@@ -18,6 +18,7 @@ interface VoiceIndicatorProps {
   isSupported?: boolean;
   engineType?: "whisper" | "google";
   isMeetingAudio?: boolean;
+  identifiedSpeaker?: { seatNumber: number; speakerId?: string } | null;
 }
 
 export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
@@ -31,6 +32,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   isSupported = true,
   engineType = "whisper",
   isMeetingAudio = false,
+  identifiedSpeaker,
 }) => {
   return (
     <div className="flex flex-col items-center gap-1.5 select-none">
@@ -64,15 +66,22 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
         </span>
 
         <span className="text-[11px] font-mono">
-          {activeSpeakerNumber
-            ? `участник ${activeSpeakerNumber < 10 ? `0${activeSpeakerNumber}` : activeSpeakerNumber} ${
-                isListening
-                  ? `· слушаю ${isMeetingAudio ? "встречу (zoom)" : `(${engineType})`}...`
-                  : "· нажми микрофон (v)"
-              }`
-            : isListening
-            ? `слушаю круг ${isMeetingAudio ? "встречи (zoom)" : `(${engineType})`}...`
-            : "включить голос (v)"}
+          {identifiedSpeaker ? (
+            <span className="text-primary font-semibold">
+              голос: стул {identifiedSpeaker.seatNumber < 10 ? `0${identifiedSpeaker.seatNumber}` : identifiedSpeaker.seatNumber}
+              {isListening ? ` · слушаю ${isMeetingAudio ? "встречу" : `(${engineType})`}...` : ""}
+            </span>
+          ) : activeSpeakerNumber ? (
+            `участник ${activeSpeakerNumber < 10 ? `0${activeSpeakerNumber}` : activeSpeakerNumber} ${
+              isListening
+                ? `· слушаю ${isMeetingAudio ? "встречу (zoom)" : `(${engineType})`}...`
+                : "· нажми микрофон (v)"
+            }`
+          ) : isListening ? (
+            `слушаю круг ${isMeetingAudio ? "встречи (zoom)" : `(${engineType})`}...`
+          ) : (
+            "включить голос (v)"
+          )}
         </span>
 
         {isListening ? (

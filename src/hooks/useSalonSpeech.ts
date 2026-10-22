@@ -7,14 +7,16 @@ import { createSpeechEngine } from "@/speech/speech-factory";
 import type { SpeechEnginePort, SpeechEngineKind } from "@/speech/speech-types";
 import type { SalonAudioEngine } from "@/audio/audio-engine";
 import type { InterimBadge } from "@/components/salon/VoiceIndicator";
+import { createSpeakerIdentifier } from "@/speaker/speaker-factory";
 
 interface UseSalonSpeechOptions {
   sttEngine: SpeechEngineKind;
   phase: SessionPhase;
   audioRef: React.MutableRefObject<SalonAudioEngine | null>;
   onPass: () => void;
-  onAddFeeling: (text: string, family?: string, valence?: number) => void;
-  onAddDesire: (text: string) => void;
+  onAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => void;
+  onAddDesire: (text: string, speakerId?: number) => void;
+  onSelectSpeaker?: (speakerId: number) => void;
   onSwitchToWhisper?: () => void;
 }
 
@@ -25,6 +27,7 @@ export function useSalonSpeech({
   onPass,
   onAddFeeling,
   onAddDesire,
+  onSelectSpeaker,
   onSwitchToWhisper,
 }: UseSalonSpeechOptions) {
   const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
@@ -35,14 +38,39 @@ export function useSalonSpeech({
   const [interimBadge, setInterimBadge] = useState<InterimBadge | null>(
     isVoiceInit ? { text: "замедление", type: "feeling" } : null
   );
+  const [identifiedSpeaker, setIdentifiedSpeaker] = useState<{
+    seatNumber: number;
+    speakerId: string;
+  } | null>(null);
   const [speechError, setSpeechError] = useState<string | null>(null);
   const speechRef = useRef<SpeechEnginePort | null>(null);
+  const speakerPort = useRef(createSpeakerIdentifier()).current;
 
   // Stabilize callbacks against re-render cascades (AP-053, AP-054)
-  const callbacksRef = useRef({ phase, onPass, onAddFeeling, onAddDesire, onSwitchToWhisper });
-  callbacksRef.current = { phase, onPass, onAddFeeling, onAddDesire, onSwitchToWhisper };
+  const callbacksRef = useRef({
+    phase,
+    onPass,
+    onAddFeeling,
+    onAddDesire,
+    onSelectSpeaker,
+    onSwitchToWhisper,
+  });
+  callbacksRef.current = {
+    phase,
+    onPass,
+    onAddFeeling,
+    onAddDesire,
+    onSelectSpeaker,
+    onSwitchToWhisper,
+  };
 
-  const handleSpeechResult = useCallback(async (phrase: string) => {
+  const handleSpeechResult = useCallback(async (phrase: string, speakerSeat?: number) => {
+    // Zero-click acoustic turn taking (AP-054)
+    if (speakerSeat) {
+      setIdentifiedSpeaker({ seatNumber: speakerSeat, speakerId: `seat_${speakerSeat}` });
+      callbacksRef.current.onSelectSpeaker?.(speakerSeat);
+    }
+
     // In-place morphing: keep phrase in UI with [нейрокоррекция] to prevent visual rollback (AP-054)
     setInterimPhrase(phrase);
     setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
@@ -61,20 +89,20 @@ export function useSalonSpeech({
 
     let matched = false;
     for (const f of res.feelings) {
-      feelFn(f.form || f.lemma, f.family, f.valence);
+      feelFn(f.form || f.lemma, f.family, f.valence, speakerSeat);
       matched = true;
     }
     for (const d of res.desires) {
-      desireFn(d.text);
+      desireFn(d.text, speakerSeat);
       matched = true;
     }
     if (!matched) {
       const clean = res.fallbackText || settled;
       if (res.isDesirePhrase || currentPhase === "desires") {
-        desireFn(clean);
+        desireFn(clean, speakerSeat);
       } else {
         // Authenticity (AP-013): keep user's authentic words without fake "спокойствие"
-        feelFn(clean, "живость", 0);
+        feelFn(clean, "живость", 0, speakerSeat);
       }
     }
   }, []);
@@ -134,15 +162,23 @@ export function useSalonSpeech({
     };
   }, [sttEngine, handleSpeechResult]);
 
+  const resetVoiceprints = useCallback(async () => {
+    const ok = await speakerPort.reset();
+    if (ok) setIdentifiedSpeaker(null);
+    return ok;
+  }, [speakerPort]);
+
   return {
     isListening,
     isMeetingConnected,
     lastPhrase,
     interimPhrase,
     interimBadge,
+    identifiedSpeaker,
     speechError,
     speechRef,
     handleSpeechResult,
     handleToggleMeetingAudio,
+    resetVoiceprints,
   };
 }
