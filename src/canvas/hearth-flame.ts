@@ -44,28 +44,22 @@ const LOGS: Log[] = [
 ];
 
 function buildTongues(): Tongue[] {
-  const t: Tongue[] = [];
+  const t: Tongue[] = [
+    { relX: -12, relY: -3, width: 26, baseH: 175, speed: 1.6, phase: 0.2, layer: 'core' },
+    { relX: 4,   relY: 2,  width: 28, baseH: 185, speed: 1.8, phase: 2.1, layer: 'core' },
+    { relX: 18,  relY: -4, width: 22, baseH: 155, speed: 2.0, phase: 4.3, layer: 'core' },
+    { relX: -26, relY: 1,  width: 20, baseH: 145, speed: 1.9, phase: 5.7, layer: 'core' },
+  ];
   for (let i = 0; i < 12; i++) {
-    t.push({
-      relX: (i - 5.5) * 6.5, relY: Math.sin(i * 1.7) * 5 - 2,
-      width: 26 + (i % 3) * 6, baseH: 105 + Math.sin(i * 2.1) * 22,
-      speed: 1.8 + (i % 4) * 0.3, phase: i * 0.65, layer: 'core'
-    });
+    const cx = ((i % 3) - 1) * 24 + ((i % 2 === 0 ? 1 : -1) * 6);
+    t.push({ relX: cx, relY: Math.sin(i * 1.9) * 6 - 1, width: 16 + (i % 3) * 5, baseH: 80 + (i % 4) * 11, speed: 2.1 + (i % 4) * 0.28, phase: i * 0.72 + 1.1, layer: 'body' });
   }
-  for (let i = 0; i < 24; i++) {
-    t.push({
-      relX: (i - 11.5) * 3.6, relY: Math.cos(i * 1.3) * 8 + 2,
-      width: 18 + (i % 4) * 5, baseH: 75 + Math.sin(i * 1.8) * 24,
-      speed: 2.2 + (i % 5) * 0.28, phase: i * 0.44 + 1.2, layer: 'body'
-    });
+  for (let i = 0; i < 16; i++) {
+    t.push({ relX: (i - 7.5) * 5.2 + Math.sin(i * 1.5) * 4, relY: Math.cos(i * 1.7) * 7 + 3, width: 11 + (i % 3) * 4, baseH: 40 + (i % 5) * 6, speed: 2.6 + (i % 4) * 0.35, phase: i * 0.58 + 2.4, layer: 'mantle' });
   }
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 18; i++) {
     const s = i % 2 === 0 ? 1 : -1;
-    t.push({
-      relX: s * (16 + i * 1.5), relY: Math.sin(i * 2.1) * 9 - 4,
-      width: 14 + (i % 3) * 5, baseH: 55 + Math.cos(i * 1.6) * 20,
-      speed: 2.7 + (i % 4) * 0.35, phase: i * 0.52 + 2.4, layer: 'mantle'
-    });
+    t.push({ relX: s * (10 + i * 2.2), relY: 4 + Math.sin(i * 2.3) * 5, width: 7 + (i % 3) * 3, baseH: 18 + (i % 4) * 4, speed: 3.2 + (i % 3) * 0.45, phase: i * 0.81 + 3.7, layer: 'mantle' });
   }
   return t;
 }
@@ -135,12 +129,11 @@ export class HearthFlameSimulator {
     ctx.save();
     ctx.fillStyle = '#0a0705';
     ctx.beginPath();
-    const ashPoints = 24;
-    for (let p = 0; p <= ashPoints; p++) {
-      const a = (p / ashPoints) * TAU;
-      const rJitter = Math.sin(a * 4) * 4.2 + Math.cos(a * 7) * 2.8;
-      const ax = cx + Math.cos(a) * (98 + rJitter);
-      const ay = cy + 4 + Math.sin(a) * (32 + rJitter * 0.33);
+    for (let p = 0; p <= 24; p++) {
+      const a = (p / 24) * TAU;
+      const rJ = Math.sin(a * 4) * 4.2 + Math.cos(a * 7) * 2.8;
+      const ax = cx + Math.cos(a) * (98 + rJ);
+      const ay = cy + 4 + Math.sin(a) * (32 + rJ * 0.33);
       if (p === 0) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay);
     }
     ctx.closePath();
@@ -195,20 +188,20 @@ export class HearthFlameSimulator {
 
     // Pre-create 3 layer gradients per frame
     const coreGrad = ctx.createLinearGradient(cx, gradBaseY, cx, gradTipY);
-    coreGrad.addColorStop(0.0, 'rgba(255, 245, 215, 0.45)');
-    coreGrad.addColorStop(0.32, 'rgba(255, 185, 80, 0.32)');
-    coreGrad.addColorStop(0.75, 'rgba(225, 75, 20, 0.16)');
+    coreGrad.addColorStop(0.0, 'rgba(255, 245, 215, 0.24)');
+    coreGrad.addColorStop(0.32, 'rgba(255, 185, 80, 0.18)');
+    coreGrad.addColorStop(0.75, 'rgba(225, 75, 20, 0.09)');
     coreGrad.addColorStop(1.0, 'rgba(160, 30, 10, 0.0)');
 
     const bodyGrad = ctx.createLinearGradient(cx, gradBaseY, cx, gradTipY);
-    bodyGrad.addColorStop(0.0, 'rgba(255, 200, 100, 0.30)');
-    bodyGrad.addColorStop(0.45, 'rgba(240, 120, 35, 0.22)');
-    bodyGrad.addColorStop(0.82, 'rgba(190, 45, 15, 0.10)');
+    bodyGrad.addColorStop(0.0, 'rgba(255, 200, 100, 0.16)');
+    bodyGrad.addColorStop(0.45, 'rgba(240, 120, 35, 0.11)');
+    bodyGrad.addColorStop(0.82, 'rgba(190, 45, 15, 0.05)');
     bodyGrad.addColorStop(1.0, 'rgba(100, 20, 5, 0.0)');
 
     const mantleGrad = ctx.createLinearGradient(cx, gradBaseY, cx, gradTipY);
-    mantleGrad.addColorStop(0.0, 'rgba(240, 130, 40, 0.22)');
-    mantleGrad.addColorStop(0.52, 'rgba(195, 60, 18, 0.12)');
+    mantleGrad.addColorStop(0.0, 'rgba(240, 130, 40, 0.11)');
+    mantleGrad.addColorStop(0.52, 'rgba(195, 60, 18, 0.06)');
     mantleGrad.addColorStop(1.0, 'rgba(85, 15, 5, 0.0)');
 
     for (let i = 0; i < TONGUES.length; i++) {
