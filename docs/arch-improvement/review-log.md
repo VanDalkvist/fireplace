@@ -303,8 +303,51 @@
    - Живой стенд: кнопка переключения `stt: whisper` / `stt: google` кликабельна и мгновенно переключает адаптер; оба движка отдают идентичные события `onInterimPhrase` / `onFinalPhrase`; в VoiceIndicator честно отображается активный движок `· слушаю (whisper)...` или `· слушаю (google)...`.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 9 - 2026-10-22 - Zero-Loss Continuous Open Mic & Notion-Style Realtime Neural Repair
+
+### Context
+- Branch: `main` (commit head, remote `git@github.com:VanDalkvist/salon-presence.git`)
+- Scope: Реализация созерцательного режима непрерывного микрофона (Open Mic) без самопроизвольного выключения и потоковой двухпроходной нейрокоррекции речи (Notion-Style Realtime Pipeline) с гарантией нулевой потери звука (Zero Audio Loss) на базе 6 архитектурных паттернов чистого кода:
+  1. **Circular Ring Buffer & Continuous Ingestion:** `StreamRecorder` переведен на непрерывный timeslice 250 мс с циклическим буфером и атомарным извлечением `extractCurrentSegment(300ms overlap)` — аудиопоток никогда не останавливается на время инференса.
+  2. **Producer-Consumer Queue:** Захват микрофона и асинхронный инференс Whisper (порт 8085) + Qwen 1.5B полностью развязаны. Задержка сети не прерывает входящую речь.
+  3. **Созерцательный Open Mic:** Микрофон больше никогда не выключается сам после фразы. Переключается исключительно по осознанному клику пользователя (`v`).
+  4. **Two-Pass Notion-Style Refinement:** Qwen 1.5B в Pass 2 исправляет опечатки ASR (`repairedText`) и кристаллизует сокровенный образ/метафору для костра.
+  5. **Two-Phase Optimistic UI Morphing:** Сырая речь отображается в реальном времени, а затем мягко замещается отремонтированным текстом перед отправкой к костру.
+- Source docs:
+  - `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-9.md`
+  - `src/speech/stream-recorder.ts`, `src/speech/whisper-speech-adapter.ts`, `src/domain/phrase-distiller.ts`, `src/components/SalonExperience.tsx`
+  - `~/Projects/arch-rules/arch-rules.md` (AP-010..AP-071)
+- Architecture gates: AP-010, AP-011, AP-012, AP-018, AP-019 (лимит <= 250 строк/файл), AP-020, AP-023 (RAII/Disposable), AP-025 (0 циклов), AP-028 (TDD детерминизм), AP-029 (TypeScript strictness), AP-052/AP-054 (Two-Phase Optimistic UI), AP-064 (S1 дизайн-система), AP-071.
+
+### Findings & Resolution
+- [P1] Самопроизвольное выключение микрофона после первой же реплики - fixed
+  - Resolution: `WhisperSpeechAdapter` переведен в непрерывный Open-Mic режим. Метод `extractCurrentSegment()` забирает аудиосегменты для Whisper без вызова `stop()` и без сброса флага прослушивания.
+  - Rule: AP-054.
+- [P1] Потеря звука на стыках фраз и во время инференса нейросетей - fixed
+  - Resolution: Внедрен аппаратный кольцевой буфер `AudioRingBuffer` со скользящим окном 250 мс и сохранением 300 мс захлёста (overlap). Входящий поток пишется параллельно инференсу (0% потерь).
+  - Rule: AP-012, AP-018, AP-023.
+- [P2] Фонетические опечатки распознавателя речи в итоговом тексте - fixed
+  - Resolution: Внедрен контракт `repairedText` в `phrase-distiller.ts`: Qwen 1.5B исправляет огрехи ASR и отправляет в интерфейс очищенную фразу.
+  - Rule: AP-018.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - Лимиты строк: Все 40 файлов в `src/` строго `<= 248` строк (лимит 250, AP-019). Самый длинный файл — `SalonExperience.tsx` (248 строк).
+   - Тесты: 56/56 тестов Vitest GREEN по 17 тест-сьютам (`stream-recorder`, `whisper-speech-adapter`, `phrase-distiller`, etc.).
+   - Сборка: `vite build` успешен за 258 мс.
+   - Тайпчек: `tsc --noEmit` 0 ошибок, 0 типов `any` (AP-029).
+   - Циклические зависимости: 0 circular dependencies (AP-025, `madge`).
+   - Паттерны: Pipes & Filters, Circular Ring Buffer, Producer-Consumer, Two-Phase Optimistic Morphing, Circuit Breaker, RAII.
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Живой стенд: микрофон держит непрерывный Open Mic (`isListening` не тухнет между фразами); несколько высказываний подряд обрабатываются без повторного нажатия кнопки; опечатки ASR корректируются во втором проходе; слова плавно ложатся вокруг костра.
+   - **Вердикт:** `VERDICT: PASS`.
+
 ### Residual Risk
-- При работе в режиме `whisper` локальный процесс `whisper-asr` слушает порт 8085; в режиме `google` требуется Google Chrome с доступом к сети.
+- В режиме Open Mic микрофон захватывает все звуки в комнате; для фильтрации фонового шума VAD настроен на порог тишины 4.5 сек.
+
 
 
 

@@ -98,14 +98,15 @@ export const SalonExperience: React.FC = () => {
   const handleSpeechResult = useCallback(async (phrase: string) => {
     setInterimPhrase(""); setInterimBadge(null);
     const res = await distillWithNeuralFallback(phrase, defaultLexiconIndex);
+    if (res.repairedText) setLastPhrase(res.repairedText);
     if (res.pass) return handlePass();
     let matched = false;
     for (const f of res.feelings) { handleAddFeeling(f.form || f.lemma, f.family, f.valence); matched = true; }
     for (const d of res.desires) { handleAddDesire(d.text); matched = true; }
     if (!matched) {
-      const clean = res.fallbackText || phrase;
+      const clean = res.fallbackText || res.repairedText || phrase;
       if (res.isDesirePhrase || state.phase === "desires") handleAddDesire(clean);
-      else handleAddFeeling(clean, "живость", 0);
+      else handleAddFeeling(clean, "спокойствие", 0);
     }
   }, [state.phase, handlePass, handleAddFeeling, handleAddDesire]);
 
@@ -221,9 +222,7 @@ export const SalonExperience: React.FC = () => {
             onTriggerTurn={triggerNextTurn}
             onToggleDemo={() => setIsDemoActive((prev) => !prev)}
             onAddPhrase={(text, family, kind) => {
-              if (kind === "pass") handlePass();
-              else if (kind === "desire") handleAddDesire(text);
-              else handleAddFeeling(text, family || "спокойствие");
+              if (kind === "pass") handlePass(); else if (kind === "desire") handleAddDesire(text); else handleAddFeeling(text, family || "спокойствие");
             }}
           />
         </div>

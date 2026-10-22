@@ -18,9 +18,11 @@ describe('StreamRecorder', () => {
       public mimeType = 'audio/webm';
       public ondataavailable: ((e: { data: Blob }) => void) | null = null;
       public onstop: (() => void) | null = null;
+      public startedWithTimeslice: number | undefined;
 
-      public start(): void {
+      public start(timeslice?: number): void {
         this.state = 'recording';
+        this.startedWithTimeslice = timeslice;
       }
 
       public stop(): void {
@@ -53,6 +55,39 @@ describe('StreamRecorder', () => {
     const blob = await blobPromise;
     expect(blob).toBeInstanceOf(Blob);
     expect(recorder.isRecording).toBe(false);
+  });
+
+  it('extracts current segment as Blob while keeping recording active (zero loss)', async () => {
+    await recorder.start(mockStream, 250);
+
+    const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
+    mediaRecInstance.ondataavailable({ data: new Blob(['chunk1 '], { type: 'audio/webm' }) });
+    mediaRecInstance.ondataavailable({ data: new Blob(['chunk2 '], { type: 'audio/webm' }) });
+
+    const segment = recorder.extractCurrentSegment(0);
+    expect(segment).toBeInstanceOf(Blob);
+    expect(recorder.isRecording).toBe(true);
+
+    const text = await segment.text();
+    expect(text).toBe('chunk1 chunk2 ');
+  });
+
+  it('preserves overlap chunk when extracting segment', async () => {
+    await recorder.start(mockStream, 250);
+
+    const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
+    mediaRecInstance.ondataavailable({ data: new Blob(['partA '], { type: 'audio/webm' }) });
+    mediaRecInstance.ondataavailable({ data: new Blob(['partB '], { type: 'audio/webm' }) });
+
+    // With overlap, partB is kept for the next segment
+    const segment1 = recorder.extractCurrentSegment(300);
+    expect(segment1).toBeInstanceOf(Blob);
+
+    mediaRecInstance.ondataavailable({ data: new Blob(['partC '], { type: 'audio/webm' }) });
+    const segment2 = recorder.extractCurrentSegment(0);
+    const text2 = await segment2.text();
+
+    expect(text2).toBe('partB partC ');
   });
 
   it('cleans up stream tracks upon cleanup call', async () => {

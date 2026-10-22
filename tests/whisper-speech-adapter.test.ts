@@ -34,4 +34,33 @@ describe('WhisperSpeechAdapter', () => {
 
     expect(adapter.isSupported()).toBe(true);
   });
+
+  it('keeps listening active after flushing an utterance in continuous open-mic mode', async () => {
+    const mockRecorder = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(new Blob(['chunk'])),
+      extractCurrentSegment: vi.fn().mockReturnValue(new Blob(['phrase audio'], { type: 'audio/webm' })),
+      cleanup: vi.fn(),
+      isRecording: true,
+    };
+    (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: 'тихий покой' }),
+    } as unknown as Response);
+
+    await adapter.start();
+    expect(callbacks.onStatusChange).toHaveBeenCalledWith(true);
+
+    // Flush current phrase segment
+    adapter.flush();
+
+    // Give microtask tick for async fetch
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(callbacks.onFinalPhrase).toHaveBeenCalledWith('тихий покой');
+    // In Open-Mic mode, status change to false MUST NOT be called!
+    expect(callbacks.onStatusChange).not.toHaveBeenCalledWith(false);
+  });
 });

@@ -78,6 +78,30 @@ describe('Neural Phrase Distiller', () => {
     expect(res.feelings[0].lemma).not.toContain("глубинный смысл");
   });
 
+  it('repairs ASR recognition errors in Pass 2 and returns repairedText alongside feelings', async () => {
+    const fakeLlmResponse = {
+      response: JSON.stringify({
+        repaired_text: "покой у огня и замедление",
+        phrase: "покой у огня",
+        family: "спокойствие",
+        valence: 0.8,
+      })
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => fakeLlmResponse,
+    } as unknown as Response);
+
+    const noisyAsrUtterance = "покою огня и за медленнее";
+    const res = await distillWithNeuralFallback(noisyAsrUtterance, defaultLexiconIndex, {
+      ollamaUrl: "http://127.0.0.1:11434",
+    });
+
+    expect(res.repairedText).toBe("покой у огня и замедление");
+    expect(res.feelings[0].lemma).toBe("покой у огня");
+  });
+
   it('checks real Ollama status and identifies presence of target model', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,

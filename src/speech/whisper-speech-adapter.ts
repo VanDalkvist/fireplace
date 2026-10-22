@@ -32,20 +32,44 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   public async start(stream?: MediaStream): Promise<void> {
     if (this.isListeningActive) return;
     try {
-      await this.recorder.start(stream);
+      await this.recorder.start(stream, 250);
       this.isListeningActive = true;
       this.callbacks.onStatusChange?.(true);
 
-      // Periodically check for interim previews or pause finalization
-      if (this.silenceTimer) clearTimeout(this.silenceTimer);
-      this.silenceTimer = setTimeout(() => {
-        this.flush();
-      }, 4500);
+      this.armSilenceTimer();
     } catch (err) {
       this.isListeningActive = false;
       this.callbacks.onStatusChange?.(false);
       this.callbacks.onError?.(
         err instanceof Error ? err.message : "Не удалось запустить запись для Whisper"
+      );
+    }
+  }
+
+  private armSilenceTimer(): void {
+    if (this.silenceTimer) clearTimeout(this.silenceTimer);
+    this.silenceTimer = setTimeout(() => {
+      this.processCurrentSegment();
+      if (this.isListeningActive) {
+        this.armSilenceTimer();
+      }
+    }, 4500);
+  }
+
+  private async processCurrentSegment(overlapMs = 300): Promise<void> {
+    if (!this.isListeningActive) return;
+    const blob = this.recorder.extractCurrentSegment(overlapMs);
+    if (!blob || blob.size === 0) return;
+
+    this.callbacks.onInterimPhrase?.("распознавание whisper...");
+    try {
+      const text = await transcribeAudioBlob(blob, { url: this.whisperUrl });
+      if (text) {
+        this.callbacks.onFinalPhrase?.(text);
+      }
+    } catch (err) {
+      this.callbacks.onError?.(
+        `Ошибка Whisper ASR: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
@@ -86,8 +110,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
   public flush(): void {
     if (!this.isListeningActive) return;
-    this.stop().then(() => {
-      // Re-arm listening if desired
-    });
+    this.processCurrentSegment(0);
+    this.armSilenceTimer();
   }
 }

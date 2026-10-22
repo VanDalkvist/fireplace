@@ -7,11 +7,13 @@ export interface NeuralDistillerOptions {
 }
 
 export interface EnrichedDistillationResult extends DistillationResult {
+  repairedText?: string;
   neuralDistilled?: boolean;
   engineUsed: "qwen2.5:1.5b" | "qwen2.5:0.5b" | "lexicon-fallback";
 }
 
 interface LlmDistillPayload {
+  repaired_text?: string;
   phrase?: string;
   family?: string;
   valence?: number;
@@ -40,13 +42,16 @@ export async function distillWithNeuralFallback(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-    const prompt = `Ты — созерцательный слушатель у костра. Извлеки суть и сокровенное чувство из слов участника, сохранив живую метафору и отбросив бытовой шум. Если человек просто назвал свое состояние, сохрани эту суть.
+    const prompt = `Ты — созерцательный слушатель у костра. Твоя задача:
+1. Исправь опечатки и ослышки распознавания речи в высказывании участника.
+2. Извлеки суть и сокровенное чувство, сохранив живую метафору и отбросив бытовой шум.
 
 Слова участника: "${trimmed}"
 
 Выведи JSON с полями:
-- phrase (строка: извлеченное чувство или образ участника)
-- family (одно емкое слово, описывающее оттенок или категорию чувства — например, благодарность, уязвимость, покой, грусть, тревога, радость, нежность, трепет, усталость или любое точное слово)
+- repaired_text (строка: исправленный чистый текст высказывания без опечаток)
+- phrase (строка: сокровенное чувство или живая метафора участника)
+- family (одно емкое слово оттенка чувства — например покой, тепло, грусть, благодарность, уязвимость или любое точное слово)
 - valence (число от -1.0 до 1.0)
 
 JSON:`;
@@ -78,10 +83,16 @@ JSON:`;
 
         const effectivePhrase = isTemplateLeak ? trimmed : phraseClean;
 
+        const repaired = (parsed.repaired_text || "").trim() || trimmed;
+
         if (effectivePhrase) {
           const kind = parsed.kind || "feeling";
           if (kind === "pass") {
-            return { feelings: [], desires: [], pass: true, neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b" };
+            return {
+              feelings: [], desires: [], pass: true,
+              repairedText: repaired,
+              neuralDistilled: true, engineUsed: model as "qwen2.5:1.5b",
+            };
           }
           if (kind === "desire") {
             return {
@@ -89,6 +100,7 @@ JSON:`;
               desires: [{ text: effectivePhrase, object: effectivePhrase, who: null }],
               pass: false,
               isDesirePhrase: true,
+              repairedText: repaired,
               neuralDistilled: true,
               engineUsed: model as "qwen2.5:1.5b",
             };
@@ -106,6 +118,7 @@ JSON:`;
             ],
             desires: [],
             pass: false,
+            repairedText: repaired,
             neuralDistilled: true,
             engineUsed: model as "qwen2.5:1.5b",
           };
