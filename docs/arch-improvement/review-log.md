@@ -627,6 +627,43 @@
    - Сборка `vite build` 280 мс без предупреждений.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 19 - 2026-10-22 - Industrial Adaptive VAD, Sliding-Window Dynamic Dispatch & Live Audio VU Meter
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-19-natural-vad-dynamic-dispatch.md`
+- Scope:
+  1. Внедрение промышленного порта `VoiceActivityDetectorPort` и адаптивного VAD на базе AssemblyAI (`src/speech/vad/energy-vad.ts`) с непрерывным EMA-трекингом плавающего фонового шума комнаты/Zoom и фреймами зависания (hangover) для устранения обрывов на микропаузах и вдохах.
+  2. Ликвидация жесткого таймера 4.5 с: переход на динамическую диспетчеризацию речи по естественной паузе (End-of-Utterance debounce 850 мс) с сохранением преролл-буфера (500 мс) для первых согласных звуков.
+  3. Реализация Dual-Track Sliding Window с Left Context Overlap (1.5 с) по модели FluidAudio: при непрерывном длинном монологе в Zoom (>7 с) сегмент безопасно финализируется, а следующий чанк забирает 1.5 с контекста предыдущего чанка, предотвращая разрезку слов посередине слога.
+  4. Живой VU-метр и визуальная прозрачность конвейера в `VoiceIndicator`: реактивное кольцо микрофона пульсирует в реальном времени от фактического RMS входного аудиопотока (0.0…1.0), а статус наглядно информирует о текущей фазе (`idle` -> `hearing` -> `transcribing` -> `distilling`).
+  5. Декомпозиция компонентов с соблюдением AP-019: `stream-recorder.ts` сокращен до 247 строк, все новые файлы $\le 197$ строк, строго $\le 250$ строк.
+
+### Findings Fixed
+- [P1] Rigid Blind 4.5s Audio Slicing (AP-012, AP-013) — RESOLVED via natural EOU pause dispatch (850ms) and monologue ceiling (7.0s).
+- [P1] Silent VAD Black Hole & Missing Adaptive Noise Floor (AP-012, AP-054) — RESOLVED via AssemblyAI adaptive EMA noise floor port (`EnergyVad`).
+- [P1] User Blindness & Missing Real-Time Audio Feedback (AP-054) — RESOLVED via live reactive VU meter and explicit pipeline status badges in `VoiceIndicator`.
+- [P2] Monologue Boundary Severing (AP-013, AP-026) — RESOLVED via FluidAudio left-context overlap (1.5s).
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 105/105 тестов Vitest GREEN (28 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 247$ строк (строгий PASS AP-019 $\le 250$).
+   - Четкое разделение слоев: VAD изолирован через `VoiceActivityDetectorPort` (AP-010).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Сценарий 1 (Короткая фраза -> EOU пауза 850 мс -> немедленный улет в GigaAM v3): подтвержден тестами и рантаймом.
+   - Сценарий 2 (Монолог 25 с -> нарезка на 7 с с 1.5 с левым контекстом без потери слов): подтвержден `tests/stream-recorder.test.ts`.
+   - Сценарий 3 (Тихий голос из динамиков Zoom -> адаптация шума EMA -> 0 ложных пропусков): подтвержден `tests/energy-vad.test.ts`.
+   - Сценарий 4 (Живой VU-метр -> реакция ободка на RMS -> явные статусы): подтвержден `tests/voice-indicator.test.tsx`.
+   - PM2 процессы онлайн: `gigaam-asr` (9876), `whisper-asr` (8085), `sherpa-speaker` (8086), `salon-presence` (4343).
+   - Сборка `vite build` — 269 мс.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 
