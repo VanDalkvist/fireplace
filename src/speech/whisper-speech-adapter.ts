@@ -11,7 +11,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   private isListeningActive = false;
   private asrPort: SpeechToTextPort;
   private speakerPort: SpeakerIdentificationPort;
-  private silenceTimer: ReturnType<typeof setTimeout> | null = null;
+  private maxDurationTimer: ReturnType<typeof setTimeout> | null = null;
   private consecutiveErrors = 0;
 
   constructor(
@@ -49,45 +49,72 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   public async start(stream?: MediaStream): Promise<void> {
     if (this.isListeningActive) return;
     try {
+      if (typeof this.recorder.setVadCallbacks === "function") {
+        this.recorder.setVadCallbacks({
+          onAudioLevel: (rms) => this.callbacks.onAudioLevel?.(rms),
+          onSpeechStart: () => {
+            this.callbacks.onPipelineStatus?.("hearing");
+            this.armMaxDurationTimer();
+          },
+          onSpeechEnd: () => {
+            this.clearMaxDurationTimer();
+            this.callbacks.onPipelineStatus?.("transcribing");
+            void this.processCurrentSegment(false, 0);
+          },
+        });
+      }
+
       await this.recorder.start(stream, 250);
       this.isListeningActive = true;
       this.callbacks.onStatusChange?.(true);
-
-      this.armSilenceTimer();
+      this.callbacks.onPipelineStatus?.("idle");
     } catch (err) {
       this.isListeningActive = false;
       this.callbacks.onStatusChange?.(false);
+      this.callbacks.onPipelineStatus?.("error");
       this.callbacks.onError?.(
-        err instanceof Error ? err.message : "Не удалось запустить запись для Whisper"
+        err instanceof Error ? err.message : "Не удалось запустить запись"
       );
     }
   }
 
-  private armSilenceTimer(): void {
-    if (this.silenceTimer) clearTimeout(this.silenceTimer);
-    this.silenceTimer = setTimeout(() => {
-      void this.processCurrentSegment();
+  private armMaxDurationTimer(): void {
+    this.clearMaxDurationTimer();
+    // Safety ceiling for continuous monologue: 7.0s with 1.5s left-context (FluidAudio pattern)
+    this.maxDurationTimer = setTimeout(() => {
       if (this.isListeningActive) {
-        this.armSilenceTimer();
+        void this.processCurrentSegment(false, 1500);
+        this.armMaxDurationTimer();
       }
-    }, 4500);
+    }, 7000);
   }
 
-  private async processCurrentSegment(isExplicitFlush = false): Promise<void> {
+  private clearMaxDurationTimer(): void {
+    if (this.maxDurationTimer) {
+      clearTimeout(this.maxDurationTimer);
+      this.maxDurationTimer = null;
+    }
+  }
+
+  private async processCurrentSegment(isExplicitFlush = false, leftContextMs = 0): Promise<void> {
     if (!this.isListeningActive) return;
 
-    // VAD Gate: if no speech was detected in this segment, keep listening without calling Whisper (AP-012)
     const hasSpeech = this.recorder.hasSpeechInCurrentSegment?.() ?? true;
     if (!hasSpeech && !isExplicitFlush) {
       clientLogger.info(`[${this.asrPort.name}] segment skipped: quiet/silence (ringBuffer: ${this.recorder.getRingBufferSize?.() ?? 0})`);
       return;
     }
 
-    const blob = await this.recorder.extractCurrentSegment();
+    const blob = leftContextMs > 0 && typeof this.recorder.extractSegmentWithContext === "function"
+      ? await this.recorder.extractSegmentWithContext(leftContextMs)
+      : await this.recorder.extractCurrentSegment();
+
     if (!blob || blob.size === 0) return;
 
     clientLogger.info(`[${this.asrPort.name}] processing segment: ${blob.size} bytes (${blob.type})`);
+    this.callbacks.onPipelineStatus?.("transcribing");
     this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
+
     try {
       const [text, speakerResult] = await Promise.all([
         this.asrPort.transcribe(blob),
@@ -98,6 +125,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
       if (text && text.trim().length > 0) {
         clientLogger.info(`[${this.asrPort.name}] Final phrase recognized: "${text.trim()}" (seat: ${speakerResult?.seatNumber ?? "none"})`);
+        this.callbacks.onPipelineStatus?.("distilling");
         this.callbacks.onFinalPhrase?.(text, speakerResult?.seatNumber);
       } else {
         clientLogger.info(`[${this.asrPort.name}] Clean audio had no verbal words`);
@@ -105,35 +133,42 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
     } catch (err) {
       this.consecutiveErrors++;
       clientLogger.error(`${this.asrPort.name} segment error (${this.consecutiveErrors}/3)`, err);
+      this.callbacks.onPipelineStatus?.("error");
       this.callbacks.onError?.(
         `Ошибка ${this.asrPort.name}: ${err instanceof Error ? err.message : String(err)}`
       );
 
-      // Only terminate listening after 3 consecutive failures (resilient recovery AP-012)
+      // Only terminate listening after 3 consecutive failures (AP-012)
       if (this.consecutiveErrors >= 3) {
-        if (this.silenceTimer) clearTimeout(this.silenceTimer);
+        this.clearMaxDurationTimer();
         this.isListeningActive = false;
         this.callbacks.onStatusChange?.(false);
+      }
+    } finally {
+      if (this.isListeningActive) {
+        this.callbacks.onPipelineStatus?.("idle");
       }
     }
   }
 
   public async stop(): Promise<void> {
     if (!this.isListeningActive) return;
-    if (this.silenceTimer) clearTimeout(this.silenceTimer);
-
+    this.clearMaxDurationTimer();
     this.isListeningActive = false;
     this.callbacks.onStatusChange?.(false);
+    this.callbacks.onPipelineStatus?.("idle");
 
     try {
       const blob = await this.recorder.stop();
       if (blob.size > 200) {
+        this.callbacks.onPipelineStatus?.("transcribing");
         this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
         const [text, speakerResult] = await Promise.all([
           this.asrPort.transcribe(blob),
           this.speakerPort.identify(blob),
         ]);
         if (text && text.trim().length > 0) {
+          this.callbacks.onPipelineStatus?.("distilling");
           this.callbacks.onFinalPhrase?.(text, speakerResult?.seatNumber);
         }
       }
@@ -143,6 +178,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       );
     } finally {
       this.recorder.cleanup();
+      this.callbacks.onPipelineStatus?.("idle");
     }
   }
 
@@ -156,7 +192,6 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
   public flush(): void {
     if (!this.isListeningActive) return;
-    void this.processCurrentSegment(true);
-    this.armSilenceTimer();
+    void this.processCurrentSegment(true, 0);
   }
 }

@@ -176,4 +176,40 @@ describe('WhisperSpeechAdapter', () => {
     expect(mockSpeaker.identify).toHaveBeenCalled();
     expect(callbacks.onFinalPhrase).toHaveBeenCalledWith('завершающее слово', 5);
   });
+
+  it('notifies pipeline status transitions: hearing on speech start, transcribing on speech end', async () => {
+    callbacks.onPipelineStatus = vi.fn();
+    const extractSpy = vi.fn().mockReturnValue(new Blob(['speech audio'], { type: 'audio/webm' }));
+    let capturedCallbacks: { onSpeechStart?: () => void; onSpeechEnd?: () => void } = {};
+
+    const mockRecorder = {
+      start: vi.fn().mockResolvedValue(undefined),
+      stop: vi.fn().mockResolvedValue(new Blob([])),
+      extractCurrentSegment: extractSpy,
+      extractSegmentWithContext: extractSpy,
+      setVadCallbacks: vi.fn((cb) => { capturedCallbacks = cb; }),
+      hasSpeechInCurrentSegment: vi.fn().mockReturnValue(true),
+      cleanup: vi.fn(),
+      isRecording: true,
+    };
+    (adapter as unknown as { recorder: typeof mockRecorder }).recorder = mockRecorder;
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+      if (String(url).includes('/api/client-log')) return { ok: true } as unknown as Response;
+      return { ok: true, json: async () => ({ text: 'живое слово' }) } as unknown as Response;
+    });
+
+    await adapter.start();
+
+    // 1. Speech starts
+    capturedCallbacks.onSpeechStart?.();
+    expect(callbacks.onPipelineStatus).toHaveBeenCalledWith('hearing');
+
+    // 2. Speech ends (natural pause)
+    capturedCallbacks.onSpeechEnd?.();
+    expect(callbacks.onPipelineStatus).toHaveBeenCalledWith('transcribing');
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(callbacks.onFinalPhrase).toHaveBeenCalledWith('живое слово', undefined);
+  });
 });
