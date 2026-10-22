@@ -1,22 +1,9 @@
 import { EnergyVad } from "./vad/energy-vad";
 import type { VoiceActivityDetectorPort } from "./vad/vad-types";
 
-export interface StreamRecorderOptions {
-  mimeType?: string;
-  maxBufferChunks?: number;
-  vad?: VoiceActivityDetectorPort;
-}
-
-export interface TimestampedChunk {
-  blob: Blob;
-  timestamp: number;
-}
-
-export interface RecorderVadCallbacks {
-  onSpeechStart?: () => void;
-  onSpeechEnd?: () => void;
-  onAudioLevel?: (rms: number) => void;
-}
+export interface StreamRecorderOptions { mimeType?: string; maxBufferChunks?: number; vad?: VoiceActivityDetectorPort; }
+export interface TimestampedChunk { blob: Blob; timestamp: number; }
+export interface RecorderVadCallbacks { onSpeechStart?: () => void; onSpeechEnd?: () => void; onAudioLevel?: (rms: number) => void; }
 
 export class StreamRecorder {
   private mediaRecorder: MediaRecorder | null = null;
@@ -26,6 +13,7 @@ export class StreamRecorder {
   private activeStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
   private audioSource: MediaStreamAudioSourceNode | null = null;
+  private meetingSource: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private rmsInterval: ReturnType<typeof setInterval> | null = null;
   private ownsActiveStream = false;
@@ -45,12 +33,19 @@ export class StreamRecorder {
     this.vadCallbacks = callbacks;
   }
 
-  public async start(stream?: MediaStream, timesliceMs = 250): Promise<void> {
+  public async start(
+    stream?: MediaStream,
+    meetingStreamOrTimeslice?: MediaStream | number,
+    timesliceMs = 250
+  ): Promise<void> {
     if (this.isRecording) return;
     this.ringBuffer = [];
     this.hasSpeechInSegment = false;
     this.wasSpeaking = false;
     this.vad.reset();
+
+    const meetingStream = typeof meetingStreamOrTimeslice === "object" ? meetingStreamOrTimeslice : undefined;
+    const resolvedTimeslice = typeof meetingStreamOrTimeslice === "number" ? meetingStreamOrTimeslice : timesliceMs;
 
     let targetStream = stream;
     if (stream) {
@@ -69,8 +64,8 @@ export class StreamRecorder {
     if (!targetStream) throw new Error("No audio stream available for recording");
 
     this.activeStream = targetStream;
-    this.setupAudioAnalysis(targetStream);
-    this.createMediaRecorder(targetStream, timesliceMs);
+    const recordStream = this.setupAudioAnalysis(targetStream, meetingStream);
+    this.createMediaRecorder(recordStream, resolvedTimeslice);
   }
 
   private createMediaRecorder(stream: MediaStream, timesliceMs?: number): void {
@@ -101,11 +96,11 @@ export class StreamRecorder {
     else this.mediaRecorder.start();
   }
 
-  private setupAudioAnalysis(stream: MediaStream): void {
-    if (typeof window === "undefined") return;
+  private setupAudioAnalysis(stream: MediaStream, meetingStream?: MediaStream): MediaStream {
+    if (typeof window === "undefined") return stream;
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioCtx) return;
+      if (!AudioCtx) return stream;
       this.audioContext = new AudioCtx();
       if (this.audioContext.state === "suspended") void this.audioContext.resume().catch(() => {});
       this.audioSource = this.audioContext.createMediaStreamSource(stream);
@@ -115,8 +110,19 @@ export class StreamRecorder {
 
       if (this.rmsInterval) clearInterval(this.rmsInterval);
       this.rmsInterval = setInterval(() => this.processAudioFrame(), 50);
+
+      if (meetingStream) {
+        this.meetingSource = this.audioContext.createMediaStreamSource(meetingStream);
+        this.meetingSource.connect(this.analyser);
+        const dest = this.audioContext.createMediaStreamDestination();
+        this.audioSource.connect(dest);
+        this.meetingSource.connect(dest);
+        return dest.stream;
+      }
+      return stream;
     } catch (err) {
       console.warn("[StreamRecorder] setupAudioAnalysis non-blocking error:", err);
+      return stream;
     }
   }
 
@@ -160,27 +166,13 @@ export class StreamRecorder {
     }
   }
 
-  public setMockVoiceActivityForTesting(val: boolean): void {
-    this.hasSpeechInSegment = val;
-  }
+  public setMockVoiceActivityForTesting(val: boolean): void { this.hasSpeechInSegment = val; }
+  public hasSpeechInCurrentSegment(): boolean { return this.hasSpeechInSegment; }
+  public getRingBufferSize(): number { return this.ringBuffer.length; }
+  public getLastSpeechTimestamp(): number { return this.lastSpeechTimestamp; }
+  public async extractCurrentSegment(): Promise<Blob> { return this.extractSegmentWithContext(0); }
 
-  public hasSpeechInCurrentSegment(): boolean {
-    return this.hasSpeechInSegment;
-  }
-
-  public getRingBufferSize(): number {
-    return this.ringBuffer.length;
-  }
-
-  public getLastSpeechTimestamp(): number {
-    return this.lastSpeechTimestamp;
-  }
-
-  public async extractCurrentSegment(): Promise<Blob> {
-    return this.extractSegmentWithContext(0);
-  }
-
-  public async extractSegmentWithContext(leftContextMs: number): Promise<Blob> {
+  public async extractSegmentWithContext(_leftContextMs?: number): Promise<Blob> {
     if (!this.mediaRecorder || this.mediaRecorder.state !== "recording" || this.ringBuffer.length === 0) {
       this.hasSpeechInSegment = false;
       return new Blob([], { type: "audio/webm" });
@@ -199,13 +191,8 @@ export class StreamRecorder {
       this.mediaRecorder = null;
     }
 
-    // Preserve leftContext chunks for continuous sliding window (FluidAudio pattern)
-    if (leftContextMs > 0 && this.ringBuffer.length > 0) {
-      const now = Date.now();
-      this.ringBuffer = this.ringBuffer.filter((c) => now - c.timestamp <= leftContextMs);
-    } else {
-      this.ringBuffer = [];
-    }
+    // Always reset ringBuffer on each extraction so WebM containers stay 100% valid (AP-013, fixes HTTP 422)
+    this.ringBuffer = [];
 
     if (this.activeStream) this.createMediaRecorder(this.activeStream, 250);
     return segmentBlob;
@@ -229,6 +216,7 @@ export class StreamRecorder {
     if (this.rmsInterval) clearInterval(this.rmsInterval);
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     try { this.audioSource?.disconnect(); } catch { /* ignore */ }
+    try { this.meetingSource?.disconnect(); } catch { /* ignore */ }
     try { this.analyser?.disconnect(); } catch { /* ignore */ }
     if (this.audioContext && this.audioContext.state !== "closed") void this.audioContext.close().catch(() => {});
     if (this.activeStream && this.ownsActiveStream) this.activeStream.getTracks().forEach((t) => t.stop());

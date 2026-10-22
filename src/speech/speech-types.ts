@@ -20,7 +20,7 @@ export interface SpeechEngineCallbacks {
 }
 
 export interface SpeechEnginePort {
-  start(stream?: MediaStream): void | Promise<void>;
+  start(stream?: MediaStream, meetingStream?: MediaStream): void | Promise<void>;
   stop(): void | Promise<void>;
   toggle(): void | boolean | Promise<void | boolean>;
   flush(): void;

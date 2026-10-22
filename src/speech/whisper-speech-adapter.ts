@@ -46,7 +46,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
     return (this.asrPort.id as SpeechEngineKind) || "whisper";
   }
 
-  public async start(stream?: MediaStream): Promise<void> {
+  public async start(stream?: MediaStream, meetingStream?: MediaStream): Promise<void> {
     if (this.isListeningActive) return;
     try {
       if (typeof this.recorder.setVadCallbacks === "function") {
@@ -64,7 +64,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
         });
       }
 
-      await this.recorder.start(stream, 250);
+      await this.recorder.start(stream, meetingStream, 250);
       this.isListeningActive = true;
       this.callbacks.onStatusChange?.(true);
       this.callbacks.onPipelineStatus?.("idle");

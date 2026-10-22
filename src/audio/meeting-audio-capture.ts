@@ -1,3 +1,5 @@
+import { clientLogger } from "@/infrastructure/client-logger";
+
 export class MeetingAudioCapture {
   private stream: MediaStream | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
@@ -20,10 +22,11 @@ export class MeetingAudioCapture {
       });
       const audioTracks = stream.getAudioTracks();
       if (!audioTracks.length) {
-        console.warn("[MeetingAudioCapture] No audio track available in display stream. Select Entire Screen with audio enabled.");
+        clientLogger.warn("[MeetingAudioCapture] No audio track available in display stream. Select Entire Screen with audio enabled.");
         this.disconnect();
         return false;
       }
+      clientLogger.info(`[MeetingAudioCapture] Captured display stream: ${audioTracks.length} audio track(s)`);
 
       audioTracks.forEach((track) => {
         track.addEventListener?.("ended", () => {
@@ -41,7 +44,7 @@ export class MeetingAudioCapture {
       }
       return true;
     } catch (err) {
-      console.warn("[MeetingAudioCapture] capture failed:", err);
+      clientLogger.warn(`[MeetingAudioCapture] capture failed: ${err instanceof Error ? err.message : String(err)}`);
       return false;
     }
   }

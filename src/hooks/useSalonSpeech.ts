@@ -129,12 +129,11 @@ export function useSalonSpeech({
             const micStream = await navigator.mediaDevices.getUserMedia({
               audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
             });
-            const mixed = audioRef.current.mixWithMicrophone(micStream, meetingStream);
             void speechRef.current?.stop();
-            void speechRef.current?.start(mixed);
+            void speechRef.current?.start(micStream, meetingStream);
           } catch {
             void speechRef.current?.stop();
-            void speechRef.current?.start(meetingStream);
+            void speechRef.current?.start(undefined, meetingStream);
           }
         }
       } else {
@@ -146,7 +145,6 @@ export function useSalonSpeech({
   useEffect(() => {
     audioRef.current?.onMeetingAudioEnded(() => {
       setIsMeetingConnected(false);
-      audioRef.current?.cleanupMixer();
       if (wasListeningRef.current) {
         void speechRef.current?.stop();
         void speechRef.current?.start();
@@ -187,10 +185,10 @@ export function useSalonSpeech({
     }, undefined, speakerPort);
 
     if (wasListening) {
-      const activeStream = isMeetingConnected && audioRef.current?.isMeetingAudioConnected
+      const meetingStream = isMeetingConnected && audioRef.current?.isMeetingAudioConnected
         ? audioRef.current.getMeetingStream() ?? undefined
         : undefined;
-      void speechRef.current.start(activeStream);
+      void speechRef.current.start(undefined, meetingStream);
     }
 
     return () => {
