@@ -17,12 +17,14 @@ interface SalonControlsProps {
   phase: SessionPhase;
   isAudioOn: boolean;
   isDemoActive: boolean;
+  isVerbatimMode?: boolean;
   isMeetingAudioConnected?: boolean;
   sttEngine?: SpeechEngineKind;
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
   onToggleMeetingAudio?: () => void;
   onToggleSttEngine?: () => void;
+  onToggleVerbatimMode?: () => void;
   onResetVoiceprints?: () => void;
   onResetCircle?: () => void;
   onToggleDemo: () => void;
@@ -39,12 +41,14 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
   phase,
   isAudioOn,
   isDemoActive,
+  isVerbatimMode = false,
   isMeetingAudioConnected = false,
   sttEngine = "whisper",
   onPhaseSelect,
   onAudioToggle,
   onToggleMeetingAudio,
   onToggleSttEngine,
+  onToggleVerbatimMode,
   onResetVoiceprints,
   onResetCircle,
   onToggleDemo,
@@ -141,6 +145,24 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
               >
                 <span className="opacity-60">stt:</span>
                 <span className="font-bold text-primary">{sttEngine}</span>
+              </button>
+            )}
+
+            {/* Verbatim vs Distilled Mode */}
+            {onToggleVerbatimMode && (
+              <button
+                type="button"
+                onClick={onToggleVerbatimMode}
+                title="Переключить: фразы целиком или дистилляция через LLM"
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
+                  isVerbatimMode
+                    ? "bg-primary/20 text-primary border-primary font-semibold"
+                    : "border-border text-muted hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                <span className="opacity-60">фразы:</span>
+                <span>{isVerbatimMode ? "целиком" : "сжатие"}</span>
               </button>
             )}
 

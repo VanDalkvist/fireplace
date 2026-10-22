@@ -154,4 +154,29 @@ describe('StreamRecorder', () => {
     // In silence, buffer must strictly hold only ~2 chunks (500ms pre-roll), NOT 20!
     expect(recorder.getRingBufferSize()).toBeLessThanOrEqual(2);
   });
+
+  it('guarantees that WebM header chunk is NEVER lost even after long silence shifting, preventing HTTP 422', async () => {
+    await recorder.start(mockStream, 250);
+
+    const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
+    // Chunk 0 is the EBML container header
+    mediaRecInstance.ondataavailable({ data: new Blob(['EBML_HEADER_CHUNK '], { type: 'audio/webm' }) });
+
+    // Simulate 10 silence chunks arriving and shifting
+    for (let i = 1; i <= 10; i++) {
+      mediaRecInstance.ondataavailable({ data: new Blob([`silence_${i} `], { type: 'audio/webm' }) });
+    }
+
+    // Now speech arrives
+    recorder.setMockVoiceActivityForTesting(true);
+    mediaRecInstance.ondataavailable({ data: new Blob(['spoken_word '], { type: 'audio/webm' }) });
+
+    // Stop or extract segment
+    const segment = await recorder.extractCurrentSegment();
+    const text = await segment.text();
+
+    // The segment MUST start with the EBML container header chunk to be valid WebM
+    expect(text.startsWith('EBML_HEADER_CHUNK')).toBe(true);
+    expect(text).toContain('spoken_word');
+  });
 });

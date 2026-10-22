@@ -14,6 +14,7 @@ interface UseSalonSpeechOptions {
   sttEngine: SpeechEngineKind;
   phase: SessionPhase;
   audioRef: React.MutableRefObject<SalonAudioEngine | null>;
+  isVerbatimMode?: boolean;
   onPass: () => void;
   onAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => void;
   onAddDesire: (text: string, speakerId?: number) => void;
@@ -25,6 +26,7 @@ export function useSalonSpeech({
   sttEngine,
   phase,
   audioRef,
+  isVerbatimMode = false,
   onPass,
   onAddFeeling,
   onAddDesire,
@@ -50,13 +52,28 @@ export function useSalonSpeech({
   const speakerPort = useRef(createSpeakerIdentifier()).current;
 
   // Stabilize callbacks against re-render cascades (AP-053, AP-054)
-  const callbacksRef = useRef({ phase, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper });
-  callbacksRef.current = { phase, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper };
+  const callbacksRef = useRef({ phase, isVerbatimMode, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper });
+  callbacksRef.current = { phase, isVerbatimMode, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper };
 
   const turnBufferRef = useRef(new SpeakerTurnBuffer(2200));
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const processCompletedTurn = useCallback(async (text: string, speakerSeat?: number) => {
+    const { phase: curPhase, isVerbatimMode: isVerbatim, onPass: passFn, onAddFeeling: feelFn, onAddDesire: desireFn } = callbacksRef.current;
+
+    // Verbatim Mode: phrase is displayed directly in full without neural or lexical compression!
+    if (isVerbatim) {
+      const clean = text.trim();
+      if (!clean || isPureFillerPhrase(clean)) return;
+      turnBufferRef.current.commitCompletedTurn(clean);
+      setLastPhrase(clean);
+      setInterimPhrase("");
+      setInterimBadge(null);
+      if (curPhase === "desires") desireFn(clean, speakerSeat);
+      else feelFn(clean, "живость", 0, speakerSeat);
+      return;
+    }
+
     setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
     const recentContext = turnBufferRef.current.getRecentHistory(3);
     const res = await distillWithNeuralFallback(text, defaultLexiconIndex, {}, recentContext);
@@ -67,26 +84,17 @@ export function useSalonSpeech({
     setInterimPhrase("");
     setInterimBadge(null);
 
-    const { phase: currentPhase, onPass: passFn, onAddFeeling: feelFn, onAddDesire: desireFn } =
-      callbacksRef.current;
-
     if (res.pass) return passFn();
 
     let matched = false;
     for (const f of res.feelings) {
       for (const p of splitIntoSemanticPhrases(f.form || f.lemma)) {
-        if (!isPureFillerPhrase(p)) {
-          feelFn(p, f.family, f.valence, speakerSeat);
-          matched = true;
-        }
+        if (!isPureFillerPhrase(p)) { feelFn(p, f.family, f.valence, speakerSeat); matched = true; }
       }
     }
     for (const d of res.desires) {
       for (const p of splitIntoSemanticPhrases(d.text)) {
-        if (!isPureFillerPhrase(p)) {
-          desireFn(p, speakerSeat);
-          matched = true;
-        }
+        if (!isPureFillerPhrase(p)) { desireFn(p, speakerSeat); matched = true; }
       }
     }
     if (!matched) {
@@ -94,11 +102,8 @@ export function useSalonSpeech({
       if (isPureFillerPhrase(clean)) return;
       for (const p of splitIntoSemanticPhrases(clean)) {
         if (!isPureFillerPhrase(p)) {
-          if (res.isDesirePhrase || currentPhase === "desires") {
-            desireFn(p, speakerSeat);
-          } else {
-            feelFn(p, "живость", 0, speakerSeat);
-          }
+          if (res.isDesirePhrase || curPhase === "desires") desireFn(p, speakerSeat);
+          else feelFn(p, "живость", 0, speakerSeat);
         }
       }
     }

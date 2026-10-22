@@ -21,6 +21,8 @@ interface SalonPultProps {
   onTriggerDemoPhrase: () => void;
   onToggleDemoMode: () => void;
   isDemoActive: boolean;
+  isVerbatimMode?: boolean;
+  onToggleVerbatimMode?: (enabled: boolean) => void;
   isListening?: boolean;
   onToggleListening?: () => void;
   isSpeechSupported?: boolean;
@@ -38,6 +40,8 @@ export const SalonPult: React.FC<SalonPultProps> = ({
   onTriggerDemoPhrase,
   onToggleDemoMode,
   isDemoActive,
+  isVerbatimMode = false,
+  onToggleVerbatimMode,
   isListening = false,
   onToggleListening,
   isSpeechSupported = true,
@@ -145,6 +149,39 @@ export const SalonPult: React.FC<SalonPultProps> = ({
               <Sparkles className="w-3.5 h-3.5 mr-1.5 text-primary" />
               эмулировать фразу говорящего
             </Button>
+          </div>
+
+          {/* Phrase Mode: Verbatim vs Distilled */}
+          <div className="space-y-2 border-t border-border/50 pt-4">
+            <div className="flex items-center justify-between">
+              <label className="text-muted block">отображение фраз</label>
+              <span className="text-[10px] text-primary">
+                {isVerbatimMode ? "целиком" : "дистилляция"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                variant={!isVerbatimMode ? "primary" : "outline"}
+                size="sm"
+                className="text-[11px]"
+                onClick={() => onToggleVerbatimMode?.(false)}
+              >
+                дистилляция
+              </Button>
+              <Button
+                variant={isVerbatimMode ? "primary" : "outline"}
+                size="sm"
+                className="text-[11px]"
+                onClick={() => onToggleVerbatimMode?.(true)}
+              >
+                целиком
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted/70 leading-normal">
+              {isVerbatimMode
+                ? "фраза показывается в круге полностью без сокращений"
+                : "сжатие до 2–4 слов через лексикон и qwen"}
+            </p>
           </div>
 
           {/* 4-Minute Demo Mode */}

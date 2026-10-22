@@ -36,6 +36,8 @@ export const SalonExperience: React.FC = () => {
     setIsAnalyticsOpen,
     isZen,
     setIsZen,
+    isVerbatimMode,
+    setIsVerbatimMode,
     volume,
     setVolume,
     sttEngine,
@@ -60,6 +62,7 @@ export const SalonExperience: React.FC = () => {
     sttEngine,
     phase: state.phase,
     audioRef,
+    isVerbatimMode,
     onPass: handlePass,
     onAddFeeling: handleAddFeeling,
     onAddDesire: handleAddDesire,
@@ -152,6 +155,8 @@ export const SalonExperience: React.FC = () => {
           phase={state.phase}
           isAudioOn={isAudioOn}
           isDemoActive={isDemoActive}
+          isVerbatimMode={isVerbatimMode}
+          onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
           isMeetingAudioConnected={isMeetingConnected}
           sttEngine={sttEngine}
           onToggleSttEngine={() =>
@@ -173,6 +178,8 @@ export const SalonExperience: React.FC = () => {
         setIsIntroOpen={setIsIntroOpen}
         isAnalyticsOpen={isAnalyticsOpen}
         setIsAnalyticsOpen={setIsAnalyticsOpen}
+        isVerbatimMode={isVerbatimMode}
+        onToggleVerbatimMode={(val) => setIsVerbatimMode(val)}
         volume={volume}
         setVolume={setVolume}
         phase={state.phase}

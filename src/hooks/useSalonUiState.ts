@@ -17,6 +17,21 @@ export function useSalonUiState() {
   const [isDemoActive, setIsDemoActive] = useState(() =>
     typeof window !== "undefined" && window.location.search.includes("demo=1")
   );
+  const [isVerbatimMode, setIsVerbatimModeState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    if (window.location.search.includes("verbatim=1")) return true;
+    return localStorage.getItem("salon_verbatim_mode") === "true";
+  });
+
+  const setIsVerbatimMode = (val: boolean | ((prev: boolean) => boolean)) => {
+    setIsVerbatimModeState((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("salon_verbatim_mode", String(next));
+      }
+      return next;
+    });
+  };
 
   return {
     isVoiceInit,
@@ -28,6 +43,8 @@ export function useSalonUiState() {
     setIsAnalyticsOpen,
     isZen,
     setIsZen,
+    isVerbatimMode,
+    setIsVerbatimMode,
     volume,
     setVolume,
     sttEngine,

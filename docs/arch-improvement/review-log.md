@@ -1106,6 +1106,47 @@
    - Сборка `vite build` — 270 мс. PM2 перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 32 - 2026-10-22 - Composite Fallback Adapter & Verbatim Circle Phrases
+
+### Context
+- Branch: `main`
+- Scope:
+  1. Устранение ошибки Sber GigaAM ASR `HTTP 422: Transcription failed. Check audio format`:
+     - Вскрыта причина: кольцевой буфер `StreamRecorder` при сдвиге тишины (`ringBuffer.shift()`) удалял начальный чанк 0, содержавший заголовок контейнера WebM (EBML Header). Без него Symphonia и GigaAM отбраковывали поток с HTTP 422.
+     - Сохранён неизменный `headerChunk` в `StreamRecorder`: при завершении сегмента заголовок EBML гарантированно предваряет буфер аудио.
+  2. Архитектурный Composite Fallback Adapter по паттерну портов и адаптеров:
+     - Ликвидировано жесткое захардкоженное обращение к сторонним портам внутри низкоуровневого HTTP-клиента `openai-speech-client.ts`.
+     - Создан `FallbackSpeechAdapter` (`src/speech/fallback-speech-adapter.ts`), реализующий `SpeechToTextPort` (паттерн Decorator/Composite).
+     - В фабрике `createDefaultSpeechRegistry` GigaAM обёрнут в `FallbackSpeechAdapter(gigaAmAdapter, whisperAdapter)`: при любом сбое GigaAM (HTTP 422/500 или таймаут) запрос прозрачно подхватывается локальным Whisper Large Turbo (порт 8085).
+  3. Тихая обработка ошибок посреди созерцательного круга:
+     - Одиночные сбои сегментов аудио больше не вываливают стек-трейсы пользователю, а логируются в `clientLogger.warn`.
+     - Прерывание и уведомление в UI активируются только после 3 последовательных фатальных сбоев, а текст ошибки очищается от технического JSON-мусора.
+  4. Режим «Фразы целиком» (Verbatim Mode):
+     - Внедрён тумблер `isVerbatimMode` с сохранением в `localStorage` (`salon_verbatim_mode`) и поддержкой URL-параметра `?verbatim=1`.
+     - В хуке `useSalonSpeech` реплика в режиме Verbatim направляется в круг напрямую без сжатия через словарь или нейрокоррекцию.
+     - Добавлены переключатели в `SalonPult` («пульт сессии») и `SalonControls` («нижняя панель»).
+
+### Findings Fixed
+- [P1] Broken WebM EBML Headers after Silence Shifting — RESOLVED via permanent `headerChunk` retention in `StreamRecorder`.
+- [P1] Leaky Abstraction in Speech Client — RESOLVED via clean `FallbackSpeechAdapter` implementing `SpeechToTextPort`.
+- [P1] Invasive Technical Error Popups Mid-Practice — RESOLVED via quiet thresholding in `WhisperSpeechAdapter` and humanized status in `VoiceIndicator`.
+- [P2] Inability to View Full Spoken Phrases — RESOLVED via toggleable Verbatim Mode in `useSalonSpeech`, `SalonPult`, and `SalonControls`.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 128/128 тестов Vitest GREEN (32 тест-сьюта, добавлены тесты для `FallbackSpeechAdapter` и сохранения EBML заголовка).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 247$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Ошибки 422 ликвидированы на уровне формата аудио; при недоступности GigaAM фразы без задержек подхватывает Whisper.
+   - Пользователь в любой момент может переключить «дистилляция / целиком» в пульте или панели: фразы участников появляются у огня в исходном неискаженном виде.
+   - Сборка `vite build` — 315 мс. Процесс PM2 `salon-presence` перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

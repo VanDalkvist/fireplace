@@ -150,6 +150,17 @@
   3) Отрисовывать обугленную фактуру дров (`#100c09`) с пульсирующими светящимися трещинами (`thermal fissures`).
 - Evidence: `src/canvas/hearth-flame.ts`, `src/canvas/hearth-geometry.ts`, `tests/hearth-flame.test.ts`, 125/125 тестов GREEN.
 
+## 2026-10-22 - WebM EBML Header Preservation & Composite Fallback Port Adapter
+- Context: Устранение ASR ошибки HTTP 422 в Sber GigaAM и чистая композиция ASR портов.
+- Symptom: 1) При паузах тишины GigaAM спорадически возвращал HTTP 422 `Transcription failed. Check audio format`. 2) Ошибки вываливались в UI посреди медитации. 3) Необходимость видеть фразы целиком без смыслового сжатия.
+- Cause: 1) MediaRecorder генерирует EBML header только в чанке 0; при сдвиге кольцевого буфера заголовок отбрасывался. 2) Попытка захардкодить фолбэк прямо внутри HTTP-клиента ломала изоляцию портов и адаптеров.
+- Use next time:
+  1) В MediaRecorder всегда кэшировать `headerChunk = chunk[0]` и при остановке/сбросе гарантированно помещать его первым в итоговый Blob.
+  2) Фолбэки реализовывать только через Composite/Decorator паттерн (`FallbackSpeechAdapter implements SpeechToTextPort`), сохраняя чистоту и независимость каждого адаптера.
+  3) Не выбрасывать алерты пользователю на единичных глитчах звука — использовать порог в 3 последовательных ошибки и очищать текст от технического мусора.
+  4) Режим отображения фраз целиком направлять в обход дистилляции напрямую в эмиттеры чувств/желаний (`callbacksRef.current.onAddFeeling(phrase, "живость", 0)`).
+- Evidence: `src/speech/stream-recorder.ts`, `src/speech/fallback-speech-adapter.ts`, `src/hooks/useSalonSpeech.ts`, 128/128 тестов GREEN.
+
 
 
 

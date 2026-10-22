@@ -22,6 +22,16 @@ interface VoiceIndicatorProps {
   isMeetingAudio?: boolean;
 }
 
+function cleanErrorMessage(msg: string): string {
+  if (msg.includes("422") || msg.includes("audio format") || msg.includes("transcription_error")) {
+    return "не удалось разобрать реплику — микрофон переподключён";
+  }
+  if (msg.includes("500") || msg.includes("Connection refused") || msg.includes("Failed to fetch")) {
+    return "сервер распознавания временно недоступен";
+  }
+  return msg;
+}
+
 export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   isListening,
   audioLevel = 0,
@@ -88,7 +98,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
 
       {errorMessage ? (
         <div className="flex items-center gap-2 px-3 py-1 bg-destructive/15 border border-destructive/40 rounded-[2px] text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
-          <span>{errorMessage}</span>
+          <span>{cleanErrorMessage(errorMessage)}</span>
         </div>
       ) : interimText ? (
         <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary/90 italic max-w-sm text-center truncate animate-pulse pointer-events-none">

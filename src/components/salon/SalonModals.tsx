@@ -13,6 +13,8 @@ interface SalonModalsProps {
   setIsIntroOpen: (open: boolean) => void;
   isAnalyticsOpen: boolean;
   setIsAnalyticsOpen: (open: boolean) => void;
+  isVerbatimMode?: boolean;
+  onToggleVerbatimMode?: (enabled: boolean) => void;
   volume: number;
   setVolume: (vol: number) => void;
   phase: SessionPhase;
@@ -35,6 +37,8 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
   setIsIntroOpen,
   isAnalyticsOpen,
   setIsAnalyticsOpen,
+  isVerbatimMode = false,
+  onToggleVerbatimMode,
   volume,
   setVolume,
   phase,
@@ -66,6 +70,8 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
         onTriggerDemoPhrase={onTriggerDemoPhrase}
         onToggleDemoMode={() => setIsDemoActive((prev) => !prev)}
         isDemoActive={isDemoActive}
+        isVerbatimMode={isVerbatimMode}
+        onToggleVerbatimMode={onToggleVerbatimMode}
         isListening={isListening}
         onToggleListening={() => speechEngine?.toggle()}
         isSpeechSupported={speechEngine?.isSupported()}

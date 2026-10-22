@@ -17,6 +17,7 @@ export class StreamRecorder {
   private analyser: AnalyserNode | null = null;
   private rmsInterval: ReturnType<typeof setInterval> | null = null;
   private ownsActiveStream = false;
+  private headerChunk: Blob | null = null;
 
   private vad: VoiceActivityDetectorPort;
   private vadCallbacks: RecorderVadCallbacks = {};
@@ -73,9 +74,13 @@ export class StreamRecorder {
       ? "audio/webm;codecs=opus"
       : undefined;
 
+    this.headerChunk = null;
     this.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) {
+        if (!this.headerChunk) {
+          this.headerChunk = e.data;
+        }
         this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
         const inSilence = !this.wasSpeaking && !this.hasSpeechInSegment;
         if (inSilence && this.ringBuffer.length > 2) {
@@ -87,7 +92,13 @@ export class StreamRecorder {
     };
     this.mediaRecorder.onstop = () => {
       const type = this.mediaRecorder?.mimeType || "audio/webm";
-      const blob = new Blob(this.ringBuffer.map((c) => c.blob), { type });
+      // Guarantee that the EBML container header (chunk 0) is ALWAYS the first chunk of the audio file,
+      // preventing HTTP 422: Transcription failed. Check audio format on Sber GigaAM / Symphonia!
+      const hasHeader = this.headerChunk && this.ringBuffer.length > 0 && this.ringBuffer[0].blob === this.headerChunk;
+      const chunks = (this.headerChunk && !hasHeader)
+        ? [this.headerChunk, ...this.ringBuffer.map((c) => c.blob)]
+        : this.ringBuffer.map((c) => c.blob);
+      const blob = new Blob(chunks, { type });
       this.resolveStop?.(blob);
       this.resolveStop = null;
     };

@@ -131,17 +131,18 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       }
     } catch (err) {
       this.consecutiveErrors++;
-      clientLogger.error(`${this.asrPort.name} segment error (${this.consecutiveErrors}/3)`, err);
+      clientLogger.warn(`${this.asrPort.name} segment error (${this.consecutiveErrors}/3)`, err);
       this.callbacks.onPipelineStatus?.("error");
-      this.callbacks.onError?.(
-        `Ошибка ${this.asrPort.name}: ${err instanceof Error ? err.message : String(err)}`
-      );
 
-      // Only terminate listening after 3 consecutive failures (AP-012)
+      // In a contemplative presence circle, do not blast error popups on one glitchy segment.
+      // Only notify with clean message after 3 consecutive failures (AP-012)
       if (this.consecutiveErrors >= 3) {
         this.clearMaxDurationTimer();
         this.isListeningActive = false;
         this.callbacks.onStatusChange?.(false);
+        this.callbacks.onError?.(
+          `Ошибка ${this.asrPort.name}: ${err instanceof Error ? err.message : String(err)}`
+        );
       }
     } finally {
       if (this.isListeningActive) {
