@@ -561,4 +561,39 @@
 - Производственная сборка `vite build` 253 мс без предупреждений.
 - PM2 сервис `salon-presence` (PID 54368), `sherpa-speaker` (PID 57269), `whisper-asr` (PID 47250) онлайн и проверены через `curl`.
 
+---
+
+## Cycle 17 - 2026-10-22 - OpenAI Audio Standard, Dependency Injection & GigaAM Service
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-17-stt-di-gigaam.md`
+- Scope:
+  1. Реализация стандарта OpenAI Audio API (`POST /v1/audio/transcriptions`) через `src/speech/openai-speech-client.ts` с graceful fallback на `/inference` для обратной совместимости.
+  2. Внедрение Dependency Injection (DI) через `SpeechToTextPort` и `SpeechServiceRegistry` (`src/speech/speech-registry.ts`), изолирующего UI и бизнес-логику Салона от конкретных ASR-транспортов.
+  3. Обновление Whisper в PM2 до `large-v3-turbo` (`ggml-large-v3-turbo.bin`, 1.5 ГБ RAM, порт 8085, WER ~8% на русском языке).
+  4. Развертывание отдельного сервиса `gigaam-asr` в PM2 на нативном Apple Silicon Rust-сервере `gigastt` (v2.22.0 aarch64, INT8 модель 225 МБ, потребление ~350 МБ RAM, порт 9876, WER 6.9%).
+  5. Обновление UI переключателя ASR (`SalonControls`, `useSalonUiState`, `useSalonSpeech`, `SalonExperience`) с ротацией `gigaam -> whisper -> google` и дефолтом `gigaam`.
+  6. Полное сохранение независимой акустической диаризации спикеров CAM++ 192-dim (`sherpa-speaker` на порту 8086).
+
+### Findings Fixed
+- [P1] Hardcoded ASR adapter coupling & missing DI registry (AP-010, AP-020) — RESOLVED via `SpeechToTextPort`, `SpeechServiceRegistry` and `OpenAiSpeechAdapter`.
+- [P1] Non-standard ASR API contract (AP-026) — RESOLVED via `OpenAiSpeechClient` supporting `/v1/audio/transcriptions`.
+- [P2] Whisper model in PM2 is low-accuracy small (AP-027) — RESOLVED via upgrade to `ggml-large-v3-turbo.bin`.
+- [P2] GigaAM v3 service missing from PM2 (AP-027) — RESOLVED via standalone `gigastt` server in PM2 on port 9876.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 93/93 тестов Vitest GREEN (26 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы $\le 246$ строк (AP-019 PASS).
+   - Чистая изоляция слоев: Domain/Application не зависят от деталей ASR (AP-010, AP-020).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - PM2 сервисы онлайн: `gigaam-asr` (9876), `whisper-asr` (8085), `sherpa-speaker` (8086), `salon-presence` (4343).
+   - Тестовая отправка аудиофайла в GigaAM и Whisper возвращает валидный JSON HTTP 200.
+   - Сборка `vite build` 270 мс без ошибок.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 

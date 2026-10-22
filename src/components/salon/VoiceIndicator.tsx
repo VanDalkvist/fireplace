@@ -1,6 +1,7 @@
 import React from "react";
 import { Mic, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { SpeechEngineKind } from "@/speech/speech-types";
 
 export interface InterimBadge {
   text: string;
@@ -15,7 +16,7 @@ interface VoiceIndicatorProps {
   errorMessage?: string | null;
   onToggleListening?: () => void;
   isSupported?: boolean;
-  engineType?: "whisper" | "google";
+  engineType?: SpeechEngineKind;
   isMeetingAudio?: boolean;
 }
 

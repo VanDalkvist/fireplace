@@ -7,9 +7,12 @@ export function useSalonUiState() {
   const [isIntroOpen, setIsIntroOpen] = useState(false);
   const [isZen, setIsZen] = useState(false);
   const [volume, setVolume] = useState(0.6);
-  const [sttEngine, setSttEngine] = useState<SpeechEngineKind>(() =>
-    typeof window !== "undefined" && window.location.search.includes("stt=google") ? "google" : "whisper"
-  );
+  const [sttEngine, setSttEngine] = useState<SpeechEngineKind>(() => {
+    if (typeof window === "undefined") return "gigaam";
+    if (window.location.search.includes("stt=google")) return "google";
+    if (window.location.search.includes("stt=whisper")) return "whisper";
+    return "gigaam";
+  });
   const [isDemoActive, setIsDemoActive] = useState(() =>
     typeof window !== "undefined" && window.location.search.includes("demo=1")
   );

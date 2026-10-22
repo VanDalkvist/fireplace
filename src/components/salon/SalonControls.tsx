@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { SessionPhase } from "@/domain/types";
+import type { SpeechEngineKind } from "@/speech/speech-types";
 import { cn } from "@/lib/utils";
 import {
   Volume2,
@@ -17,7 +18,7 @@ interface SalonControlsProps {
   isAudioOn: boolean;
   isDemoActive: boolean;
   isMeetingAudioConnected?: boolean;
-  sttEngine?: "whisper" | "google";
+  sttEngine?: SpeechEngineKind;
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
   onToggleMeetingAudio?: () => void;

@@ -1,4 +1,12 @@
-export type SpeechEngineKind = "whisper" | "google";
+export type SpeechEngineKind = "gigaam" | "whisper" | "google";
+
+export interface SpeechToTextPort {
+  readonly id: string;
+  readonly name: string;
+  readonly isLocal: boolean;
+  readonly baseUrl?: string;
+  transcribe(audioBlob: Blob): Promise<string>;
+}
 
 export interface SpeechEngineCallbacks {
   onInterimPhrase?: (text: string) => void;

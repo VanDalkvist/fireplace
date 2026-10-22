@@ -1,6 +1,6 @@
-import type { SpeechEnginePort, SpeechEngineCallbacks, SpeechEngineKind } from "./speech-types";
+import type { SpeechEnginePort, SpeechEngineCallbacks, SpeechEngineKind, SpeechToTextPort } from "./speech-types";
 import { StreamRecorder } from "./stream-recorder";
-import { transcribeAudioBlob } from "./whisper-client";
+import { OpenAiSpeechAdapter } from "./openai-speech-adapter";
 import { SherpaSpeakerAdapter } from "@/speaker/sherpa-speaker-adapter";
 import type { SpeakerIdentificationPort } from "@/speaker/speaker-types";
 import { clientLogger } from "@/infrastructure/client-logger";
@@ -9,17 +9,25 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   private recorder: StreamRecorder;
   private callbacks: SpeechEngineCallbacks;
   private isListeningActive = false;
-  private whisperUrl: string;
+  private asrPort: SpeechToTextPort;
   private speakerPort: SpeakerIdentificationPort;
   private silenceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     callbacks: SpeechEngineCallbacks = {},
-    whisperUrl = "http://127.0.0.1:8085",
+    asrPortOrUrl: SpeechToTextPort | string = "http://127.0.0.1:8085",
     speakerPort?: SpeakerIdentificationPort
   ) {
     this.callbacks = callbacks;
-    this.whisperUrl = whisperUrl;
+    if (typeof asrPortOrUrl === "string") {
+      this.asrPort = new OpenAiSpeechAdapter({
+        id: "whisper",
+        name: "Whisper Large Turbo",
+        baseUrl: asrPortOrUrl,
+      });
+    } else {
+      this.asrPort = asrPortOrUrl;
+    }
     this.speakerPort = speakerPort || new SherpaSpeakerAdapter();
     this.recorder = new StreamRecorder();
   }
@@ -34,7 +42,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
   }
 
   public getEngineType(): SpeechEngineKind {
-    return "whisper";
+    return (this.asrPort.id as SpeechEngineKind) || "whisper";
   }
 
   public async start(stream?: MediaStream): Promise<void> {
@@ -76,10 +84,10 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
     const blob = await this.recorder.extractCurrentSegment();
     if (!blob || blob.size === 0) return;
 
-    this.callbacks.onInterimPhrase?.("распознавание whisper...");
+    this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
     try {
       const [text, speakerResult] = await Promise.all([
-        transcribeAudioBlob(blob, { url: this.whisperUrl }),
+        this.asrPort.transcribe(blob),
         this.speakerPort.identify(blob),
       ]);
 
@@ -90,9 +98,9 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
       this.isListeningActive = false;
       this.callbacks.onStatusChange?.(false);
-      clientLogger.error("Whisper speech segment processing error", err);
+      clientLogger.error(`${this.asrPort.name} speech segment processing error`, err);
       this.callbacks.onError?.(
-        `Ошибка Whisper ASR: ${err instanceof Error ? err.message : String(err)}`
+        `Ошибка ${this.asrPort.name}: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
@@ -107,9 +115,9 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
     try {
       const blob = await this.recorder.stop();
       if (blob.size > 200) {
-        this.callbacks.onInterimPhrase?.("распознавание whisper...");
+        this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
         const [text, speakerResult] = await Promise.all([
-          transcribeAudioBlob(blob, { url: this.whisperUrl }),
+          this.asrPort.transcribe(blob),
           this.speakerPort.identify(blob),
         ]);
         if (text && text.trim().length > 0) {
@@ -118,7 +126,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       }
     } catch (err) {
       this.callbacks.onError?.(
-        `Ошибка Whisper ASR: ${err instanceof Error ? err.message : String(err)}`
+        `Ошибка ${this.asrPort.name}: ${err instanceof Error ? err.message : String(err)}`
       );
     } finally {
       this.recorder.cleanup();

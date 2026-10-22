@@ -147,7 +147,9 @@ export const SalonExperience: React.FC = () => {
           isDemoActive={isDemoActive}
           isMeetingAudioConnected={isMeetingConnected}
           sttEngine={sttEngine}
-          onToggleSttEngine={() => setSttEngine((prev) => (prev === "whisper" ? "google" : "whisper"))}
+          onToggleSttEngine={() =>
+            setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
+          }
           onResetVoiceprints={resetVoiceprints}
           onResetCircle={handleResetCircle}
           onToggleMeetingAudio={handleToggleMeetingAudio}
