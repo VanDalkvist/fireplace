@@ -5,6 +5,7 @@ export function useSalonUiState() {
   const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
   const [isPultOpen, setIsPultOpen] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isZen, setIsZen] = useState(false);
   const [volume, setVolume] = useState(0.6);
   const [sttEngine, setSttEngine] = useState<SpeechEngineKind>(() => {
@@ -23,6 +24,8 @@ export function useSalonUiState() {
     setIsPultOpen,
     isIntroOpen,
     setIsIntroOpen,
+    isAnalyticsOpen,
+    setIsAnalyticsOpen,
     isZen,
     setIsZen,
     volume,

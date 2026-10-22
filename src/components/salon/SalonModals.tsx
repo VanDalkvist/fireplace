@@ -4,12 +4,15 @@ import type { SpeechEnginePort } from "@/speech/speech-types";
 import type { SalonAudioEngine } from "@/audio/audio-engine";
 import { SalonPult } from "./SalonPult";
 import { IntroDialog } from "./IntroDialog";
+import { AnalyticsModal } from "./AnalyticsModal";
 
 interface SalonModalsProps {
   isPultOpen: boolean;
   setIsPultOpen: (open: boolean) => void;
   isIntroOpen: boolean;
   setIsIntroOpen: (open: boolean) => void;
+  isAnalyticsOpen: boolean;
+  setIsAnalyticsOpen: (open: boolean) => void;
   volume: number;
   setVolume: (vol: number) => void;
   phase: SessionPhase;
@@ -30,6 +33,8 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
   setIsPultOpen,
   isIntroOpen,
   setIsIntroOpen,
+  isAnalyticsOpen,
+  setIsAnalyticsOpen,
   volume,
   setVolume,
   phase,
@@ -73,6 +78,11 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
           setIsIntroOpen(false);
           onEnterCircleAudio();
         }}
+      />
+
+      <AnalyticsModal
+        open={isAnalyticsOpen}
+        onOpenChange={setIsAnalyticsOpen}
       />
     </>
   );

@@ -131,6 +131,16 @@
   4) Для живых бликов на камнях использовать `lighter` блендинг, направленный градиент к очагу, индивидуальный фликкер пламени и тонкую спекулярную дугу по верхнему гребню.
 - Evidence: `src/canvas/hearth-flame.ts`, `src/canvas/hearth-geometry.ts`, `tests/hearth-flame.test.ts`, 123/123 тестов GREEN.
 
+## 2026-10-22 - Visual Circle Analytics UI & Report Export
+- Context: Удобный визуальный доступ к диалоговой аналитике и экспорту итогов после круга присутствия.
+- Symptom: Аналитика собиралась в памяти и `localStorage`, но для её просмотра требовалось открывать DevTools (`window.__getSalonAnalytics()`).
+- Cause: Отсутствие выделенного UI-компонента в приложении для ведущего/участников.
+- Use next time:
+  1) Добавлять визуальное модальное окно `AnalyticsModal` с карточками участников, чипсами эмоций, хронологией переходов диалога и кнопками мгновенного копирования в буфер обмена.
+  2) Предоставлять два формата экспорта: Markdown для Telegram/Notion (`formatAnalyticsAsMarkdown`) и структурированный JSON для программного анализа.
+- Evidence: `src/components/salon/AnalyticsModal.tsx`, `src/components/salon/SalonHeader.tsx`, `src/domain/session-analytics.ts`, `tests/session-analytics.test.ts`, 124/124 тестов GREEN.
+
+
 
 
 

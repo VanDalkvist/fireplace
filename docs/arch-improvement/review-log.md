@@ -1037,6 +1037,40 @@
    - Сборка `vite build` — 335 мс. PM2 перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 30 - 2026-10-22 - Visual Circle Analytics UI & Report Export
+
+### Context
+- Branch: `main`
+- Scope:
+  1. Создание интерактивного интерфейса аналитики круга (`src/components/salon/AnalyticsModal.tsx`):
+     - Карточки сводных метрик: общее число высказываний, количество активных спикеров, число переходов диалога.
+     - Профили участников: число реплик каждого спикера, чипсы эмоциональных категорий (`интерес`, `покой`, `тепло`, `ясность`, `открытость`), полный список высказанных ключевых мыслей.
+     - Хроника диалоговых связей: кто кому ответил, какие фразы связались в диалоге, индикатор смены спикера.
+     - Мгновенный экспорт: кнопки «отчет (MD)» и «JSON» копируют структурированный отчёт прямо в буфер обмена в один клик.
+  2. Интеграция в верхнюю панель (`src/components/salon/SalonHeader.tsx`, `SalonExperience.tsx`, `SalonModals.tsx`):
+     - В шапку добавлена кнопка «аналитика» с иконкой `BarChart3`.
+     - Состояние модального окна интегрировано в `useSalonUiState.ts`.
+  3. Форматирование отчетов (`src/domain/session-analytics.ts`):
+     - Добавлена функция `formatAnalyticsAsMarkdown` для генерации красивых структурированных резюме встреч для Telegram и Notion.
+  4. Строгий лимит AP-019: `AnalyticsModal.tsx` (181 строка), `SalonHeader.tsx` (114 строк), `SalonExperience.tsx` (194 строки), `session-analytics.ts` (172 строки) $\le 250$.
+
+### Findings Fixed
+- [P1] Missing In-App Analytics Surface — RESOLVED via `AnalyticsModal` and single-click Markdown/JSON export.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 124/124 тестов Vitest GREEN (31 тест-сьют, добавлен тест форматирования Markdown).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы $\le 239$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - После круга ведущий или участники могут в один клик открыть окно аналитики, увидеть все мысли, кто за кем говорил, распределение эмоций и скопировать готовый отчет.
+   - Сборка `vite build` — 326 мс. PM2 перезапущен.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

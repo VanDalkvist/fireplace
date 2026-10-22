@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSessionAnalytics, type RawDialogueLink } from '../src/domain/session-analytics';
+import { buildSessionAnalytics, formatAnalyticsAsMarkdown, type RawDialogueLink } from '../src/domain/session-analytics';
 import type { FeelingToken, DesireToken } from '../src/domain/types';
 
 describe('SessionAnalytics', () => {
@@ -44,5 +44,24 @@ describe('SessionAnalytics', () => {
     expect(analytics.trajectory.length).toBe(4);
     expect(analytics.trajectory[0].family).toBe("интерес");
     expect(analytics.trajectory[3].family).toBe("открытость");
+  });
+
+  it('formats session analytics as clean markdown summary', () => {
+    const rawLinks: RawDialogueLink[] = [
+      { fromSeat: 1, toSeat: 7, fromWord: "создать бота", toWord: "давать доступ", timestamp: 10000 },
+    ];
+    const feelings: FeelingToken[] = [
+      { id: 'f1', text: 'создать бота', lemma: 'создать бота', family: 'интерес', valence: 0.8, arousal: 0.5, intensity: 1, speakerId: 1, timestamp: 10000 },
+      { id: 'f2', text: 'давать доступ', lemma: 'давать доступ', family: 'тепло', valence: 0.7, arousal: 0.5, intensity: 1, speakerId: 7, timestamp: 13000 },
+    ];
+    const analytics = buildSessionAnalytics(rawLinks, feelings, []);
+    const md = formatAnalyticsAsMarkdown(analytics);
+
+    expect(md).toContain("# Аналитика круга присутствия");
+    expect(md).toContain("Спикер 1");
+    expect(md).toContain("создать бота");
+    expect(md).toContain("Спикер 7");
+    expect(md).toContain("давать доступ");
+    expect(md).toContain("Диалоговые переходы");
   });
 });

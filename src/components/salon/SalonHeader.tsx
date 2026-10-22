@@ -1,7 +1,7 @@
 import React from "react";
 import type { SessionPhase } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { Sliders } from "lucide-react";
+import { Sliders, BarChart3 } from "lucide-react";
 
 interface SalonHeaderProps {
   phase: SessionPhase;
@@ -10,6 +10,7 @@ interface SalonHeaderProps {
   onPhaseSelect: (phase: SessionPhase) => void;
   onToggleZen: () => void;
   onOpenPult: () => void;
+  onOpenAnalytics?: () => void;
   onOpenHelp?: () => void;
 }
 
@@ -27,6 +28,7 @@ export const SalonHeader: React.FC<SalonHeaderProps> = ({
   onPhaseSelect,
   onToggleZen,
   onOpenPult,
+  onOpenAnalytics,
   onOpenHelp,
 }) => {
   return (
@@ -85,6 +87,17 @@ export const SalonHeader: React.FC<SalonHeaderProps> = ({
           <Sliders className="w-3 h-3" />
           <span className="hidden sm:inline">пульт</span>
         </button>
+
+        {onOpenAnalytics && (
+          <button
+            onClick={onOpenAnalytics}
+            title="аналитика круга"
+            className="flex items-center gap-1 px-2 py-1 text-xs border border-border text-muted hover:text-foreground hover:border-primary/40 rounded-[2px] transition-colors cursor-pointer"
+          >
+            <BarChart3 className="w-3 h-3 text-primary/80" />
+            <span className="hidden sm:inline">аналитика</span>
+          </button>
+        )}
 
         {onOpenHelp && (
           <button

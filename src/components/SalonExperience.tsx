@@ -32,6 +32,8 @@ export const SalonExperience: React.FC = () => {
     setIsPultOpen,
     isIntroOpen,
     setIsIntroOpen,
+    isAnalyticsOpen,
+    setIsAnalyticsOpen,
     isZen,
     setIsZen,
     volume,
@@ -126,6 +128,7 @@ export const SalonExperience: React.FC = () => {
           onPhaseSelect={handlePhaseSelect}
           onToggleZen={() => setIsZen((prev) => !prev)}
           onOpenPult={() => setIsPultOpen(true)}
+          onOpenAnalytics={() => setIsAnalyticsOpen(true)}
           onOpenHelp={() => setIsIntroOpen(true)}
         />
       </div>
@@ -168,6 +171,8 @@ export const SalonExperience: React.FC = () => {
         setIsPultOpen={setIsPultOpen}
         isIntroOpen={isIntroOpen}
         setIsIntroOpen={setIsIntroOpen}
+        isAnalyticsOpen={isAnalyticsOpen}
+        setIsAnalyticsOpen={setIsAnalyticsOpen}
         volume={volume}
         setVolume={setVolume}
         phase={state.phase}

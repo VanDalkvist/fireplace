@@ -142,3 +142,31 @@ export function getPersistedSessionAnalytics(): SessionAnalyticsReport {
     return buildSessionAnalytics();
   }
 }
+
+export function formatAnalyticsAsMarkdown(report: SessionAnalyticsReport): string {
+  const lines: string[] = [
+    "# Аналитика круга присутствия",
+    `Всего высказываний: ${report.totalTurns} | Участников: ${report.activeSpeakersCount} | Диалоговых связей: ${report.handoffs.length}`,
+    "",
+    "## Участники",
+  ];
+
+  for (const spk of report.speakers) {
+    const feelings = Object.entries(spk.feelingsCount)
+      .map(([f, count]) => `${f} (${count})`)
+      .join(", ");
+    lines.push(`- **Спикер ${spk.speakerId}**: ${spk.turnCount} реплик${feelings ? ` [${feelings}]` : ""}`);
+    for (const phrase of spk.phrases) {
+      lines.push(`  · «${phrase}»`);
+    }
+  }
+
+  if (report.handoffs.length > 0) {
+    lines.push("", "## Диалоговые переходы");
+    for (const h of report.handoffs.slice(-20)) {
+      lines.push(`- Спикер ${h.fromSpeaker} («${h.fromPhrase}») → Спикер ${h.toSpeaker} («${h.toPhrase}»)`);
+    }
+  }
+
+  return lines.join("\n");
+}
