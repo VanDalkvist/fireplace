@@ -811,6 +811,44 @@
    - Сборка `vite build` — 269 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 24 - 2026-10-22 - Natural Organic Hearth Stones and Ash Bed
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-24-natural-organic-hearth-stones-and-ashbed.md`
+- Scope:
+  1. Ликвидация искусственного геометрического круга камней (`src/canvas/hearth-flame.ts`):
+     - Вместо 14 одинаковых овалов на жестком эллипсе внедрен природный массив `HEARTH_STONES` из 16 уникальных камней разной морфологии: индивидуальные размеры (ширина 9–16px, высота 5–9px), радиусные сдвиги `dr` (-4..+4px), естественный угол поворота `rot` и палитра оттенков базальта/сланца (`#16110d`..`#261e18`).
+     - Теплые радиальные блики на внутренних гранях камней, обращенных к огню (`toFire = Math.atan2(cy - sy, cx - sx)`), мягко разгорающиеся вместе с теплом костра.
+  2. Органическое основание золы и углей (Ash Bed):
+     - Вместо плоского эллипса `#0b0806` построен 24-точечный неровный полигон с радиусным джиттером (`rJitter`).
+     - В сердцевину под бревнами внедрено мягкое тепловое свечение тлеющих углей (`emberGrad` с глубокими оттенками вишнево-янтарного тления `rgba(240, 95, 20)`), мягко дышащее при накоплении слов.
+  3. Изометрическая глубина (Z-Sorting):
+     - Задние камни ($sy < cy + 4$) рендерятся *до* золы и бревен.
+     - Передние камни ($sy \ge cy + 4$) рендерятся *поверх* передней кромки золы.
+     - Языки пламени, бревна и физика искр сохранены на 100% без изменений.
+  4. Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+
+### Findings Fixed
+- [P1] Artificial Geometric Hearth Ring — RESOLVED via natural `HEARTH_STONES` dataset & fire-facing highlights.
+- [P1] Flat Monolithic Ash Bed — RESOLVED via 24-point organic perimeter & glowing charcoal core.
+- [P2] Missing Isometric Depth & Lighting on Stones — RESOLVED via back/front Z-layering and directional fire illumination.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 120/120 тестов Vitest GREEN (30 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Очаг выглядит как настоящий природный очаг из полевых камней с неровной кромкой и живыми углями.
+   - Сам костер, языки пламени и бревна не затронуты.
+   - Сборка `vite build` — 252 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

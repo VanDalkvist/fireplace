@@ -13,6 +13,28 @@ interface Tongue {
   relX: number; relY: number; width: number; baseH: number; speed: number; phase: number;
   layer: 'core' | 'body' | 'mantle';
 }
+interface Stone {
+  ang: number; dr: number; w: number; h: number; rot: number; shade: string;
+}
+
+const HEARTH_STONES: Stone[] = [
+  { ang: 0.08, dr: 2,  w: 14, h: 8, rot: 0.12,  shade: '#201813' },
+  { ang: 0.46, dr: -3, w: 10, h: 6, rot: 0.28,  shade: '#18120e' },
+  { ang: 0.84, dr: 4,  w: 15, h: 9, rot: -0.18, shade: '#251d17' },
+  { ang: 1.26, dr: -2, w: 11, h: 6, rot: 0.14,  shade: '#1b1410' },
+  { ang: 1.64, dr: 3,  w: 16, h: 9, rot: 0.02,  shade: '#231a15' },
+  { ang: 2.04, dr: -4, w: 9,  h: 5, rot: -0.25, shade: '#16110d' },
+  { ang: 2.42, dr: 2,  w: 13, h: 7, rot: 0.18,  shade: '#211914' },
+  { ang: 2.82, dr: -2, w: 11, h: 6, rot: -0.12, shade: '#1a130f' },
+  { ang: 3.20, dr: 3,  w: 15, h: 8, rot: 0.06,  shade: '#241c16' },
+  { ang: 3.60, dr: -3, w: 10, h: 6, rot: 0.22,  shade: '#17110d' },
+  { ang: 4.00, dr: 2,  w: 13, h: 7, rot: -0.16, shade: '#221a15' },
+  { ang: 4.40, dr: -2, w: 11, h: 6, rot: 0.12,  shade: '#19130f' },
+  { ang: 4.78, dr: 4,  w: 16, h: 9, rot: -0.08, shade: '#261e18' },
+  { ang: 5.18, dr: -4, w: 9,  h: 5, rot: 0.26,  shade: '#16110d' },
+  { ang: 5.56, dr: 2,  w: 12, h: 7, rot: -0.14, shade: '#1f1813' },
+  { ang: 5.94, dr: -1, w: 11, h: 6, rot: 0.18,  shade: '#1a130f' },
+];
 
 const LOGS: Log[] = [
   { a: -0.65, len: 105, w: 10,   heatPhase: 0.0, speed: 1.6 },
@@ -59,22 +81,66 @@ export class HearthFlameSimulator {
     ctx.fill();
     ctx.restore();
 
-    // 2. Ash Bed & Stones
+    // 2. Natural Organic Hearth: Back Stones -> Glowing Ash Bed -> Logs -> Front Stones
+    const stoneCoords = HEARTH_STONES.map((st) => {
+      const rx = 94 + st.dr;
+      const ry = 31 + st.dr * 0.33;
+      const sx = cx + Math.cos(st.ang) * rx;
+      const sy = cy + 4 + Math.sin(st.ang) * ry;
+      return { st, sx, sy, isBack: sy < cy + 4 };
+    });
+
+    const drawStone = (sc: typeof stoneCoords[0]) => {
+      const rot = sc.st.rot + Math.atan2(sc.sy - cy, sc.sx - cx) + Math.PI / 2;
+      ctx.fillStyle = sc.st.shade;
+      ctx.beginPath();
+      ctx.ellipse(sc.sx, sc.sy, sc.st.w * 0.5, sc.st.h * 0.5, rot, 0, TAU);
+      ctx.fill();
+
+      // Fire-facing warm rim highlight
+      const toFire = Math.atan2(cy - sc.sy, cx - sc.sx);
+      const hx = sc.sx + Math.cos(toFire) * (sc.st.w * 0.22);
+      const hy = sc.sy + Math.sin(toFire) * (sc.st.h * 0.22);
+      const hlGrad = ctx.createRadialGradient(hx, hy, 0, hx, hy, sc.st.w * 0.45);
+      hlGrad.addColorStop(0, `rgba(235, 115, 35, ${0.16 + clampedHeat * 0.14})`);
+      hlGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = hlGrad;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy, sc.st.w * 0.32, sc.st.h * 0.32, rot, 0, TAU);
+      ctx.fill();
+    };
+
+    // 2a. Back stones behind ash and flame
+    for (const sc of stoneCoords) if (sc.isBack) drawStone(sc);
+
+    // 2b. Organic Ash Bed with undulating perimeter
     ctx.save();
-    ctx.fillStyle = '#0b0806';
+    ctx.fillStyle = '#0a0705';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 4, 102, 34, 0, 0, TAU);
+    const ashPoints = 24;
+    for (let p = 0; p <= ashPoints; p++) {
+      const a = (p / ashPoints) * TAU;
+      const rJitter = Math.sin(a * 4) * 4.2 + Math.cos(a * 7) * 2.8;
+      const ax = cx + Math.cos(a) * (98 + rJitter);
+      const ay = cy + 4 + Math.sin(a) * (32 + rJitter * 0.33);
+      if (p === 0) ctx.moveTo(ax, ax !== undefined ? ay : 0);
+      else ctx.lineTo(ax, ay);
+    }
+    ctx.closePath();
     ctx.fill();
 
-    for (let i = 0; i < 14; i++) {
-      const sAng = (i / 14) * TAU + 0.15;
-      const sx = cx + Math.cos(sAng) * 92;
-      const sy = cy + 4 + Math.sin(sAng) * 30;
-      ctx.fillStyle = i % 2 === 0 ? '#15100c' : '#1c1510';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy, 8, 5, sAng, 0, TAU);
-      ctx.fill();
-    }
+    // 2c. Glowing charcoal and ember core beneath logs
+    const emberGrad = ctx.createRadialGradient(cx, cy + 4, 3, cx, cy + 4, 76);
+    const emberAlpha = 0.24 + clampedHeat * 0.28;
+    emberGrad.addColorStop(0.0, `rgba(240, 95, 20, ${emberAlpha})`);
+    emberGrad.addColorStop(0.38, `rgba(180, 50, 10, ${emberAlpha * 0.60})`);
+    emberGrad.addColorStop(0.72, `rgba(60, 15, 5, ${emberAlpha * 0.20})`);
+    emberGrad.addColorStop(1.0, 'rgba(10, 7, 5, 0.0)');
+    ctx.fillStyle = emberGrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 4, 80, 27, 0, 0, TAU);
+    ctx.fill();
+    ctx.restore();
 
     // 3. Burning Logs
     for (let i = 0; i < LOGS.length; i++) {
@@ -100,7 +166,9 @@ export class HearthFlameSimulator {
       ctx.lineTo(cx + (lx2 - cx) * 0.35, cy + 4 + (ly2 - (cy + 4)) * 0.35);
       ctx.stroke();
     }
-    ctx.restore();
+
+    // 2d. Front stones overlapping foreground ash
+    for (const sc of stoneCoords) if (!sc.isBack) drawStone(sc);
 
     // 4. Living 1/f Bezier Flame Tongues
     ctx.save();
