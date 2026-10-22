@@ -132,4 +132,46 @@ describe('HearthWordsManager', () => {
     // Consecutive words must disperse across radial depths (difference >= 0.28)
     expect(maxR - minR).toBeGreaterThanOrEqual(0.28);
   });
+
+  it('safely renders words with negative or out-of-order timestamps without unbounded shadowBlur or GPU explosion', () => {
+    const manager = new HearthWordsManager();
+    const mockCtx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      fillText: vi.fn(),
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      fillStyle: '',
+      shadowColor: '',
+      shadowBlur: 0,
+      measureText: vi.fn(() => ({ width: 70 })),
+    } as unknown as CanvasRenderingContext2D;
+
+    // Simulate word loaded from an earlier session where born/lastAt is way in the future or past
+    manager.words.push({
+      id: 'stale-1',
+      text: 'спокойствие',
+      family: 'покой',
+      seatId: 1,
+      width: 70,
+      x: 200,
+      y: 200,
+      targetX: 200,
+      targetY: 200,
+      born: Date.now() + 1000000, // In the future (negative age)
+      lastAt: Date.now() + 1000000,
+      count: 1,
+      settled: true,
+      opacity: 1.0,
+      breathOffset: 0,
+    });
+
+    manager.render(mockCtx, [], 1000);
+
+    // shadowBlur must be strictly clamped <= 6 and >= 0 (no GPU memory leak)
+    expect(mockCtx.shadowBlur).toBeLessThanOrEqual(6);
+    expect(mockCtx.shadowBlur).toBeGreaterThanOrEqual(0);
+  });
 });

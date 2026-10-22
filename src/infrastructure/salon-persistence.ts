@@ -7,8 +7,8 @@
 import type { HearthWordItem } from "@/canvas/hearth-words";
 import type { SessionState } from "@/domain/types";
 
-const WORDS_KEY = "salon_presence_words_v1";
-const SESSION_KEY = "salon_presence_session_v1";
+const WORDS_KEY = "salon_presence_words_v2";
+const SESSION_KEY = "salon_presence_session_v2";
 
 export interface PersistedSession {
   session: SessionState;
@@ -47,10 +47,17 @@ export function saveHearthWordsPersistence(words: HearthWordItem[]): void {
 export function loadHearthWordsPersistence(): HearthWordItem[] {
   if (typeof window === "undefined" || !window.localStorage) return [];
   try {
-    const raw = localStorage.getItem(WORDS_KEY);
+    const raw = localStorage.getItem(WORDS_KEY) || localStorage.getItem("salon_presence_words_v1");
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as HearthWordItem[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    const now = Date.now();
+    return parsed.map((w: HearthWordItem) => ({
+      ...w,
+      settled: true,
+      born: typeof w.born === "number" && w.born <= now ? w.born : now - 10000,
+      lastAt: typeof w.lastAt === "number" && w.lastAt <= now ? w.lastAt : now - 10000,
+    }));
   } catch (err) {
     console.warn("[SalonPersistence] Failed to load words:", err);
     return [];
@@ -103,7 +110,9 @@ export function clearAllSalonPersistence(): void {
   if (typeof window === "undefined" || !window.localStorage) return;
   try {
     localStorage.removeItem(WORDS_KEY);
+    localStorage.removeItem("salon_presence_words_v1");
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem("salon_presence_session_v1");
     localStorage.removeItem("salon_presence_links");
   } catch (err) {
     console.warn("[SalonPersistence] Failed to clear persistence:", err);

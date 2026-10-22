@@ -80,7 +80,7 @@ export class HearthSeatsLayout {
     if (s) {
       s.pulse = 1.0;
       s.spokenCount++;
-      s.lastSpokenAt = performance.now();
+      s.lastSpokenAt = Date.now();
     }
   }
 
@@ -100,13 +100,13 @@ export class HearthSeatsLayout {
     time: number
   ): void {
     const t = time * 0.001;
-    const now = performance.now();
+    const now = Date.now();
 
     for (let i = 0; i < this.seats.length; i++) {
       const s = this.seats[i];
       const timeSinceSpoken = s.lastSpokenAt ? now - s.lastSpokenAt : Infinity;
-      const isPostSpeechDecay = timeSinceSpoken <= 5000;
-      const decayProgress = isPostSpeechDecay ? timeSinceSpoken / 5000 : 1.0;
+      const isPostSpeechDecay = timeSinceSpoken >= 0 && timeSinceSpoken <= 5000;
+      const decayProgress = isPostSpeechDecay ? Math.max(0, Math.min(1, timeSinceSpoken / 5000)) : 1.0;
       const pulseDecay = isPostSpeechDecay ? (1.0 - decayProgress) : 0.0;
 
       const isSpeakingNow = s.id === activeSpeakerId && !isPostSpeechDecay;
@@ -117,8 +117,8 @@ export class HearthSeatsLayout {
       if (isPostSpeechDecay) {
         // Grand pulsating breathing ring expanding outwards and fading over 5 seconds
         const pulseWave = Math.sin(t * 5.5) * 0.5 + 0.5;
-        const outerR = baseR + (14 + pulseWave * 5) * pulseDecay;
-        const glowR = outerR + 8 * pulseDecay;
+        const outerR = Math.max(baseR, baseR + (14 + pulseWave * 5) * pulseDecay);
+        const glowR = Math.max(outerR + 1, outerR + 8 * pulseDecay);
 
         const grad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, glowR);
         grad.addColorStop(0, `rgba(255, 178, 102, ${0.55 * pulseDecay})`);

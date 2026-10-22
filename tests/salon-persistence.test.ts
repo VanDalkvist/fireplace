@@ -99,4 +99,21 @@ describe("SalonPersistence", () => {
     expect(loadHearthWordsPersistence()).toEqual([]);
     expect(loadSessionPersistence()).toBeNull();
   });
+
+  it("sanitizes words loaded from previous sessions (v1 fallback and future timestamps)", () => {
+    store["salon_presence_words_v1"] = JSON.stringify([
+      {
+        id: "w-old",
+        text: "старое",
+        born: 9999999999999,
+        lastAt: 9999999999999,
+      },
+    ]);
+
+    const loaded = loadHearthWordsPersistence();
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].settled).toBe(true);
+    expect(loaded[0].born).toBeLessThanOrEqual(Date.now());
+    expect(loaded[0].lastAt).toBeLessThanOrEqual(Date.now());
+  });
 });

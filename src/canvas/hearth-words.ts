@@ -118,7 +118,7 @@ export class HearthWordsManager {
     id: string, text: string, family: string, speakerSeat: IsometricSeat,
     cx: number, cy: number, rx: number, ry: number, ctx: CanvasRenderingContext2D
   ): void {
-    const now = performance.now();
+    const now = Date.now();
     this.ageWords();
     ctx.font = "20px 'JetBrains Mono'";
     const wordWidth = ctx.measureText(text).width;
@@ -177,14 +177,14 @@ export class HearthWordsManager {
 
   public render(ctx: CanvasRenderingContext2D, _seats: IsometricSeat[], time: number): void {
     const t = time * 0.001;
-    const now = performance.now();
+    const now = Date.now();
 
     // 1. Flight Sparks (Seat -> Word)
     for (let i = this.flightSparks.length - 1; i >= 0; i--) {
       const sp = this.flightSparks[i];
       const elapsed = now - sp.born;
-      if (elapsed >= sp.duration) { this.flightSparks.splice(i, 1); continue; }
-      const q = elapsed / sp.duration;
+      if (elapsed < 0 || elapsed >= sp.duration) { this.flightSparks.splice(i, 1); continue; }
+      const q = Math.max(0, Math.min(1, elapsed / sp.duration));
       const ease = 1 - Math.pow(1 - q, 3);
       const midX = (sp.sx + sp.tx) / 2;
       const midY = Math.min(sp.sy, sp.ty) - 30;
@@ -221,15 +221,15 @@ export class HearthWordsManager {
       ctx.translate(w.x, w.y);
       const label = w.count > 1 ? `${w.text} ×${w.count}` : w.text;
 
-      // Warm orange arrival fade to calm linen white over 4.0 seconds (no need to wait for next word!)
+      // Warm orange arrival fade to calm linen white over 4.0 seconds (strictly clamped!)
       const age = now - (w.lastAt || w.born);
-      const warmRatio = age < 4000 ? Math.pow(1.0 - age / 4000, 2) : 0.0;
+      const warmRatio = (age >= 0 && age < 4000) ? Math.min(1.0, Math.max(0.0, Math.pow(1.0 - age / 4000, 2))) : 0.0;
 
       ctx.font = warmRatio > 0.3 ? "600 21px 'JetBrains Mono'" : "20px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const alpha = Math.max(0.20, w.opacity);
+      const alpha = Math.max(0.20, Math.min(1.0, w.opacity));
       const r = Math.round(236 + (255 - 236) * warmRatio);
       const g = Math.round(228 + (185 - 228) * warmRatio);
       const b = Math.round(214 + (115 - 214) * warmRatio);
@@ -237,7 +237,7 @@ export class HearthWordsManager {
       ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * (0.88 + warmRatio * 0.12)})`;
       if (warmRatio > 0.05) {
         ctx.shadowColor = `rgba(255, 178, 102, ${0.60 * warmRatio})`;
-        ctx.shadowBlur = Math.round(6 * warmRatio);
+        ctx.shadowBlur = Math.min(6, Math.max(0, Math.round(6 * warmRatio)));
       } else {
         ctx.shadowBlur = 0;
       }
