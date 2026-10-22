@@ -118,4 +118,36 @@ describe('HearthFlameSimulator', () => {
     // Stones use elliptical facets with highlights
     expect(ellipseCalls).toBeGreaterThanOrEqual(16);
   });
+
+  it('renders a dense multi-tongue flame with at least 50 tongues across core, body, and mantle', () => {
+    const flame = new HearthFlameSimulator();
+    let bezierCurveToCalls = 0;
+
+    const mockCtx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      closePath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      bezierCurveTo: vi.fn(() => { bezierCurveToCalls++; }),
+      arc: vi.fn(),
+      ellipse: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      createRadialGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      createLinearGradient: vi.fn(() => ({ addColorStop: vi.fn() })),
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      lineCap: 'round',
+      globalCompositeOperation: 'source-over',
+    } as unknown as CanvasRenderingContext2D;
+
+    flame.render(mockCtx, 500, 300, 1500, 0.5);
+
+    // Each flame tongue uses 2 bezierCurveTo calls for left and right edges
+    // With >= 50 tongues, we expect >= 100 bezierCurveTo calls
+    expect(bezierCurveToCalls).toBeGreaterThanOrEqual(100);
+  });
 });

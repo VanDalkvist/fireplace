@@ -43,16 +43,34 @@ const LOGS: Log[] = [
   { a: 3.85,  len: 98,  w: 9.5,  heatPhase: 1.3, speed: 1.8 }
 ];
 
-const TONGUES: Tongue[] = [
-  { relX: -6,  relY: -4, width: 44, baseH: 130, speed: 2.2, phase: 0.0, layer: 'core' },
-  { relX: 8,   relY: 4,  width: 40, baseH: 122, speed: 1.9, phase: 1.8, layer: 'core' },
-  { relX: -32, relY: 3,  width: 30, baseH: 94,  speed: 2.7, phase: 3.2, layer: 'body' },
-  { relX: -22, relY: -11, width: 26, baseH: 78, speed: 3.1, phase: 5.1, layer: 'mantle' },
-  { relX: 30,  relY: 2,  width: 32, baseH: 96,  speed: 2.5, phase: 2.4, layer: 'body' },
-  { relX: 20,  relY: -10, width: 25, baseH: 80, speed: 3.3, phase: 4.3, layer: 'mantle' },
-  { relX: -3,  relY: -16, width: 34, baseH: 84, speed: 2.1, phase: 0.9, layer: 'mantle' },
-  { relX: 5,   relY: 12,  width: 36, baseH: 68, speed: 2.8, phase: 3.7, layer: 'body' }
-];
+function buildTongues(): Tongue[] {
+  const t: Tongue[] = [];
+  for (let i = 0; i < 12; i++) {
+    t.push({
+      relX: (i - 5.5) * 6.5, relY: Math.sin(i * 1.7) * 5 - 2,
+      width: 26 + (i % 3) * 6, baseH: 105 + Math.sin(i * 2.1) * 22,
+      speed: 1.8 + (i % 4) * 0.3, phase: i * 0.65, layer: 'core'
+    });
+  }
+  for (let i = 0; i < 24; i++) {
+    t.push({
+      relX: (i - 11.5) * 3.6, relY: Math.cos(i * 1.3) * 8 + 2,
+      width: 18 + (i % 4) * 5, baseH: 75 + Math.sin(i * 1.8) * 24,
+      speed: 2.2 + (i % 5) * 0.28, phase: i * 0.44 + 1.2, layer: 'body'
+    });
+  }
+  for (let i = 0; i < 20; i++) {
+    const s = i % 2 === 0 ? 1 : -1;
+    t.push({
+      relX: s * (16 + i * 1.5), relY: Math.sin(i * 2.1) * 9 - 4,
+      width: 14 + (i % 3) * 5, baseH: 55 + Math.cos(i * 1.6) * 20,
+      speed: 2.7 + (i % 4) * 0.35, phase: i * 0.52 + 2.4, layer: 'mantle'
+    });
+  }
+  return t;
+}
+
+const TONGUES: Tongue[] = buildTongues();
 
 export class HearthFlameSimulator {
   private particles = new HearthParticleSystem();
@@ -123,8 +141,7 @@ export class HearthFlameSimulator {
       const rJitter = Math.sin(a * 4) * 4.2 + Math.cos(a * 7) * 2.8;
       const ax = cx + Math.cos(a) * (98 + rJitter);
       const ay = cy + 4 + Math.sin(a) * (32 + rJitter * 0.33);
-      if (p === 0) ctx.moveTo(ax, ax !== undefined ? ay : 0);
-      else ctx.lineTo(ax, ay);
+      if (p === 0) ctx.moveTo(ax, ay); else ctx.lineTo(ax, ay);
     }
     ctx.closePath();
     ctx.fill();
@@ -170,9 +187,29 @@ export class HearthFlameSimulator {
     // 2d. Front stones overlapping foreground ash
     for (const sc of stoneCoords) if (!sc.isBack) drawStone(sc);
 
-    // 4. Living 1/f Bezier Flame Tongues
+    // 4. Dense Living 1/f Bezier Flame Tongues (56 tongues with shared layer gradients)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    const gradBaseY = cy + 6;
+    const gradTipY = cy - 140 * (1.0 + clampedHeat * 0.70);
+
+    // Pre-create 3 layer gradients per frame
+    const coreGrad = ctx.createLinearGradient(cx, gradBaseY, cx, gradTipY);
+    coreGrad.addColorStop(0.0, 'rgba(255, 245, 215, 0.45)');
+    coreGrad.addColorStop(0.32, 'rgba(255, 185, 80, 0.32)');
+    coreGrad.addColorStop(0.75, 'rgba(225, 75, 20, 0.16)');
+    coreGrad.addColorStop(1.0, 'rgba(160, 30, 10, 0.0)');
+
+    const bodyGrad = ctx.createLinearGradient(cx, gradBaseY, cx, gradTipY);
+    bodyGrad.addColorStop(0.0, 'rgba(255, 200, 100, 0.30)');
+    bodyGrad.addColorStop(0.45, 'rgba(240, 120, 35, 0.22)');
+    bodyGrad.addColorStop(0.82, 'rgba(190, 45, 15, 0.10)');
+    bodyGrad.addColorStop(1.0, 'rgba(100, 20, 5, 0.0)');
+
+    const mantleGrad = ctx.createLinearGradient(cx, gradBaseY, cx, gradTipY);
+    mantleGrad.addColorStop(0.0, 'rgba(240, 130, 40, 0.22)');
+    mantleGrad.addColorStop(0.52, 'rgba(195, 60, 18, 0.12)');
+    mantleGrad.addColorStop(1.0, 'rgba(85, 15, 5, 0.0)');
 
     for (let i = 0; i < TONGUES.length; i++) {
       const fl = TONGUES[i];
@@ -180,47 +217,25 @@ export class HearthFlameSimulator {
       const cycle2 = Math.sin(t * (fl.speed * 1.6) + fl.phase * 1.4);
       const activity = Math.max(0.18, cycle * 0.55 + cycle2 * 0.35 + 0.55);
 
-      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * (6 + clampedHeat * 4) + globalWind;
+      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * (5 + clampedHeat * 4) + globalWind;
       const stretch = fl.baseH * (0.80 + activity * 0.40 + clampedHeat * 0.70);
       const width = fl.width * (0.85 + activity * 0.35 + clampedHeat * 0.50);
-
       const baseX = cx + fl.relX;
       const baseY = cy + fl.relY;
       const tipX = cx + fl.relX * 0.4 + localSway;
       const tipY = cy - stretch;
-
-      const flick = Math.sin(t * 4.2 + fl.phase) * 4;
-      const cpLeftX = baseX - width * 0.55 + localSway * 0.35;
-      const cpLeftY = cy - stretch * 0.42;
-      const cpRightX = baseX + width * 0.55 + localSway * 0.35;
-      const cpRightY = cy - stretch * 0.42;
+      const flick = Math.sin(t * 4.2 + fl.phase) * 3.5;
+      const cpLeftX = baseX - width * 0.52 + localSway * 0.32;
+      const cpRightX = baseX + width * 0.52 + localSway * 0.32;
+      const cpY = cy - stretch * 0.42;
 
       ctx.beginPath();
       ctx.moveTo(baseX - width * 0.42, baseY);
-      ctx.bezierCurveTo(cpLeftX, cpLeftY, tipX - 2 + flick, tipY + 10, tipX + flick, tipY);
-      ctx.bezierCurveTo(tipX + 2 + flick, tipY + 10, cpRightX, cpRightY, baseX + width * 0.42, baseY);
+      ctx.bezierCurveTo(cpLeftX, cpY, tipX - 2 + flick, tipY + 8, tipX + flick, tipY);
+      ctx.bezierCurveTo(tipX + 2 + flick, tipY + 8, cpRightX, cpY, baseX + width * 0.42, baseY);
       ctx.closePath();
 
-      const flameGrad = ctx.createLinearGradient(baseX, baseY, tipX, tipY);
-      const actAlpha = Math.min(1.0, activity);
-
-      if (fl.layer === 'core') {
-        flameGrad.addColorStop(0.0, `rgba(255, 245, 210, ${0.72 * actAlpha})`);
-        flameGrad.addColorStop(0.35, `rgba(255, 185, 80, ${0.55 * actAlpha})`);
-        flameGrad.addColorStop(0.78, `rgba(225, 75, 22, ${0.28 * actAlpha})`);
-        flameGrad.addColorStop(1.0, 'rgba(160, 30, 10, 0.0)');
-      } else if (fl.layer === 'body') {
-        flameGrad.addColorStop(0.0, `rgba(255, 205, 110, ${0.52 * actAlpha})`);
-        flameGrad.addColorStop(0.48, `rgba(240, 125, 38, ${0.38 * actAlpha})`);
-        flameGrad.addColorStop(0.85, `rgba(190, 45, 15, ${0.16 * actAlpha})`);
-        flameGrad.addColorStop(1.0, 'rgba(100, 20, 5, 0.0)');
-      } else {
-        flameGrad.addColorStop(0.0, `rgba(240, 135, 45, ${0.36 * actAlpha})`);
-        flameGrad.addColorStop(0.55, `rgba(195, 65, 20, ${0.20 * actAlpha})`);
-        flameGrad.addColorStop(1.0, 'rgba(85, 15, 5, 0.0)');
-      }
-
-      ctx.fillStyle = flameGrad;
+      ctx.fillStyle = fl.layer === 'core' ? coreGrad : fl.layer === 'body' ? bodyGrad : mantleGrad;
       ctx.fill();
     }
     ctx.restore();
