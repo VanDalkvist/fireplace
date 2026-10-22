@@ -80,14 +80,15 @@ export function useSalonSpeech({
       setInterimPhrase("");
       setInterimBadge(null);
       if (curPhase === "desires") desireFn(clean, speakerSeat);
+      else if (curPhase === "completion") feelFn(clean, "завершение", 0.5, speakerSeat);
       else feelFn(clean, "живость", 0, speakerSeat);
       if (speakerSeat) scheduleSpeakerDecay();
       return;
     }
 
-    setInterimBadge({ text: "нейрокоррекция", type: "feeling" });
+    setInterimBadge({ text: "нейрокоррекция", type: curPhase === "desires" ? "desire" : "feeling" });
     const recentContext = turnBufferRef.current.getRecentHistory(3);
-    const res = await distillWithNeuralFallback(text, { engine: callbacksRef.current.distillerEngine }, recentContext);
+    const res = await distillWithNeuralFallback(text, { engine: callbacksRef.current.distillerEngine, phase: curPhase }, recentContext);
     const settled = res.repairedText || text;
 
     turnBufferRef.current.commitCompletedTurn(settled);
@@ -99,23 +100,18 @@ export function useSalonSpeech({
 
     let matched = false;
     for (const f of res.feelings) {
-      const phraseText = (f.form || f.lemma || "").trim();
-      if (phraseText && !isPureFillerPhrase(phraseText)) {
-        feelFn(phraseText, f.family, f.valence, speakerSeat);
-        matched = true;
-      }
+      const p = (f.form || f.lemma || "").trim();
+      if (p && !isPureFillerPhrase(p)) { feelFn(p, f.family, f.valence, speakerSeat); matched = true; }
     }
     for (const d of res.desires) {
-      const desireText = (d.text || "").trim();
-      if (desireText && !isPureFillerPhrase(desireText)) {
-        desireFn(desireText, speakerSeat);
-        matched = true;
-      }
+      const p = (d.text || "").trim();
+      if (p && !isPureFillerPhrase(p)) { desireFn(p, speakerSeat); matched = true; }
     }
     if (!matched) {
       const clean = (res.fallbackText || settled || "").trim();
       if (clean && !isPureFillerPhrase(clean)) {
         if (res.isDesirePhrase || curPhase === "desires") desireFn(clean, speakerSeat);
+        else if (curPhase === "completion") feelFn(clean, "завершение", 0.5, speakerSeat);
         else feelFn(clean, "живость", 0, speakerSeat);
       }
     }
@@ -196,11 +192,7 @@ export function useSalonSpeech({
     speechRef.current = createSpeechEngine(sttEngine, {
       onInterimPhrase: (text) => {
         setInterimPhrase(text);
-        if (text.toLowerCase().trim() === "пас") {
-          setInterimBadge({ text: "пас", type: "pass" });
-        } else {
-          setInterimBadge(null);
-        }
+        setInterimBadge(text.toLowerCase().trim() === "пас" ? { text: "пас", type: "pass" } : null);
       },
       onFinalPhrase: handleSpeechResult,
       onError: (err) => setSpeechError(err),
