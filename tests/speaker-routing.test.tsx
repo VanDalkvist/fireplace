@@ -4,18 +4,15 @@ import { VoiceIndicator } from "../src/components/salon/VoiceIndicator";
 import { WhisperSpeechAdapter } from "../src/speech/whisper-speech-adapter";
 
 describe("Autonomous Speaker Routing (Cycle 12)", () => {
-  it("renders identified speaker badge on VoiceIndicator when voice is recognized", () => {
+  it("renders clean quiet listening indicator on VoiceIndicator without numbers", () => {
     const html = renderToString(
       <VoiceIndicator
         isListening={true}
-        activeSpeakerNumber={4}
-        identifiedSpeaker={{ seatNumber: 4, speakerId: "seat_4" }}
         engineType="whisper"
       />
     );
 
-    expect(html).toContain("голос: стул");
-    expect(html).toContain("04");
+    expect(html).toContain("слушаю круг (whisper)...");
   });
 
   it("passes speaker seat number from speakerPort to onFinalPhrase callback", async () => {

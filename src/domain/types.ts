@@ -9,6 +9,7 @@ export interface Participant {
   isSpeaking: boolean;
   hasPassed: boolean;
   isHost: boolean;
+  angle?: number;
 }
 
 export interface FeelingToken {

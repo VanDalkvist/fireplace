@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import { checkOllamaStatus } from "@/domain/phrase-distiller";
+import React, { useEffect, useRef, useCallback } from "react";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
 import { useSalonSession } from "@/hooks/useSalonSession";
 import { useSalonUiState } from "@/hooks/useSalonUiState";
@@ -25,6 +24,7 @@ export const SalonExperience: React.FC = () => {
     handleAdvanceTurn,
     triggerNextTurn,
     handleSelectSpeaker,
+    handleResetCircle,
   } = useSalonSession();
 
   const {
@@ -34,8 +34,6 @@ export const SalonExperience: React.FC = () => {
     setIsIntroOpen,
     isZen,
     setIsZen,
-    isInputOpen,
-    setIsInputOpen,
     volume,
     setVolume,
     sttEngine,
@@ -44,18 +42,14 @@ export const SalonExperience: React.FC = () => {
     setIsDemoActive,
   } = useSalonUiState();
 
-  const [engineStatus, setEngineStatus] = useState({ online: false, hasModel: false });
-
   const {
     isListening,
     isMeetingConnected,
     lastPhrase,
     interimPhrase,
     interimBadge,
-    identifiedSpeaker,
     speechError,
     speechRef,
-    handleSpeechResult,
     handleToggleMeetingAudio,
     resetVoiceprints,
   } = useSalonSpeech({
@@ -73,7 +67,6 @@ export const SalonExperience: React.FC = () => {
   const motionRef = useRef<SalonMotionEngine | null>(null);
 
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
-  useEffect(() => { checkOllamaStatus().then(setEngineStatus); }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -106,7 +99,6 @@ export const SalonExperience: React.FC = () => {
     onPass: handlePass,
     onToggleAudio: handleAudioToggle,
     onToggleSpeech: () => speechRef.current?.toggle(),
-    onToggleInput: () => setIsInputOpen((p) => !p),
     onAdvanceTurn: handleAdvanceTurn,
     onSelectPhase: handlePhaseSelect,
   });
@@ -137,11 +129,9 @@ export const SalonExperience: React.FC = () => {
       </div>
 
       {/* Floating Bottom HUD */}
-      <div className={cn("fixed bottom-3 left-4 right-4 z-10 flex flex-col items-center gap-2 transition-all duration-300", isZen && "translate-y-4 opacity-0 pointer-events-none")}>
+      <div className={cn("fixed bottom-4 left-4 right-4 z-10 flex flex-col items-center gap-2.5 transition-all duration-300", isZen && "translate-y-4 opacity-0 pointer-events-none")}>
         <VoiceIndicator
           isListening={isListening}
-          activeSpeakerNumber={state.activeSpeakerId}
-          identifiedSpeaker={identifiedSpeaker}
           lastPhraseText={lastPhrase}
           interimText={interimPhrase}
           interimBadge={interimBadge}
@@ -151,31 +141,20 @@ export const SalonExperience: React.FC = () => {
           onToggleListening={() => speechRef.current?.toggle()}
           isSupported={speechRef.current?.isSupported()}
         />
-        <div className="w-full max-w-[1100px]">
-          <SalonControls
-            phase={state.phase}
-            isAudioOn={isAudioOn}
-            isListening={isListening}
-            isDemoActive={isDemoActive}
-            isMeetingAudioConnected={isMeetingConnected}
-            engineStatus={engineStatus}
-            sttEngine={sttEngine}
-            onToggleSttEngine={() => setSttEngine((prev) => (prev === "whisper" ? "google" : "whisper"))}
-            onResetVoiceprints={resetVoiceprints}
-            onToggleMeetingAudio={handleToggleMeetingAudio}
-            onInputToggle={() => setIsInputOpen((prev) => !prev)}
-            onPhaseSelect={handlePhaseSelect}
-            onAudioToggle={handleAudioToggle}
-            onSpeechToggle={() => speechRef.current?.toggle()}
-            onTriggerTurn={triggerNextTurn}
-            onToggleDemo={() => setIsDemoActive((prev) => !prev)}
-            onAddPhrase={(text, family, kind) => {
-              if (kind === "pass") handlePass();
-              else if (kind === "desire") handleAddDesire(text);
-              else handleAddFeeling(text, family || "живость");
-            }}
-          />
-        </div>
+        <SalonControls
+          phase={state.phase}
+          isAudioOn={isAudioOn}
+          isDemoActive={isDemoActive}
+          isMeetingAudioConnected={isMeetingConnected}
+          sttEngine={sttEngine}
+          onToggleSttEngine={() => setSttEngine((prev) => (prev === "whisper" ? "google" : "whisper"))}
+          onResetVoiceprints={resetVoiceprints}
+          onResetCircle={handleResetCircle}
+          onToggleMeetingAudio={handleToggleMeetingAudio}
+          onPhaseSelect={handlePhaseSelect}
+          onAudioToggle={handleAudioToggle}
+          onToggleDemo={() => setIsDemoActive((prev) => !prev)}
+        />
       </div>
 
       <SalonModals
@@ -183,13 +162,9 @@ export const SalonExperience: React.FC = () => {
         setIsPultOpen={setIsPultOpen}
         isIntroOpen={isIntroOpen}
         setIsIntroOpen={setIsIntroOpen}
-        isInputOpen={isInputOpen}
-        setIsInputOpen={setIsInputOpen}
         volume={volume}
         setVolume={setVolume}
         phase={state.phase}
-        activeSpeakerId={state.activeSpeakerId ?? 1}
-        engineStatus={engineStatus}
         isDemoActive={isDemoActive}
         setIsDemoActive={setIsDemoActive}
         isListening={isListening}
@@ -199,7 +174,6 @@ export const SalonExperience: React.FC = () => {
         onNextSpeaker={handleAdvanceTurn}
         onPass={handlePass}
         onTriggerDemoPhrase={triggerNextTurn}
-        onInputSubmit={handleSpeechResult}
         onEnterCircleAudio={() => {
           if (!isAudioOn) handleAudioToggle();
         }}

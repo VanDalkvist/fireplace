@@ -6,7 +6,6 @@ export function useSalonUiState() {
   const [isPultOpen, setIsPultOpen] = useState(false);
   const [isIntroOpen, setIsIntroOpen] = useState(false);
   const [isZen, setIsZen] = useState(false);
-  const [isInputOpen, setIsInputOpen] = useState(false);
   const [volume, setVolume] = useState(0.6);
   const [sttEngine, setSttEngine] = useState<SpeechEngineKind>(() =>
     typeof window !== "undefined" && window.location.search.includes("stt=google") ? "google" : "whisper"
@@ -23,8 +22,6 @@ export function useSalonUiState() {
     setIsIntroOpen,
     isZen,
     setIsZen,
-    isInputOpen,
-    setIsInputOpen,
     volume,
     setVolume,
     sttEngine,

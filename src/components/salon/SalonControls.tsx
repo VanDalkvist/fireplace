@@ -1,207 +1,185 @@
-import React from "react";
+import React, { useState } from "react";
 import type { SessionPhase } from "@/domain/types";
 import { cn } from "@/lib/utils";
-import { Volume2, VolumeX, Play, Pause, Mic, MicOff } from "lucide-react";
+import {
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
+  SlidersHorizontal,
+  ChevronDown,
+  RotateCcw,
+  Video,
+} from "lucide-react";
 
 interface SalonControlsProps {
   phase: SessionPhase;
   isAudioOn: boolean;
-  isListening?: boolean;
   isDemoActive: boolean;
   isMeetingAudioConnected?: boolean;
-  engineStatus?: { online: boolean; hasModel: boolean };
   sttEngine?: "whisper" | "google";
   onPhaseSelect: (phase: SessionPhase) => void;
   onAudioToggle: () => void;
-  onSpeechToggle?: () => void;
   onToggleMeetingAudio?: () => void;
-  onInputToggle?: () => void;
   onToggleSttEngine?: () => void;
   onResetVoiceprints?: () => void;
-  onTriggerTurn: () => void;
+  onResetCircle?: () => void;
   onToggleDemo: () => void;
-  onAddPhrase: (text: string, family: string, kind?: 'feeling' | 'desire' | 'pass') => void;
 }
 
-const QUICK_CHIPS = [
-  { text: "тревога", family: "тревога", label: "тревожно", kind: "feeling" as const },
-  { text: "замедление", family: "спокойствие", label: "замедление", kind: "feeling" as const },
-  { text: "тепло", family: "нежность", label: "тепло", kind: "feeling" as const },
-  { text: "усталость", family: "усталость", label: "устал", kind: "feeling" as const },
-  { text: "тишины", family: "спокойствие", label: "тишины", kind: "desire" as const },
-  { text: "пас", family: "", label: "пас", kind: "pass" as const },
+const PHASES: Array<{ id: SessionPhase; label: string }> = [
+  { id: "silence", label: "тишина" },
+  { id: "feelings", label: "чувства" },
+  { id: "desires", label: "желания" },
+  { id: "completion", label: "завершение" },
 ];
 
 export const SalonControls: React.FC<SalonControlsProps> = ({
   phase,
   isAudioOn,
-  isListening = false,
   isDemoActive,
   isMeetingAudioConnected = false,
-  engineStatus,
   sttEngine = "whisper",
   onPhaseSelect,
   onAudioToggle,
-  onSpeechToggle,
   onToggleMeetingAudio,
-  onInputToggle,
   onToggleSttEngine,
   onResetVoiceprints,
-  onTriggerTurn,
+  onResetCircle,
   onToggleDemo,
-  onAddPhrase,
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleReset = () => {
+    onResetVoiceprints?.();
+    onResetCircle?.();
+  };
+
   return (
-    <div className="flex flex-col gap-2 p-3 bg-[#090807]/80 backdrop-blur-md border border-primary/20 rounded-[2px] font-mono text-[11px] shadow-2xl select-none">
-      <div className="flex items-center flex-wrap gap-2">
+    <div className="flex flex-col items-center gap-2 select-none pointer-events-auto">
+      {/* Collapsed Toggle Button */}
+      {!isOpen && (
         <button
-          onClick={onTriggerTurn}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground font-bold border border-primary rounded-[2px] cursor-pointer hover:bg-primary/90 transition-colors"
+          type="button"
+          onClick={() => setIsOpen(true)}
+          title="Открыть техническую панель управления"
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-black/40 hover:bg-black/70 border border-border/40 hover:border-primary/50 text-muted/70 hover:text-foreground rounded-full backdrop-blur-md text-[11px] font-mono transition-all duration-200 cursor-pointer shadow-sm"
         >
-          <span className="text-[10px] opacity-80">space</span>
-          <span>реплика в круг</span>
+          <SlidersHorizontal className="w-3 h-3 opacity-70" />
+          <span>панель управления</span>
         </button>
+      )}
 
-        <button
-          onClick={onToggleDemo}
-          className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
-            isDemoActive
-              ? "bg-primary/20 text-primary border-primary font-semibold"
-              : "border-border text-foreground hover:bg-secondary"
-          )}
-        >
-          {isDemoActive ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-          <span>живой круг</span>
-        </button>
-
-        <button
-          onClick={onAudioToggle}
-          className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
-            isAudioOn
-              ? "bg-primary/20 text-primary border-primary"
-              : "border-border text-muted hover:text-foreground hover:bg-secondary"
-          )}
-        >
-          {isAudioOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-          <span>звук (m)</span>
-        </button>
-
-        {onSpeechToggle && (
-          <button
-            onClick={onSpeechToggle}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
-              isListening
-                ? "bg-primary/20 text-primary border-primary font-semibold shadow-sm shadow-primary/20"
-                : "border-border text-muted hover:text-foreground hover:bg-secondary"
-            )}
-          >
-            {isListening ? <Mic className="w-3.5 h-3.5 text-primary" /> : <MicOff className="w-3.5 h-3.5" />}
-            <span>голос (v)</span>
-          </button>
-        )}
-
-        {onToggleMeetingAudio && (
-          <button
-            onClick={onToggleMeetingAudio}
-            title="Захват звука участников встречи Zoom или Google Meet"
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
-              isMeetingAudioConnected
-                ? "bg-[#34d399]/20 text-[#34d399] border-[#34d399] font-semibold"
-                : "border-border text-muted hover:text-foreground hover:bg-secondary"
-            )}
-          >
-            <span>встреча (zoom)</span>
-            <span
-              className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                isMeetingAudioConnected ? "bg-[#34d399]" : "bg-muted"
-              )}
-            />
-          </button>
-        )}
-
-        {onToggleSttEngine && (
-          <button
-            onClick={onToggleSttEngine}
-            title="Переключить движок распознавания речи (whisper vs google)"
-            className="flex items-center gap-1 px-2 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-[10px] text-muted hover:text-foreground transition-colors"
-          >
-            <span className="opacity-60">stt:</span>
-            <span className="font-bold text-primary">{sttEngine}</span>
-          </button>
-        )}
-
-        {onResetVoiceprints && (
-          <button
-            onClick={onResetVoiceprints}
-            title="Сбросить акустические отпечатки участников для нового круга (sherpa CAM++)"
-            className="flex items-center gap-1 px-2 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-[10px] text-muted hover:text-foreground transition-colors"
-          >
-            <span className="opacity-60">голоса:</span>
-            <span className="font-semibold text-foreground/80 hover:text-primary">сброс</span>
-          </button>
-        )}
-
-        {onInputToggle && (
-          <button
-            onClick={onInputToggle}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-foreground transition-colors"
-          >
-            <span>текст (enter)</span>
-            <span
-              className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                engineStatus?.hasModel ? "bg-[#34d399]" : "bg-[#ffb266]"
-              )}
-            />
-          </button>
-        )}
-
-        <div className="flex gap-1 ml-1">
-          {(["silence", "feelings", "desires", "completion"] as SessionPhase[]).map((p, idx) => (
+      {/* Expanded Technical Drawer */}
+      {isOpen && (
+        <div className="w-full max-w-2xl flex flex-col gap-3 p-3.5 bg-[#090807]/90 backdrop-blur-xl border border-primary/25 rounded-[4px] font-mono text-[11px] shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center justify-between border-b border-border/40 pb-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted font-semibold">
+              технические настройки
+            </span>
             <button
-              key={p}
-              onClick={() => onPhaseSelect(p)}
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-1 text-[10px] text-muted hover:text-foreground cursor-pointer transition-colors"
+            >
+              <span>свернуть</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="flex items-center flex-wrap gap-2">
+            {/* Zoom / Meet audio toggle */}
+            {onToggleMeetingAudio && (
+              <button
+                type="button"
+                onClick={onToggleMeetingAudio}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
+                  isMeetingAudioConnected
+                    ? "bg-primary/20 text-primary border-primary font-semibold"
+                    : "border-border text-muted hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>встреча (zoom)</span>
+              </button>
+            )}
+
+            {/* D Dorian sound toggle */}
+            <button
+              type="button"
+              onClick={onAudioToggle}
               className={cn(
-                "px-2 py-1 text-[10px] border rounded-[2px] cursor-pointer transition-colors",
-                phase === p
-                  ? "bg-primary text-primary-foreground font-bold border-primary"
-                  : "border-border text-muted hover:text-foreground"
+                "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
+                isAudioOn
+                  ? "bg-primary/20 text-primary border-primary"
+                  : "border-border text-muted hover:text-foreground hover:bg-secondary"
               )}
             >
-              {idx + 1}
+              {isAudioOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span>музыка костра (m)</span>
             </button>
-          ))}
-        </div>
 
-        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-          <span className="text-[10px] text-muted mr-1">в общее поле:</span>
-          {QUICK_CHIPS.map((chip) => (
+            {/* STT engine toggle */}
+            {onToggleSttEngine && (
+              <button
+                type="button"
+                onClick={onToggleSttEngine}
+                className="flex items-center gap-1 px-2.5 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-muted hover:text-foreground transition-colors"
+              >
+                <span className="opacity-60">stt:</span>
+                <span className="font-bold text-primary">{sttEngine}</span>
+              </button>
+            )}
+
+            {/* Reset circle & voices */}
             <button
-              key={chip.text}
-              onClick={() => onAddPhrase(chip.text, chip.family, chip.kind)}
-              className="px-2 py-0.5 text-[10px] border border-border/80 bg-[#100d0a] text-muted hover:text-primary hover:border-primary/60 rounded-[2px] transition-colors cursor-pointer"
+              type="button"
+              onClick={handleReset}
+              title="Очистить отпечатки голосов и участников для новой практики"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-[2px] cursor-pointer hover:bg-secondary text-muted hover:text-primary transition-colors"
             >
-              {chip.label}
+              <RotateCcw className="w-3 h-3" />
+              <span>новый круг</span>
             </button>
-          ))}
-        </div>
-      </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted pt-1.5 border-t border-border/40">
-        <div>
-          <kbd className="px-1 py-0.5 bg-[#15110d] border border-border rounded-[2px] text-foreground">space</kbd> реплика
-          · слова остывают до 10% · клик по точке — сесть
+            {/* Demo playback mode */}
+            <button
+              type="button"
+              onClick={onToggleDemo}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors ml-auto",
+                isDemoActive
+                  ? "bg-primary/20 text-primary border-primary font-semibold"
+                  : "border-border text-muted hover:text-foreground hover:bg-secondary"
+              )}
+            >
+              {isDemoActive ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+              <span>демо-круг</span>
+            </button>
+          </div>
+
+          {/* Practice Phase Selector */}
+          <div className="flex items-center gap-1 pt-1 border-t border-border/30">
+            <span className="text-[10px] text-muted mr-1.5">фаза:</span>
+            {PHASES.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onPhaseSelect(p.id)}
+                className={cn(
+                  "px-2.5 py-1 text-[11px] border rounded-[2px] cursor-pointer transition-colors",
+                  phase === p.id
+                    ? "bg-primary text-primary-foreground font-semibold border-primary"
+                    : "border-border/70 text-muted/80 hover:text-foreground"
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-2">
-          <span><kbd className="px-1 py-0.5 bg-[#15110d] border border-border rounded-[2px] text-foreground">h</kbd> зен-режим</span>
-          <span><kbd className="px-1 py-0.5 bg-[#15110d] border border-border rounded-[2px] text-foreground">f</kbd> полный экран</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

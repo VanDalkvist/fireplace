@@ -4,20 +4,15 @@ import type { SpeechEnginePort } from "@/speech/speech-types";
 import type { SalonAudioEngine } from "@/audio/audio-engine";
 import { SalonPult } from "./SalonPult";
 import { IntroDialog } from "./IntroDialog";
-import { HearthInput } from "../HearthInput";
 
 interface SalonModalsProps {
   isPultOpen: boolean;
   setIsPultOpen: (open: boolean) => void;
   isIntroOpen: boolean;
   setIsIntroOpen: (open: boolean) => void;
-  isInputOpen: boolean;
-  setIsInputOpen: (open: boolean) => void;
   volume: number;
   setVolume: (vol: number) => void;
   phase: SessionPhase;
-  activeSpeakerId: number;
-  engineStatus: { online: boolean; hasModel: boolean };
   isDemoActive: boolean;
   setIsDemoActive: (active: boolean | ((prev: boolean) => boolean)) => void;
   isListening: boolean;
@@ -27,7 +22,6 @@ interface SalonModalsProps {
   onNextSpeaker: () => void;
   onPass: () => void;
   onTriggerDemoPhrase: () => void;
-  onInputSubmit: (phrase: string) => void;
   onEnterCircleAudio: () => void;
 }
 
@@ -36,13 +30,9 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
   setIsPultOpen,
   isIntroOpen,
   setIsIntroOpen,
-  isInputOpen,
-  setIsInputOpen,
   volume,
   setVolume,
   phase,
-  activeSpeakerId,
-  engineStatus,
   isDemoActive,
   setIsDemoActive,
   isListening,
@@ -52,19 +42,10 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
   onNextSpeaker,
   onPass,
   onTriggerDemoPhrase,
-  onInputSubmit,
   onEnterCircleAudio,
 }) => {
   return (
     <>
-      <HearthInput
-        isOpen={isInputOpen}
-        activeSpeakerId={activeSpeakerId}
-        engineStatus={engineStatus}
-        onClose={() => setIsInputOpen(false)}
-        onSubmit={onInputSubmit}
-      />
-
       <SalonPult
         open={isPultOpen}
         onOpenChange={setIsPultOpen}

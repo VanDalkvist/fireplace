@@ -13,15 +13,33 @@ const PHASE_SEQUENCE: SessionPhase[] = [
   "completion",
 ];
 
-export function createInitialState(seatCount: number = 12): SessionState {
-  const count = Math.max(1, seatCount);
-  const participants: Participant[] = Array.from({ length: count }, (_, i) => ({
+export function calculatePhyllotaxisAngle(index: number): number {
+  const GOLDEN_ANGLE = 2.3999632; // ~137.5 degrees
+  return index * GOLDEN_ANGLE - Math.PI / 2;
+}
+
+export function createInitialState(seatCount: number = 0): SessionState {
+  if (seatCount <= 0) {
+    return {
+      phase: "silence",
+      participants: [],
+      activeSpeakerId: null,
+      feelings: [],
+      desires: [],
+      connections: [],
+      isListening: true,
+      isMuted: false,
+    };
+  }
+
+  const participants: Participant[] = Array.from({ length: seatCount }, (_, i) => ({
     id: i + 1,
     seatNumber: i + 1,
     role: "guest",
     isSpeaking: i === 0,
     hasPassed: false,
     isHost: i === 0,
+    angle: calculatePhyllotaxisAngle(i),
   }));
 
   return {
@@ -93,14 +111,49 @@ export function passTurn(
   });
 }
 
+export function ensureParticipant(state: SessionState, speakerId: number): SessionState {
+  if (state.participants.some((p) => p.id === speakerId)) {
+    return state;
+  }
+
+  const idx = state.participants.length;
+  const newParticipant: Participant = {
+    id: speakerId,
+    seatNumber: speakerId,
+    role: idx === 0 ? "light" : "guest",
+    isSpeaking: true,
+    hasPassed: false,
+    isHost: idx === 0,
+    angle: calculatePhyllotaxisAngle(idx),
+  };
+
+  return {
+    ...state,
+    participants: [...state.participants, newParticipant],
+    activeSpeakerId: speakerId,
+  };
+}
+
+export function resetParticipants(state: SessionState): SessionState {
+  return {
+    ...state,
+    participants: [],
+    activeSpeakerId: null,
+    feelings: [],
+    desires: [],
+    connections: [],
+  };
+}
+
 export function setSpeaker(
   state: SessionState,
   speakerId: number
 ): SessionState {
+  const ensured = ensureParticipant(state, speakerId);
   return {
-    ...state,
+    ...ensured,
     activeSpeakerId: speakerId,
-    participants: state.participants.map((p) => ({
+    participants: ensured.participants.map((p) => ({
       ...p,
       isSpeaking: p.id === speakerId,
     })),

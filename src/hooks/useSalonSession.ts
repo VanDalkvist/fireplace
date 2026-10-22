@@ -5,6 +5,8 @@ import {
   nextSpeaker,
   passTurn,
   setSpeaker,
+  ensureParticipant,
+  resetParticipants,
   addFeelingToken,
   addDesireToken,
 } from "@/domain/session-fsm";
@@ -25,10 +27,11 @@ export interface UseSalonSessionReturn {
   handleAdvanceTurn: () => void;
   triggerNextTurn: () => void;
   handleSelectSpeaker: (speakerId: number) => void;
+  handleResetCircle: () => void;
 }
 
 export function useSalonSession(): UseSalonSessionReturn {
-  const [state, setState] = useState<SessionState>(() => createInitialState(12));
+  const [state, setState] = useState<SessionState>(() => createInitialState(0));
   const [isAudioOn, setIsAudioOn] = useState(false);
   const [demoIdx, setDemoIdx] = useState(0);
   const audioRef = useRef<SalonAudioEngine | null>(null);
@@ -52,10 +55,11 @@ export function useSalonSession(): UseSalonSessionReturn {
       audioRef.current?.playFeeling(family, valence);
       setState((prev: SessionState) => {
         const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
+        const ensured = ensureParticipant(prev, speakerId);
         const withSpeaker: SessionState = {
-          ...prev,
+          ...ensured,
           activeSpeakerId: speakerId,
-          participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
+          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
         };
         return addFeelingToken(withSpeaker, {
           id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -78,10 +82,11 @@ export function useSalonSession(): UseSalonSessionReturn {
       audioRef.current?.playDesire();
       setState((prev: SessionState) => {
         const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
+        const ensured = ensureParticipant(prev, speakerId);
         const withSpeaker: SessionState = {
-          ...prev,
+          ...ensured,
           activeSpeakerId: speakerId,
-          participants: prev.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
+          participants: ensured.participants.map((p) => ({ ...p, isSpeaking: p.id === speakerId })),
         };
         return addDesireToken(withSpeaker, {
           id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -163,6 +168,10 @@ export function useSalonSession(): UseSalonSessionReturn {
     setState((prev: SessionState) => setSpeaker(prev, speakerId));
   }, []);
 
+  const handleResetCircle = useCallback(() => {
+    setState((prev: SessionState) => resetParticipants(prev));
+  }, []);
+
   return {
     state,
     audioRef,
@@ -176,5 +185,6 @@ export function useSalonSession(): UseSalonSessionReturn {
     handleAdvanceTurn,
     triggerNextTurn,
     handleSelectSpeaker,
+    handleResetCircle,
   };
 }

@@ -9,7 +9,6 @@ export interface InterimBadge {
 
 interface VoiceIndicatorProps {
   isListening: boolean;
-  activeSpeakerNumber: number | null;
   lastPhraseText?: string;
   interimText?: string;
   interimBadge?: InterimBadge | null;
@@ -18,12 +17,10 @@ interface VoiceIndicatorProps {
   isSupported?: boolean;
   engineType?: "whisper" | "google";
   isMeetingAudio?: boolean;
-  identifiedSpeaker?: { seatNumber: number; speakerId?: string } | null;
 }
 
 export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   isListening,
-  activeSpeakerNumber,
   lastPhraseText,
   interimText,
   interimBadge,
@@ -32,25 +29,20 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
   isSupported = true,
   engineType = "whisper",
   isMeetingAudio = false,
-  identifiedSpeaker,
 }) => {
   return (
-    <div className="flex flex-col items-center gap-1.5 select-none">
+    <div className="flex flex-col items-center gap-1.5 select-none pointer-events-auto">
       <button
         type="button"
         onClick={onToggleListening}
-        title={
-          !isSupported
-            ? "голосовой ввод не поддерживается браузером"
-            : isListening
-            ? "остановить микрофон (v)"
-            : "включить микрофон (v)"
-        }
+        title={isListening ? "остановить микрофон (v)" : "включить микрофон (v)"}
         disabled={!isSupported}
         className={cn(
-          "flex items-center gap-2 px-3 py-1 bg-black/60 border rounded-[2px] backdrop-blur-sm transition-colors",
-          isSupported ? "cursor-pointer pointer-events-auto" : "opacity-50 cursor-not-allowed",
-          isListening ? "border-primary/60 text-primary shadow-sm shadow-primary/20" : "border-border/80 text-muted hover:border-muted"
+          "flex items-center gap-2 px-3 py-1 bg-black/40 border rounded-full backdrop-blur-md transition-all duration-300",
+          isSupported ? "cursor-pointer" : "opacity-50 cursor-not-allowed",
+          isListening
+            ? "border-primary/50 text-primary shadow-sm shadow-primary/20"
+            : "border-border/60 text-muted/80 hover:border-muted hover:text-foreground"
         )}
       >
         <span className="relative flex h-2 w-2">
@@ -65,43 +57,24 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
           />
         </span>
 
-        <span className="text-[11px] font-mono">
-          {identifiedSpeaker ? (
-            <span className="text-primary font-semibold">
-              голос: стул {identifiedSpeaker.seatNumber < 10 ? `0${identifiedSpeaker.seatNumber}` : identifiedSpeaker.seatNumber}
-              {isListening ? ` · слушаю ${isMeetingAudio ? "встречу" : `(${engineType})`}...` : ""}
-            </span>
-          ) : activeSpeakerNumber ? (
-            `участник ${activeSpeakerNumber < 10 ? `0${activeSpeakerNumber}` : activeSpeakerNumber} ${
-              isListening
-                ? `· слушаю ${isMeetingAudio ? "встречу (zoom)" : `(${engineType})`}...`
-                : "· нажми микрофон (v)"
-            }`
-          ) : isListening ? (
-            `слушаю круг ${isMeetingAudio ? "встречи (zoom)" : `(${engineType})`}...`
-          ) : (
-            "включить голос (v)"
-          )}
+        <span className="text-[11px] font-mono tracking-wide">
+          {isListening
+            ? isMeetingAudio
+              ? "слушаю встречу (zoom)..."
+              : `слушаю круг (${engineType})...`
+            : "микрофон (v)"}
         </span>
 
         {isListening ? (
-          <Mic className="w-3 h-3 text-primary ml-1" />
+          <Mic className="w-3 h-3 text-primary ml-0.5 opacity-80" />
         ) : (
-          <MicOff className="w-3 h-3 text-muted ml-1" />
+          <MicOff className="w-3 h-3 text-muted ml-0.5 opacity-60" />
         )}
       </button>
 
       {errorMessage ? (
-        <div className="flex items-center gap-2 px-3 py-1 bg-destructive/15 border border-destructive/50 rounded-[2px] text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
-          <span>{errorMessage} (или нажми enter для ввода текста)</span>
-          <a
-            href="http://127.0.0.1:4343/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:text-foreground ml-1 font-semibold text-primary"
-          >
-            открыть в Chrome ↗
-          </a>
+        <div className="flex items-center gap-2 px-3 py-1 bg-destructive/15 border border-destructive/40 rounded-[2px] text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
+          <span>{errorMessage}</span>
         </div>
       ) : interimText ? (
         <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary/90 italic max-w-sm text-center truncate animate-pulse pointer-events-none">
@@ -112,8 +85,8 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
             </span>
           )}
         </div>
-      ) : lastPhraseText ? (
-        <div className="text-[11px] font-mono text-muted/70 italic max-w-sm text-center truncate pointer-events-none">
+      ) : lastPhraseText && lastPhraseText !== "тишина у огня" ? (
+        <div className="text-[11px] font-mono text-muted/60 italic max-w-sm text-center truncate pointer-events-none transition-opacity duration-1000">
           «{lastPhraseText}»
         </div>
       ) : null}
