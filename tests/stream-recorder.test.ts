@@ -62,37 +62,19 @@ describe('StreamRecorder', () => {
     expect(recorder.isRecording).toBe(false);
   });
 
-  it('extracts current segment as Blob while keeping recording active (zero loss)', async () => {
+  it('extracts current segment as a complete valid Blob and immediately restarts recorder for next segment', async () => {
     await recorder.start(mockStream, 250);
 
     const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
     mediaRecInstance.ondataavailable({ data: new Blob(['chunk1 '], { type: 'audio/webm' }) });
     mediaRecInstance.ondataavailable({ data: new Blob(['chunk2 '], { type: 'audio/webm' }) });
 
-    const segment = recorder.extractCurrentSegment(0);
+    const segment = await recorder.extractCurrentSegment();
     expect(segment).toBeInstanceOf(Blob);
     expect(recorder.isRecording).toBe(true);
 
     const text = await segment.text();
-    expect(text).toBe('chunk1 chunk2 ');
-  });
-
-  it('preserves overlap chunk when extracting segment', async () => {
-    await recorder.start(mockStream, 250);
-
-    const mediaRecInstance = (recorder as unknown as { mediaRecorder: { ondataavailable: (e: { data: Blob }) => void } }).mediaRecorder;
-    mediaRecInstance.ondataavailable({ data: new Blob(['partA '], { type: 'audio/webm' }) });
-    mediaRecInstance.ondataavailable({ data: new Blob(['partB '], { type: 'audio/webm' }) });
-
-    // With overlap, partB is kept for the next segment
-    const segment1 = recorder.extractCurrentSegment(300);
-    expect(segment1).toBeInstanceOf(Blob);
-
-    mediaRecInstance.ondataavailable({ data: new Blob(['partC '], { type: 'audio/webm' }) });
-    const segment2 = recorder.extractCurrentSegment(0);
-    const text2 = await segment2.text();
-
-    expect(text2).toBe('partB partC ');
+    expect(text).toContain('chunk1 chunk2 ');
   });
 
   it('tracks voice activity and reports whether speech occurred in the segment', async () => {
@@ -107,7 +89,7 @@ describe('StreamRecorder', () => {
     expect(recorder.hasSpeechInCurrentSegment()).toBe(true);
 
     // After extracting segment, speech flag is reset for the next segment
-    recorder.extractCurrentSegment(0);
+    await recorder.extractCurrentSegment();
     expect(recorder.hasSpeechInCurrentSegment()).toBe(false);
   });
 

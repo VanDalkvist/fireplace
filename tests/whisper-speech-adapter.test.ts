@@ -79,8 +79,8 @@ describe('WhisperSpeechAdapter', () => {
     await adapter.start();
 
     // Trigger normal interval-based segment processing on silence
-    (adapter as unknown as { processCurrentSegment: (overlap?: number, isExplicit?: boolean) => Promise<void> })
-      .processCurrentSegment(300, false);
+    await (adapter as unknown as { processCurrentSegment: (isExplicit?: boolean) => Promise<void> })
+      .processCurrentSegment(false);
     await new Promise((r) => setTimeout(r, 10));
 
     // Whisper should NOT be called on silence!

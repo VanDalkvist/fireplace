@@ -55,17 +55,16 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
     }, 4500);
   }
 
-  private async processCurrentSegment(overlapMs = 300, isExplicitFlush = false): Promise<void> {
+  private async processCurrentSegment(isExplicitFlush = false): Promise<void> {
     if (!this.isListeningActive) return;
 
-    // VAD Gate: if no speech was detected in this segment, discard silence without calling Whisper (AP-012)
+    // VAD Gate: if no speech was detected in this segment, keep listening without calling Whisper (AP-012)
     const hasSpeech = this.recorder.hasSpeechInCurrentSegment?.() ?? true;
     if (!hasSpeech && !isExplicitFlush) {
-      this.recorder.extractCurrentSegment(0); // Clear silent background noise
       return;
     }
 
-    const blob = this.recorder.extractCurrentSegment(overlapMs);
+    const blob = await this.recorder.extractCurrentSegment();
     if (!blob || blob.size === 0) return;
 
     this.callbacks.onInterimPhrase?.("распознавание whisper...");
@@ -119,7 +118,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
   public flush(): void {
     if (!this.isListeningActive) return;
-    this.processCurrentSegment(0, true);
+    void this.processCurrentSegment(true);
     this.armSilenceTimer();
   }
 }

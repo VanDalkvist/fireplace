@@ -42,38 +42,41 @@ export class StreamRecorder {
     try {
       this.activeStream = targetStream;
       this.setupAudioAnalysis(targetStream);
-
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : undefined;
-
-      this.mediaRecorder = new MediaRecorder(targetStream, mimeType ? { mimeType } : undefined);
-
-      this.mediaRecorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          this.sampleAudioRms();
-          this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
-          if (this.ringBuffer.length > this.maxBufferSize) {
-            this.ringBuffer.shift(); // Enforce circular bound (AP-018, AP-023)
-          }
-        }
-      };
-
-      this.mediaRecorder.onstop = () => {
-        const type = this.mediaRecorder?.mimeType || "audio/webm";
-        const blob = new Blob(this.ringBuffer.map((c) => c.blob), { type });
-        this.resolveStop?.(blob);
-        this.resolveStop = null;
-      };
-
-      if (timesliceMs !== undefined) {
-        this.mediaRecorder.start(timesliceMs);
-      } else {
-        this.mediaRecorder.start();
-      }
+      this.createMediaRecorder(targetStream, timesliceMs);
     } catch (err) {
       this.cleanup();
       throw err;
+    }
+  }
+
+  private createMediaRecorder(stream: MediaStream, timesliceMs?: number): void {
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? "audio/webm;codecs=opus"
+      : undefined;
+
+    this.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+    this.mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        this.sampleAudioRms();
+        this.ringBuffer.push({ blob: e.data, timestamp: Date.now() });
+        if (this.ringBuffer.length > this.maxBufferSize) {
+          this.ringBuffer.shift(); // Enforce circular bound (AP-018, AP-023)
+        }
+      }
+    };
+
+    this.mediaRecorder.onstop = () => {
+      const type = this.mediaRecorder?.mimeType || "audio/webm";
+      const blob = new Blob(this.ringBuffer.map((c) => c.blob), { type });
+      this.resolveStop?.(blob);
+      this.resolveStop = null;
+    };
+
+    if (timesliceMs !== undefined) {
+      this.mediaRecorder.start(timesliceMs);
+    } else {
+      this.mediaRecorder.start();
     }
   }
 
@@ -123,23 +126,32 @@ export class StreamRecorder {
     if (val) this.lastSpeechTime = Date.now();
   }
 
-  public extractCurrentSegment(overlapMs = 300): Blob {
-    const type = this.mediaRecorder?.mimeType || "audio/webm";
-    this.speechDetected = false; // Reset for the next segment (AP-018)
+  public async extractCurrentSegment(): Promise<Blob> {
+    this.speechDetected = false;
 
-    if (this.ringBuffer.length === 0) {
-      return new Blob([], { type });
+    if (!this.mediaRecorder || this.mediaRecorder.state !== "recording") {
+      return new Blob([], { type: "audio/webm" });
     }
 
-    const allBlobs = this.ringBuffer.map((c) => c.blob);
-    const segmentBlob = new Blob(allBlobs, { type });
+    if (this.ringBuffer.length === 0) {
+      return new Blob([], { type: "audio/webm" });
+    }
 
-    if (overlapMs > 0 && this.ringBuffer.length > 1) {
-      // Retain last chunk for seamless overlap windowing (AP-018 Zero Gap)
-      const lastChunk = this.ringBuffer[this.ringBuffer.length - 1];
-      this.ringBuffer = [lastChunk];
-    } else {
-      this.ringBuffer = [];
+    // Stop current recorder to finalize complete, valid WebM container with full EBML header (AP-012)
+    const segmentBlob = await new Promise<Blob>((resolve) => {
+      this.resolveStop = resolve;
+      try {
+        this.mediaRecorder?.stop();
+      } catch (err) {
+        console.warn("[StreamRecorder] stop failed:", err);
+        resolve(new Blob([], { type: "audio/webm" }));
+      }
+    });
+
+    // Reset buffer and restart a fresh MediaRecorder instance on the continuous stream
+    this.ringBuffer = [];
+    if (this.activeStream) {
+      this.createMediaRecorder(this.activeStream, 250);
     }
 
     return segmentBlob;
