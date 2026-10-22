@@ -205,7 +205,16 @@ export class StreamRecorder {
       }
       this.activeStream = null;
     }
-    this.mediaRecorder = null;
+    if (this.mediaRecorder) {
+      this.mediaRecorder.ondataavailable = null;
+      this.mediaRecorder.onstop = null;
+      if (this.mediaRecorder.state !== "inactive") {
+        try { this.mediaRecorder.stop(); } catch (err) {
+          console.warn("[StreamRecorder] cleanup mediaRecorder stop error:", err);
+        }
+      }
+      this.mediaRecorder = null;
+    }
     this.ringBuffer = [];
     this.speechDetected = false;
   }
