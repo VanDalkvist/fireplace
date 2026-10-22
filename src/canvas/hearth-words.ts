@@ -67,8 +67,8 @@ export class HearthWordsManager {
       // Sacred fire clearance (expanded clearing around central campfire)
       const distFireX = Math.abs(testX - cx);
       const distFireY = testY - cy;
-      if (distFireX < (175 + halfW) && distFireY < 85 && distFireY > -220) {
-        testX = cx + (testX >= cx ? 1 : -1) * (185 + halfW);
+      if (distFireX < (225 + halfW) && distFireY < 110 && distFireY > -290) {
+        testX = cx + (testX >= cx ? 1 : -1) * (235 + halfW);
       }
 
       let overlaps = false;

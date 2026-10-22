@@ -919,6 +919,46 @@
    - Сборка `vite build` — 255 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 27 - 2026-10-22 - Magnified Majestic Campfire Scale (1.35x–1.40x)
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-27-magnified-hearth-scale.md`
+- Scope:
+  1. Масштабирование пламени костра на 35–40% (`src/canvas/hearth-flame.ts`):
+     - Взлетающие шпили Tier 1 увеличены до **195–250px** высоты (ширина 28–38px).
+     - Основное тело пламени Tier 2 увеличено до **110–155px** (ширина 22–32px).
+     - Низкие язычки Tier 3 увеличены до **55–88px**, микро-всполохи Tier 4 — до **25–42px**.
+     - Вертикальная шкала растяжения `maxStretch` расширена до 195px.
+  2. Масштабирование каменного очага и основания углей:
+     - Радиус каменной кладки `rx` расширен с 94px до **130px**, `ry` — до **42px**.
+     - Размеры камней `HEARTH_STONES` увеличены до 16–22px длины и 8–13px высоты.
+     - Ореол неровной золы увеличен до 134×44px, сердцевина тлеющих углей — до 110×36px.
+     - Бревна `LOGS` увеличены в длину до 144–150px, толщина до 13.5–14px.
+     - Световой бассейн на земле расширен до `poolRx = 290..470px`, `poolRy = 105..175px`.
+  3. Расширение зоны вихревых искр и сакрального отступа слов:
+     - В `hearth-particles.ts` радиус спавна искр и дымных клубов увеличен на 38%.
+     - В `hearth-words.ts` священный коридор отступа слов `distFireX` расширен до `(225 + halfW)` и `distFireY` до -290px, исключая коллизии парящих слов с верхушками пламени.
+  4. Строгий лимит AP-019: `hearth-flame.ts` — 239 строк ($\le 250$).
+
+### Findings Fixed
+- [P1] Under-scaled Fire for Fullscreen Canvas — RESOLVED via 1.35x–1.40x proportional anatomical enlargement.
+- [P2] Word Clearance Boundary Collisions — RESOLVED via widened hearth clearance box.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 121/121 тестов Vitest GREEN (30 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Костер стал масштабным, царственным центром поляны: высокие взлетающие языки, мощная каменная чаша, тепловой световой ореол на земле.
+   - Сборка `vite build` — 239 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

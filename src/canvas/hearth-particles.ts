@@ -76,11 +76,11 @@ export class HearthParticleSystem {
 
   public createLick(cx: number, cy: number, initial = false): Lick {
     return {
-      x: cx + (Math.random() - 0.5) * 35,
-      y: cy - 40 - Math.random() * 30,
+      x: cx + (Math.random() - 0.5) * 48,
+      y: cy - 55 - Math.random() * 45,
       vx: (Math.random() - 0.5) * 0.45,
       vy: -1.0 - Math.random() * 1.8,
-      size: 5 + Math.random() * 8,
+      size: 6 + Math.random() * 10,
       life: initial ? Math.random() * 25 : 0,
       maxLife: 22 + Math.random() * 26,
       curlPhase: Math.random() * TAU,
@@ -89,11 +89,11 @@ export class HearthParticleSystem {
 
   public createPuff(cx: number, cy: number, initial = false): Puff {
     return {
-      x: cx + (Math.random() - 0.5) * 35,
-      y: cy + (Math.random() - 0.5) * 12,
+      x: cx + (Math.random() - 0.5) * 48,
+      y: cy + (Math.random() - 0.5) * 16,
       vx: (Math.random() - 0.5) * 0.35,
       vy: -0.8 - Math.random() * 1.6,
-      size: 24 + Math.random() * 26,
+      size: 32 + Math.random() * 32,
       life: initial ? Math.random() * 35 : 0,
       maxLife: 35 + Math.random() * 30,
       hue: Math.random() < 0.65 ? 'amber' : 'carmine',
@@ -103,11 +103,11 @@ export class HearthParticleSystem {
   public createSpark(cx: number, cy: number, initial = false): Spark {
     const ang = Math.random() * TAU;
     return {
-      x: cx + Math.cos(ang) * (Math.random() * 38),
-      y: cy + Math.sin(ang) * (Math.random() * 14),
+      x: cx + Math.cos(ang) * (Math.random() * 52),
+      y: cy + Math.sin(ang) * (Math.random() * 19),
       vx: (Math.random() - 0.5) * 0.35,
       vy: -0.7 - Math.random() * 1.8,
-      size: 1.2 + Math.random() * 2.2,
+      size: 1.4 + Math.random() * 2.6,
       life: initial ? Math.random() * 100 : 0,
       maxLife: 80 + Math.random() * 125,
       swirl: Math.random() * TAU,

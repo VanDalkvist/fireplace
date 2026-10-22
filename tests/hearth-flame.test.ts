@@ -80,6 +80,7 @@ describe('HearthFlameSimulator', () => {
 
     expect(coolRadius).toBeDefined();
     expect(hotRadius).toBeDefined();
+    expect(coolRadius).toBeGreaterThanOrEqual(280);
     expect(hotRadius).toBeGreaterThan(coolRadius);
   });
 
