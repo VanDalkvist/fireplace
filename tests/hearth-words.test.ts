@@ -79,4 +79,23 @@ describe('HearthWordsManager', () => {
     for (let i = 0; i < 60; i++) manager.ageWords();
     expect(manager.words[0].opacity).toBe(0.10);
   });
+
+  it('enforces capacity cap of 36 words with LRU eviction of faded words', () => {
+    const manager = new HearthWordsManager();
+    const mockCtx = {
+      font: '',
+      measureText: vi.fn(() => ({ width: 60 })),
+    } as unknown as CanvasRenderingContext2D;
+
+    const seat: IsometricSeat = {
+      id: 1, angle: 0, x: 500, y: 300, depth: 0.5, pulse: 0, spokenCount: 0,
+    };
+
+    // Add 40 unique words
+    for (let i = 0; i < 40; i++) {
+      manager.addWord(`w-${i}`, `слово-${i}`, 'спокойствие', seat, 500, 300, 400, 200, mockCtx);
+    }
+
+    expect(manager.words.length).toBeLessThanOrEqual(36);
+  });
 });

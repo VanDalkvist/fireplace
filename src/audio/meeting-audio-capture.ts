@@ -7,6 +7,7 @@ export class MeetingAudioCapture {
 
   public async capture(ac: AudioContext | null): Promise<boolean> {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) return false;
+    this.disconnect();
 
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({

@@ -125,6 +125,7 @@ export class HearthWordsManager {
 
   private recordLink(newWord: HearthWordItem): void {
     if (!this.lastSpokenWord || this.lastSpokenWord.id === newWord.id) return;
+    if (typeof window === "undefined" || !window.localStorage) return;
     try {
       const key = 'salon_presence_links';
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
