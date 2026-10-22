@@ -19,9 +19,9 @@ describe('HearthWordsManager', () => {
       const dy = slot.y - cy;
 
       // When vertically near or above the hearth (where flames rise),
-      // words must maintain strict horizontal clearance (> 125px + halfW)
-      if (dy < 45 && dy > -145) {
-        expect(dx).toBeGreaterThanOrEqual(135);
+      // words must maintain strict horizontal clearance (> 150px + halfW = 190px)
+      if (dy < 65 && dy > -175) {
+        expect(dx).toBeGreaterThanOrEqual(160);
       }
     }
   });

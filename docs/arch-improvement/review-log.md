@@ -539,3 +539,26 @@
    - 0 runtime ошибок в консоли.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 16 - 2026-10-22 - Robust STT, Hearth Expansion, Full Persistence & PM2 Client Logging
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-16-stt-scale-persistence.md`
+- Scope:
+  1. Первопричина HTTP 400: `whisper-server` стартовал без `--convert`. Без этого флага C++ парсер `dr_wav` принимал только WAV, отбрасывая браузерный WebM Opus с 400. В PM2 сервис `whisper-asr` переконфигурирован с `--convert --tmp-dir /tmp`. В `salon-presence` добавлен `src/speech/wav-encoder.ts` (16kHz mono PCM).
+  2. В `sherpa-speaker-service` добавлена поддержка как `multipart/form-data`, так и raw binary WebM (`extractAudioBuffer`).
+  3. Масштаб костра и поляны: `floorRx` увеличен до 920px, `floorRy` до 420px, радиус словаря `baseR = 0.66`, священный зазор вокруг очага увеличен со 135px до 160px.
+  4. Масштаб текста: размер шрифта слов увеличен с 14px до 17px JetBrains Mono (и 18px bold для активного спикера).
+  5. Персистентность: создан `src/infrastructure/salon-persistence.ts`. Все слова, их точные координаты `x, y`, `targetX, targetY`, прозрачность `opacity` и статус `settled` сохраняются в `localStorage` и мгновенно гидратируются при F5/Cmd+R без повторной анимации полета. Кнопка «новый круг» производит полную очистку хранилища.
+  6. Логи в PM2: в `vite.config.ts` добавлен плагин `clientLoggerPlugin` (`/api/client-log`), а в клиенте создан `src/infrastructure/client-logger.ts`. Все события браузера (ошибки VAD, Whisper, Sherpa, AudioContext) пересылаются в Vite-сервер и пишутся в PM2 stdout/stderr (`server.out.log` и `server.err.log`).
+
+### Verification (Internal Suite Gate)
+- 81/81 тестов Vitest GREEN (23 тест-сьюта).
+- `tsc --noEmit` 0 ошибок, 0 circular dependencies (53 файла).
+- Все файлы $\le 229$ строк (AP-019 PASS).
+- Производственная сборка `vite build` 253 мс без предупреждений.
+- PM2 сервис `salon-presence` (PID 54368), `sherpa-speaker` (PID 57269), `whisper-asr` (PID 47250) онлайн и проверены через `curl`.
+
+

@@ -8,6 +8,10 @@ import type { FeelingToken, DesireToken, Participant } from '@/domain/types';
 import { HearthFlameSimulator } from './hearth-flame';
 import { HearthSeatsLayout } from './hearth-seats';
 import { HearthWordsManager } from './hearth-words';
+import {
+  clearAllSalonPersistence,
+  loadSessionPersistence,
+} from '@/infrastructure/salon-persistence';
 
 const TAU = Math.PI * 2;
 
@@ -24,6 +28,15 @@ export class SalonMotionEngine {
 
   private knownTokenIds = new Set<string>();
 
+  constructor() {
+    const persisted = loadSessionPersistence();
+    if (persisted) {
+      this.currentHeat = persisted.heat || 0.0;
+      persisted.session.feelings?.forEach((f) => this.knownTokenIds.add(f.id));
+      persisted.session.desires?.forEach((d) => this.knownTokenIds.add(d.id));
+    }
+  }
+
   public computeTargetHeat(wordCount: number, isSpeaking: boolean): number {
     const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 14)) * 0.92 : 0.0;
     const speechBoost = isSpeaking ? 0.12 : 0.0;
@@ -33,8 +46,8 @@ export class SalonMotionEngine {
   public resize(width: number, height: number): void {
     this.cx = width / 2;
     this.floorCY = height / 2; // EXACT CENTER!
-    this.floorRx = Math.min(width * 0.45, 780);
-    this.floorRy = Math.min(height * 0.36, 320);
+    this.floorRx = Math.min(width * 0.48, 920);
+    this.floorRy = Math.min(height * 0.40, 420);
 
     this.seats.layout(this.cx, this.floorCY, this.floorRx, this.floorRy, 12);
   }
@@ -58,6 +71,8 @@ export class SalonMotionEngine {
     if (feelings.length === 0 && desires.length === 0 && this.knownTokenIds.size > 0) {
       this.knownTokenIds.clear();
       this.words.words = [];
+      this.currentHeat = 0.0;
+      clearAllSalonPersistence();
     }
 
     // Synchronize feelings into hearth ring

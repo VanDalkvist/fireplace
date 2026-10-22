@@ -3,6 +3,7 @@ import { StreamRecorder } from "./stream-recorder";
 import { transcribeAudioBlob } from "./whisper-client";
 import { SherpaSpeakerAdapter } from "@/speaker/sherpa-speaker-adapter";
 import type { SpeakerIdentificationPort } from "@/speaker/speaker-types";
+import { clientLogger } from "@/infrastructure/client-logger";
 
 export class WhisperSpeechAdapter implements SpeechEnginePort {
   private recorder: StreamRecorder;
@@ -89,6 +90,7 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
       this.isListeningActive = false;
       this.callbacks.onStatusChange?.(false);
+      clientLogger.error("Whisper speech segment processing error", err);
       this.callbacks.onError?.(
         `Ошибка Whisper ASR: ${err instanceof Error ? err.message : String(err)}`
       );

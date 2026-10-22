@@ -6,6 +6,10 @@
  */
 
 import type { IsometricSeat } from './hearth-seats';
+import {
+  loadHearthWordsPersistence,
+  saveHearthWordsPersistence,
+} from '@/infrastructure/salon-persistence';
 
 const TAU = Math.PI * 2;
 
@@ -24,10 +28,17 @@ export class HearthWordsManager {
   public flightSparks: FlightSpark[] = [];
   public lastSpokenWord: HearthWordItem | null = null;
 
+  constructor() {
+    this.words = loadHearthWordsPersistence();
+    if (this.words.length > 0) {
+      this.lastSpokenWord = this.words[this.words.length - 1];
+    }
+  }
+
   public findSlot(
     speakerAngle: number, wordWidth: number, cx: number, cy: number, rx: number, ry: number
   ): { x: number; y: number } {
-    const baseR = 0.58;
+    const baseR = 0.66;
     const halfW = wordWidth / 2;
     let targetBaseAngle = speakerAngle;
 
@@ -52,17 +63,17 @@ export class HearthWordsManager {
       let testX = cx + Math.cos(testAng) * (rx * testR);
       let testY = cy + Math.sin(testAng) * (ry * testR);
 
-      // Sacred fire clearance
+      // Sacred fire clearance (expanded clearing around central campfire)
       const distFireX = Math.abs(testX - cx);
       const distFireY = testY - cy;
-      if (distFireX < (125 + halfW) && distFireY < 45 && distFireY > -145) {
-        testX = cx + (testX >= cx ? 1 : -1) * (135 + halfW);
+      if (distFireX < (150 + halfW) && distFireY < 65 && distFireY > -175) {
+        testX = cx + (testX >= cx ? 1 : -1) * (160 + halfW);
       }
 
       let overlaps = false;
       for (let i = 0; i < this.words.length; i++) {
         const w = this.words[i];
-        if (Math.abs(testX - w.targetX) < (halfW + w.width / 2 + 18) && Math.abs(testY - w.targetY) < 18) {
+        if (Math.abs(testX - w.targetX) < (halfW + w.width / 2 + 22) && Math.abs(testY - w.targetY) < 22) {
           overlaps = true;
           break;
         }
@@ -77,6 +88,7 @@ export class HearthWordsManager {
     for (let i = 0; i < this.words.length; i++) {
       this.words[i].opacity = Math.max(0.20, this.words[i].opacity - 0.02);
     }
+    saveHearthWordsPersistence(this.words);
   }
 
   public addWord(
@@ -85,7 +97,7 @@ export class HearthWordsManager {
   ): void {
     const now = performance.now();
     this.ageWords();
-    ctx.font = "14px 'JetBrains Mono'";
+    ctx.font = "17px 'JetBrains Mono'";
     const wordWidth = ctx.measureText(text).width;
 
     const existing = this.words.find((w) => w.text === text && w.seatId === speakerSeat.id);
@@ -108,6 +120,7 @@ export class HearthWordsManager {
 
     this.recordLink(item);
     this.words.push(item);
+    saveHearthWordsPersistence(this.words);
     this.flightSparks.push({
       sx: speakerSeat.x, sy: speakerSeat.y, tx: slot.x, ty: slot.y,
       born: now, duration: 1200,
@@ -190,11 +203,11 @@ export class HearthWordsManager {
       ctx.save();
       ctx.translate(w.x, w.y);
       const label = w.count > 1 ? `${w.text} ×${w.count}` : w.text;
-      ctx.font = "14px 'JetBrains Mono'";
+      const isLatest = w === this.lastSpokenWord;
+      ctx.font = isLatest ? "600 18px 'JetBrains Mono'" : "17px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const isLatest = w === this.lastSpokenWord;
       const alpha = Math.max(0.20, w.opacity);
       if (isLatest) {
         ctx.fillStyle = `rgba(255, 185, 115, ${alpha})`;

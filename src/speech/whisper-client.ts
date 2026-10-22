@@ -1,3 +1,5 @@
+import { clientLogger } from "@/infrastructure/client-logger";
+
 export interface WhisperStatus {
   online: boolean;
 }
@@ -44,13 +46,21 @@ export async function transcribeAudioBlob(
     clearTimeout(timer);
 
     if (!res.ok) {
-      throw new Error(`Whisper server responded with HTTP ${res.status}`);
+      const errText = typeof res.text === "function" ? await res.text().catch(() => "") : "";
+      clientLogger.error(`Whisper inference failed with HTTP ${res.status}`, {
+        status: res.status,
+        body: errText,
+        blobSize: audioBlob.size,
+        blobType: audioBlob.type,
+      });
+      throw new Error(`Whisper server responded with HTTP ${res.status}${errText ? `: ${errText}` : ""}`);
     }
 
     const data = (await res.json()) as { text?: string };
     return (data.text || "").trim();
   } catch (err) {
     clearTimeout(timer);
+    clientLogger.warn(`transcribeAudioBlob exception: ${err instanceof Error ? err.message : String(err)}`);
     throw err;
   }
 }

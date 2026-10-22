@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   createInitialState,
   setPhase,
@@ -12,6 +12,11 @@ import {
 import type { SessionState, SessionPhase } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
 import { SalonAudioEngine } from "@/audio/audio-engine";
+import {
+  loadSessionPersistence,
+  saveSessionPersistence,
+  clearAllSalonPersistence,
+} from "@/infrastructure/salon-persistence";
 
 export interface UseSalonSessionReturn {
   state: SessionState;
@@ -30,10 +35,17 @@ export interface UseSalonSessionReturn {
 }
 
 export function useSalonSession(): UseSalonSessionReturn {
-  const [state, setState] = useState<SessionState>(() => createInitialState(0));
+  const [state, setState] = useState<SessionState>(() => {
+    const persisted = loadSessionPersistence();
+    return persisted?.session || createInitialState(0);
+  });
   const [isAudioOn, setIsAudioOn] = useState(false);
   const demoIdxRef = useRef(0);
   const audioRef = useRef<SalonAudioEngine | null>(null);
+
+  useEffect(() => {
+    saveSessionPersistence(state, 0.0);
+  }, [state]);
 
   if (!audioRef.current && typeof window !== "undefined") {
     audioRef.current = new SalonAudioEngine();
@@ -162,7 +174,8 @@ export function useSalonSession(): UseSalonSessionReturn {
   }, []);
 
   const handleResetCircle = useCallback(() => {
-    setState((prev: SessionState) => resetParticipants(prev));
+    clearAllSalonPersistence();
+    setState(() => resetParticipants(createInitialState(0)));
   }, []);
 
   return {
