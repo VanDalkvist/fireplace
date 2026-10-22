@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { defaultLexiconIndex } from '../src/domain/lexicon-provider';
-import { distillWithNeuralFallback, checkOllamaStatus } from '../src/domain/phrase-distiller';
+import { distillWithNeuralFallback, checkOllamaStatus, splitIntoSemanticPhrases } from '../src/domain/phrase-distiller';
 
 describe('Neural Phrase Distiller', () => {
   beforeEach(() => {
@@ -143,5 +143,14 @@ describe('Neural Phrase Distiller', () => {
 
     // Must NOT be severed to "работает" alone — must preserve full meaningful utterance
     expect(res.feelings[0].lemma).toBe("Распознавание голоса работает");
+  });
+
+  it('splits long conversational compound sentences into multiple meaningful semantic phrases', () => {
+    const longSentence = "В общем будем пытаться давать доступ к системе, для того чтобы все присутствующие сами в этом смогли разобраться";
+    const phrases = splitIntoSemanticPhrases(longSentence, 6);
+
+    expect(phrases.length).toBeGreaterThanOrEqual(2);
+    expect(phrases[0]).toContain("будем пытаться давать доступ");
+    expect(phrases[1]).toContain("все присутствующие сами");
   });
 });

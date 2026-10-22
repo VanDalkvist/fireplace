@@ -152,6 +152,41 @@ JSON:`;
   return { ...baseResult, neuralDistilled: false, engineUsed: "lexicon-fallback" };
 }
 
+export function splitIntoSemanticPhrases(text: string, maxWordsPerPhrase = 8): string[] {
+  const clean = text.trim();
+  if (!clean) return [];
+
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWordsPerPhrase) {
+    return [clean];
+  }
+
+  // Split on clause boundaries: punctuation (, ; : —) or strong conjunctions
+  const clauseRegex = /[,;—:]|\s+(?:для того чтобы|потому что|так как|а также|чтобы|если|когда|но|а)\s+/i;
+  const rawParts = clean.split(clauseRegex).map((p) => p.trim()).filter((p) => p.length > 2);
+
+  const result: string[] = [];
+  for (const part of rawParts) {
+    const partWords = part.split(/\s+/).filter(Boolean);
+    if (partWords.length <= maxWordsPerPhrase) {
+      if (partWords.length >= 2) result.push(part);
+    } else {
+      let i = 0;
+      while (i < partWords.length) {
+        const remaining = partWords.length - i;
+        const take = remaining <= maxWordsPerPhrase + 2 ? remaining : maxWordsPerPhrase;
+        const chunk = partWords.slice(i, i + take).join(" ");
+        if (chunk.split(/\s+/).length >= 2) {
+          result.push(chunk);
+        }
+        i += take;
+      }
+    }
+  }
+
+  return result.length > 0 ? result : [clean];
+}
+
 export async function checkOllamaStatus(
   ollamaUrl = "http://127.0.0.1:11434",
   model = "qwen2.5:1.5b"

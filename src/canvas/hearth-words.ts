@@ -67,8 +67,8 @@ export class HearthWordsManager {
       // Sacred fire clearance (expanded clearing around central campfire)
       const distFireX = Math.abs(testX - cx);
       const distFireY = testY - cy;
-      if (distFireX < (150 + halfW) && distFireY < 65 && distFireY > -175) {
-        testX = cx + (testX >= cx ? 1 : -1) * (160 + halfW);
+      if (distFireX < (175 + halfW) && distFireY < 85 && distFireY > -220) {
+        testX = cx + (testX >= cx ? 1 : -1) * (185 + halfW);
       }
 
       let overlaps = false;
@@ -112,7 +112,7 @@ export class HearthWordsManager {
   ): void {
     const now = performance.now();
     this.ageWords();
-    ctx.font = "17px 'JetBrains Mono'";
+    ctx.font = "20px 'JetBrains Mono'";
     const wordWidth = ctx.measureText(text).width;
 
     const existing = this.words.find((w) => w.text === text && w.seatId === speakerSeat.id);
@@ -211,7 +211,7 @@ export class HearthWordsManager {
       ctx.translate(w.x, w.y);
       const label = w.count > 1 ? `${w.text} ×${w.count}` : w.text;
       const isLatest = w === this.lastSpokenWord;
-      ctx.font = isLatest ? "600 18px 'JetBrains Mono'" : "17px 'JetBrains Mono'";
+      ctx.font = isLatest ? "600 22px 'JetBrains Mono'" : "20px 'JetBrains Mono'";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 

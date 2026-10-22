@@ -42,8 +42,8 @@ export class HearthFlameSimulator {
 
     // 1. Ambient Ground Light Pool (~0.12 Hz breathing, organically expands with words heat)
     const breath = Math.sin(t * 0.75) * 0.03 + Math.sin(t * 1.5) * 0.015;
-    const poolRx = (175 + clampedHeat * 95) * (1.0 + breath);
-    const poolRy = (62 + clampedHeat * 32) * (1.0 + breath);
+    const poolRx = (210 + clampedHeat * 140) * (1.0 + breath);
+    const poolRy = (75 + clampedHeat * 50) * (1.0 + breath);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -63,16 +63,16 @@ export class HearthFlameSimulator {
     ctx.save();
     ctx.fillStyle = '#0b0806';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 4, 82, 28, 0, 0, TAU);
+    ctx.ellipse(cx, cy + 4, 102, 34, 0, 0, TAU);
     ctx.fill();
 
-    for (let i = 0; i < 12; i++) {
-      const sAng = (i / 12) * TAU + 0.15;
-      const sx = cx + Math.cos(sAng) * 72;
-      const sy = cy + 4 + Math.sin(sAng) * 24;
+    for (let i = 0; i < 14; i++) {
+      const sAng = (i / 14) * TAU + 0.15;
+      const sx = cx + Math.cos(sAng) * 92;
+      const sy = cy + 4 + Math.sin(sAng) * 30;
       ctx.fillStyle = i % 2 === 0 ? '#15100c' : '#1c1510';
       ctx.beginPath();
-      ctx.ellipse(sx, sy, 7, 4.5, sAng, 0, TAU);
+      ctx.ellipse(sx, sy, 8, 5, sAng, 0, TAU);
       ctx.fill();
     }
 
@@ -112,9 +112,9 @@ export class HearthFlameSimulator {
       const cycle2 = Math.sin(t * (fl.speed * 1.6) + fl.phase * 1.4);
       const activity = Math.max(0.18, cycle * 0.55 + cycle2 * 0.35 + 0.55);
 
-      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * (5 + clampedHeat * 3) + globalWind;
-      const stretch = fl.baseH * (0.55 + activity * 0.35 + clampedHeat * 0.50);
-      const width = fl.width * (0.70 + activity * 0.30 + clampedHeat * 0.35);
+      const localSway = Math.sin(t * (fl.speed * 1.3) + fl.phase) * (6 + clampedHeat * 4) + globalWind;
+      const stretch = fl.baseH * (0.80 + activity * 0.40 + clampedHeat * 0.70);
+      const width = fl.width * (0.85 + activity * 0.35 + clampedHeat * 0.50);
 
       const baseX = cx + fl.relX;
       const baseY = cy + fl.relY;

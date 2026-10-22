@@ -39,16 +39,16 @@ export class SalonMotionEngine {
   }
 
   public computeTargetHeat(wordCount: number, isSpeaking: boolean): number {
-    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 14)) * 0.92 : 0.0;
-    const speechBoost = isSpeaking ? 0.12 : 0.0;
+    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 9)) * 0.96 : 0.0;
+    const speechBoost = isSpeaking ? 0.16 : 0.0;
     return Math.min(1.0, wordContribution + speechBoost);
   }
 
   public resize(width: number, height: number): void {
     this.cx = width / 2;
     this.floorCY = height / 2; // EXACT CENTER!
-    this.floorRx = Math.min(width * 0.48, 920);
-    this.floorRy = Math.min(height * 0.40, 420);
+    this.floorRx = width * 0.46; // Fullscreen clearing width without arbitrary 920 cap
+    this.floorRy = Math.min(height * 0.39, height / 2 - 40);
 
     this.seats.layout(this.cx, this.floorCY, this.floorRx, this.floorRy, 12);
     this.words.repositionToViewport(this.cx, this.floorCY, this.floorRx, this.floorRy);

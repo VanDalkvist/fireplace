@@ -734,6 +734,43 @@
    - Сборка `vite build` — 423 мс. PM2 процессы онлайн.
    - **Вердикт:** `VERDICT: PASS`.
 
+---
+
+## Cycle 22 - 2026-10-22 - Fullscreen Hearth Clearing, Semantic Phrase Slicing, Majestic Flame & Clean UI
+
+### Context
+- Branch: `main`
+- Plan: `docs/superpowers/plans/2026-10-22-arch-improvement-cycle-22-fullscreen-hearth-semantic-chunking-flame-growth.md`
+- Scope:
+  1. Ликвидация технической надписи `«распознавание Sber GigaAM v3…»` (`whisper-speech-adapter.ts`): удалены искусственные строки с названием движка из `onInterimPhrase`. Теперь интерфейс показывает исключительно спокойное `«слушаю»` или реальный распознанный текст без технического мусора.
+  2. Овал костра во всю ширину экрана (`motion-engine.ts`): снято жесткое ограничение в 920px (`floorRx = width * 0.46`, `floorRy = height * 0.39`), поляна костра теперь задействует всю ширину любого монитора (92% экрана), давая словам колоссальное пространство без скучивания.
+  3. Смысловое разделение длинных монологов (`splitIntoSemanticPhrases` в `phrase-distiller.ts` и `useSalonSpeech.ts`): длинные многосоставные предложения из созвонов теперь автоматически разделяются по естественным смысловым границам (пунктуация, союзы) на 2–3 емкие фразы (по 3–8 слов). Каждая мысль занимает свое место в круге огня без превращения в трехстрочные параграфы.
+  4. Масштабирование типографики и пламени костра (`hearth-words.ts`, `hearth-flame.ts`, `motion-engine.ts`):
+     - Шрифт парящих фраз увеличен с 17px/18px до **20px / 22px bold JetBrains Mono**.
+     - Базовый размер костра увеличен на ~25% (дрова, камни, основание), а динамический рост языков пламени от накопленных слов усилен (`wordContribution` с $\tau = 9$ и коэффициентом роста до 0.70x).
+  5. Соблюдение строгих лимитов AP-019: все файлы $\le 246$ строк.
+
+### Findings Fixed
+- [P1] Technical Engine Jargon in Interim Phrase (`распознавание Sber GigaAM v3`) — RESOLVED.
+- [P1] Constrained Clearing Oval (920px cap on wide monitors) — RESOLVED via `width * 0.46`.
+- [P1] Monolithic Paragraph Blocks in Canvas — RESOLVED via `splitIntoSemanticPhrases`.
+- [P2] Muted Flame Heat Saturation — RESOLVED via magnified fire tongues & amplified heat response.
+
+### Verification (Dual-Circuit S9 Gate)
+1. **Architectural Reviewer:**
+   - 113/113 тестов Vitest GREEN (29 тест-сьютов).
+   - `tsc --noEmit` 0 ошибок, 0 circular dependencies (AP-025, AP-029).
+   - Все файлы в `src/` $\le 246$ строк (строгий PASS AP-019 $\le 250$).
+   - **Вердикт:** `VERDICT: PASS`.
+2. **Product Reviewer:**
+   - Сценарий 1 (Никаких надписей движков в UI): подтверждено в тестах и коде.
+   - Сценарий 2 (Поляна на всю ширину экрана): `floorRx = width * 0.46`.
+   - Сценарий 3 (Длинные мысли делятся на смысловые фразы): подтверждено `tests/phrase-distiller.test.ts`.
+   - Сценарий 4 (Увеличенный шрифт 20-22px и яркий рост костра): подтверждено `tests/hearth-words.test.ts` и `tests/hearth-flame.test.ts`.
+   - Сборка `vite build` — 287 мс. PM2 процессы онлайн.
+   - **Вердикт:** `VERDICT: PASS`.
+
+
 
 
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { SessionPhase } from "@/domain/types";
 import { distillSpokenPhrase, isPureFillerPhrase } from "@/domain/lexicon-engine";
-import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
+import { distillWithNeuralFallback, splitIntoSemanticPhrases } from "@/domain/phrase-distiller";
 import { defaultLexiconIndex } from "@/domain/lexicon-provider";
 import { createSpeechEngine } from "@/speech/speech-factory";
 import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
@@ -91,21 +91,35 @@ export function useSalonSpeech({
 
     let matched = false;
     for (const f of res.feelings) {
-      feelFn(f.form || f.lemma, f.family, f.valence, speakerSeat);
-      matched = true;
+      const parts = splitIntoSemanticPhrases(f.form || f.lemma);
+      for (const p of parts) {
+        if (!isPureFillerPhrase(p)) {
+          feelFn(p, f.family, f.valence, speakerSeat);
+          matched = true;
+        }
+      }
     }
     for (const d of res.desires) {
-      desireFn(d.text, speakerSeat);
-      matched = true;
+      const parts = splitIntoSemanticPhrases(d.text);
+      for (const p of parts) {
+        if (!isPureFillerPhrase(p)) {
+          desireFn(p, speakerSeat);
+          matched = true;
+        }
+      }
     }
     if (!matched) {
       const clean = res.fallbackText || settled;
       if (isPureFillerPhrase(clean)) return;
-      if (res.isDesirePhrase || currentPhase === "desires") {
-        desireFn(clean, speakerSeat);
-      } else {
-        // Authenticity (AP-013): keep user's authentic words without fake "спокойствие"
-        feelFn(clean, "живость", 0, speakerSeat);
+      const parts = splitIntoSemanticPhrases(clean);
+      for (const p of parts) {
+        if (!isPureFillerPhrase(p)) {
+          if (res.isDesirePhrase || currentPhase === "desires") {
+            desireFn(p, speakerSeat);
+          } else {
+            feelFn(p, "живость", 0, speakerSeat);
+          }
+        }
       }
     }
   }, []);

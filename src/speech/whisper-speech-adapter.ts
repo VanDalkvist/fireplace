@@ -113,7 +113,6 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
     clientLogger.info(`[${this.asrPort.name}] processing segment: ${blob.size} bytes (${blob.type})`);
     this.callbacks.onPipelineStatus?.("transcribing");
-    this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
 
     try {
       const [text, speakerResult] = await Promise.all([
@@ -162,7 +161,6 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       const blob = await this.recorder.stop();
       if (blob.size > 200) {
         this.callbacks.onPipelineStatus?.("transcribing");
-        this.callbacks.onInterimPhrase?.(`распознавание ${this.asrPort.name}...`);
         const [text, speakerResult] = await Promise.all([
           this.asrPort.transcribe(blob),
           this.speakerPort.identify(blob),
