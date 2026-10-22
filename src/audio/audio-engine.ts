@@ -1,4 +1,5 @@
 import { FAMILY_SEMITONES, BELL_STEPS, semitoneToHz } from "./audio-constants";
+import { MeetingAudioCapture } from "./meeting-audio-capture";
 
 export { FAMILY_SEMITONES, BELL_STEPS, semitoneToHz };
 
@@ -10,9 +11,7 @@ export class SalonAudioEngine {
   private droneBus: GainNode | null = null;
   private isEnabled: boolean = false;
   private volume: number = 0.6;
-  private meetingStream: MediaStream | null = null;
-  private analyser: AnalyserNode | null = null;
-  private timeData: Float32Array = new Float32Array(256);
+  private meeting = new MeetingAudioCapture();
 
   private init(): void {
     if (this.ac) return;
@@ -119,6 +118,15 @@ export class SalonAudioEngine {
     o2.start(t);
     o1.stop(end);
     o2.stop(end);
+
+    // Guaranteed Web Audio cleanup (AP-012, AP-023)
+    o1.onended = () => {
+      try {
+        o1.disconnect(); o2.disconnect(); o2g.disconnect(); lp.disconnect(); g.disconnect();
+      } catch (err) {
+        console.warn("[SalonAudioEngine] playTone cleanup error:", err);
+      }
+    };
   }
 
   public playDesire(index: number = 0): void {
@@ -150,6 +158,14 @@ export class SalonAudioEngine {
     mod.start(t);
     car.stop(t + 5.7);
     mod.stop(t + 5.7);
+
+    car.onended = () => {
+      try {
+        mod.disconnect(); mg.disconnect(); car.disconnect(); g.disconnect();
+      } catch (err) {
+        console.warn("[SalonAudioEngine] playDesire cleanup error:", err);
+      }
+    };
   }
 
   public playPass(): void {
@@ -171,69 +187,28 @@ export class SalonAudioEngine {
   }
 
   public async captureMeetingAudio(): Promise<boolean> {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getDisplayMedia) return false;
     this.init();
     if (this.ac && this.ac.state === "suspended") await this.ac.resume();
-
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-      stream.getVideoTracks().forEach((t) => t.stop());
-      const audioTracks = stream.getAudioTracks();
-      if (!audioTracks.length) return false;
-
-      audioTracks.forEach((track) => {
-        track.addEventListener?.("ended", () => {
-          this.disconnectMeetingAudio();
-          this.onMeetingAudioEndedCallback?.();
-        });
-      });
-
-      this.meetingStream = stream;
-      if (this.ac) {
-        const src = this.ac.createMediaStreamSource(stream);
-        this.analyser = this.ac.createAnalyser();
-        this.analyser.fftSize = 256;
-        src.connect(this.analyser);
-      }
-      return true;
-    } catch (err) {
-      console.warn("[SalonAudioEngine] captureMeetingAudio failed:", err);
-      return false;
-    }
+    return this.meeting.capture(this.ac);
   }
 
-  private onMeetingAudioEndedCallback: (() => void) | null = null;
-
   public onMeetingAudioEnded(cb: () => void): void {
-    this.onMeetingAudioEndedCallback = cb;
+    this.meeting.onEnded(cb);
   }
 
   public disconnectMeetingAudio(): void {
-    if (this.meetingStream) {
-      this.meetingStream.getAudioTracks().forEach((t) => t.stop());
-      this.meetingStream = null;
-    }
-    this.analyser = null;
+    this.meeting.disconnect();
   }
 
   public get isMeetingAudioConnected(): boolean {
-    return Boolean(this.meetingStream && this.meetingStream.getAudioTracks().some((t) => t.readyState === "live"));
+    return this.meeting.isConnected;
   }
 
   public getMeetingStream(): MediaStream | null {
-    return this.meetingStream;
+    return this.meeting.getStream();
   }
 
   public getMeetingRmsLevel(): number {
-    if (!this.analyser) return 0;
-    this.analyser.getFloatTimeDomainData(this.timeData as Float32Array<ArrayBuffer>);
-    let sum = 0;
-    for (let i = 0; i < this.timeData.length; i++) {
-      sum += this.timeData[i] * this.timeData[i];
-    }
-    return Math.sqrt(sum / this.timeData.length);
+    return this.meeting.getRmsLevel();
   }
 }

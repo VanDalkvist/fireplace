@@ -107,6 +107,14 @@ export class HearthWordsManager {
     };
 
     this.recordLink(item);
+    if (this.words.length >= 36) {
+      const oldestIdx = this.words.findIndex((w) => w.opacity <= 0.15);
+      if (oldestIdx !== -1) {
+        this.words.splice(oldestIdx, 1);
+      } else {
+        this.words.shift();
+      }
+    }
     this.words.push(item);
     this.flightSparks.push({
       sx: speakerSeat.x, sy: speakerSeat.y, tx: slot.x, ty: slot.y,
@@ -198,11 +206,10 @@ export class HearthWordsManager {
       if (isLatest) {
         ctx.fillStyle = `rgba(255, 185, 115, ${alpha})`;
         ctx.shadowColor = 'rgba(255, 178, 102, 0.60)';
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 6;
       } else {
         ctx.fillStyle = `rgba(236, 228, 214, ${alpha * 0.88})`;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-        ctx.shadowBlur = 3;
+        ctx.shadowBlur = 0; // Skip heavy GPU Gaussian blur passes on settled words (AP-055)
       }
       ctx.fillText(label, 0, 0);
       ctx.restore();

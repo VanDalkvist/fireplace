@@ -15,6 +15,7 @@ export class StreamRecorder {
   private resolveStop: ((blob: Blob) => void) | null = null;
   private activeStream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
+  private audioSource: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
   private speechDetected = false;
   private lastSpeechTime = 0;
@@ -85,10 +86,10 @@ export class StreamRecorder {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.audioContext = new AudioCtx();
-      const source = this.audioContext.createMediaStreamSource(stream);
+      this.audioSource = this.audioContext.createMediaStreamSource(stream);
       this.analyser = this.audioContext.createAnalyser();
       this.analyser.fftSize = 256;
-      source.connect(this.analyser);
+      this.audioSource.connect(this.analyser);
     } catch (err) {
       console.warn("[StreamRecorder] setupAudioAnalysis failed (non-blocking):", err);
     }
@@ -148,6 +149,13 @@ export class StreamRecorder {
       }
     });
 
+    // Explicitly unhook and release previous recorder to avoid native encoder leaks (AP-055)
+    if (this.mediaRecorder) {
+      this.mediaRecorder.ondataavailable = null;
+      this.mediaRecorder.onstop = null;
+      this.mediaRecorder = null;
+    }
+
     // Reset buffer and restart a fresh MediaRecorder instance on the continuous stream
     this.ringBuffer = [];
     if (this.activeStream) {
@@ -173,13 +181,24 @@ export class StreamRecorder {
   }
 
   public cleanup(): void {
+    if (this.audioSource) {
+      try { this.audioSource.disconnect(); } catch (err) {
+        console.warn("[StreamRecorder] audioSource disconnect error:", err);
+      }
+      this.audioSource = null;
+    }
+    if (this.analyser) {
+      try { this.analyser.disconnect(); } catch (err) {
+        console.warn("[StreamRecorder] analyser disconnect error:", err);
+      }
+      this.analyser = null;
+    }
     if (this.audioContext && this.audioContext.state !== "closed") {
       this.audioContext.close().catch((err) => {
         console.warn("[StreamRecorder] AudioContext close failed:", err);
       });
       this.audioContext = null;
     }
-    this.analyser = null;
     if (this.activeStream) {
       if (this.ownsActiveStream) {
         this.activeStream.getTracks().forEach((t) => t.stop());
