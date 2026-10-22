@@ -2,6 +2,8 @@ import { isPureFillerPhrase, type DistillationResult } from "./lexicon-engine";
 import { OllamaClient } from "@/infrastructure/ollama-client";
 import type { LlmDistillerPort } from "./distiller-types";
 import { defaultDistillerRegistry } from "./distiller-registry";
+import { defaultPromptRegistry } from "./prompts/prompt-registry";
+import type { SessionPhase } from "./types";
 
 export interface NeuralDistillerOptions {
   ollamaUrl?: string;
@@ -9,30 +11,13 @@ export interface NeuralDistillerOptions {
   timeoutMs?: number;
   engine?: "openrouter" | "ollama";
   distillerPort?: LlmDistillerPort;
+  phase?: SessionPhase;
 }
 
 export interface EnrichedDistillationResult extends DistillationResult {
   repairedText?: string;
   neuralDistilled?: boolean;
   engineUsed: string;
-}
-
-interface LlmDistillPayload {
-  repaired_text?: string;
-  full_thought?: string;
-  phrase?: string;
-  phrases?: string[];
-  family?: string;
-  valence?: number;
-  kind?: "feeling" | "desire" | "pass";
-}
-
-function parseJsonPayload(raw: string): LlmDistillPayload | null {
-  try {
-    return JSON.parse(raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim()) as LlmDistillPayload;
-  } catch {
-    return null;
-  }
 }
 
 export async function distillWithNeuralFallback(
@@ -58,32 +43,15 @@ export async function distillWithNeuralFallback(
     || (options.ollamaUrl ? defaultDistillerRegistry.get("ollama") : undefined)
     || defaultDistillerRegistry.getActive();
 
+  const strategy = defaultPromptRegistry.get(options.phase || "feelings");
+
   try {
-    const contextLines = recentContext.length > 0
-      ? `Контекст реплик:\n${recentContext.map((c) => `- "${c}"`).join("\n")}\n\n`
-      : "";
-
-    const systemPrompt = `Ты — чуткий слушатель в созерцательном круге чувств у костра.
-Участник делится тем, что у него внутри. В спонтанной речи бывают длинные рассуждения, истории, рабочий контекст и бытовые факты.
-Твоя задача — услышать за рассказом живое переживание и извлечь его ЦЕЛОСТНОЙ фразой.
-
-ПРАВИЛА:
-1. ЦЕЛОСТНОСТЬ МЫСЛИ: Стремись извлечь ОДНУ цельную живую фразу переживания, объединяющую состояние человека. Не дроби и не нарезай речь на мелкие осколки!
-2. ПОДЛИННЫЙ ЯЗЫК: Сохраняй слова и самовыражение самого человека (без литературных переделок). Отрезай лишь внешнюю предысторию или пустые вводные («ну короче», «в общем»).
-3. Только если в реплике действительно два принципиально разных, сменяющих друг друга чувства (например, острая тревога сменилась глубоким теплом), допустимо вернуть 2 фразы. В остальных случаях — строго 1 фраза.
-4. Если в реплике нет чувств и переживаний (технический шум, проверка связи, сухие факты) — верни phrases: [].
-
-Формат строго JSON:
-{
-  "phrases": ["целостная фраза переживания"],
-  "family": "тревога|покой|усталость|тепло|радость|грусть|живость",
-  "valence": число от -1.0 до 1.0
-}`;
+    const prompt = strategy.buildPrompt(normalized, recentContext);
 
     const data = await port.complete(
       {
-        prompt: `Реплика: "${normalized}"`,
-        systemPrompt,
+        prompt,
+        systemPrompt: strategy.systemPrompt,
         model: options.model,
         jsonFormat: true,
         temperature: 0.1,
@@ -93,73 +61,24 @@ export async function distillWithNeuralFallback(
     );
 
     if (data?.content) {
-      const parsed = parseJsonPayload(data.content);
+      const parsed = strategy.parseResponse(data.content, normalized);
       const engineId = port.id === "ollama" ? (options.model || "ollama") : port.id;
 
-      const rawPhrases: string[] = [];
-      if (Array.isArray(parsed?.phrases)) {
-        for (const p of parsed.phrases) {
-          const s = String(p).trim();
-          if (s) rawPhrases.push(s);
-        }
-      } else if (parsed?.phrase && String(parsed.phrase).trim()) {
-        rawPhrases.push(String(parsed.phrase).trim());
-      }
-
-      if (rawPhrases.length === 0) {
-        return { feelings: [], desires: [], pass: false, repairedText: normalized, neuralDistilled: true, engineUsed: engineId };
-      }
-
-      const kind = parsed?.kind || "feeling";
-      if (kind === "pass") {
-        return { feelings: [], desires: [], pass: true, repairedText: normalized, neuralDistilled: true, engineUsed: engineId };
-      }
-      if (kind === "desire") {
-        return {
-          feelings: [],
-          desires: rawPhrases.map((p) => ({ text: p, object: p, who: null })),
-          pass: false,
-          isDesirePhrase: true,
-          repairedText: normalized,
-          neuralDistilled: true,
-          engineUsed: engineId,
-        };
-      }
       return {
-        feelings: rawPhrases.map((p) => ({
-          lemma: p,
-          family: parsed?.family || "живость",
-          valence: parsed?.valence ?? 0.0,
-          arousal: 0.3,
-          form: p,
-          intensity: 1,
-        })),
-        desires: [],
-        pass: false,
-        repairedText: normalized,
+        ...parsed,
         neuralDistilled: true,
         engineUsed: engineId,
       };
     }
   } catch (err) {
-    console.warn("[distillWithNeuralFallback] Neural pipeline error, keeping verbatim text without lexicon slicing:", err);
+    console.warn("[distillWithNeuralFallback] Neural pipeline error, using strategy fallback:", err);
   }
 
   // NO SILENT DICTIONARY FALLBACK:
-  // If neural inference fails or is offline, keep the utterance intact as spoken words.
+  // If neural inference fails or is offline, keep the utterance intact as spoken words via strategy fallback.
+  const fallback = strategy.createFallback(normalized);
   return {
-    feelings: [{
-      lemma: normalized,
-      family: "живость",
-      valence: 0,
-      arousal: 0.3,
-      form: normalized,
-      intensity: 1,
-    }],
-    desires: [],
-    pass: false,
-    repairedText: normalized,
-    fallbackText: normalized,
+    ...fallback,
     neuralDistilled: false,
     engineUsed: "verbatim",
   };

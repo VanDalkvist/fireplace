@@ -178,4 +178,73 @@ describe('Neural Phrase Distiller', () => {
     expect(res.feelings.length).toBe(0);
     expect(res.desires.length).toBe(0);
   });
+
+  it('selects desires prompt strategy and extracts desires when phase is "desires"', async () => {
+    let capturedSystemPrompt = "";
+    const fakeLlmResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            phrases: ["хочется наконец выспаться и погулять"],
+            kind: "desire",
+            family: "желание",
+          })
+        }
+      }],
+      model: "openrouter/free",
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, init) => {
+      const body = JSON.parse(init?.body as string);
+      capturedSystemPrompt = body.messages.find((m: { role: string }) => m.role === "system")?.content || "";
+      return {
+        ok: true,
+        json: async () => fakeLlmResponse,
+      } as Response;
+    });
+
+    const res = await distillWithNeuralFallback("после всех этих авралов хочется наконец выспаться и погулять", {
+      phase: "desires",
+    });
+
+    expect(capturedSystemPrompt).toContain("желаний у костра");
+    expect(res.desires).toHaveLength(1);
+    expect(res.desires[0].text).toBe("хочется наконец выспаться и погулять");
+    expect(res.isDesirePhrase).toBe(true);
+  });
+
+  it('selects completion prompt strategy and extracts takeaway when phase is "completion"', async () => {
+    let capturedSystemPrompt = "";
+    const fakeLlmResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            phrases: ["уношу ощущение тепла и поддержки"],
+            family: "завершение",
+            valence: 0.8,
+            kind: "completion",
+          })
+        }
+      }],
+      model: "openrouter/free",
+    };
+
+    vi.spyOn(globalThis, 'fetch').mockImplementationOnce(async (_url, init) => {
+      const body = JSON.parse(init?.body as string);
+      capturedSystemPrompt = body.messages.find((m: { role: string }) => m.role === "system")?.content || "";
+      return {
+        ok: true,
+        json: async () => fakeLlmResponse,
+      } as Response;
+    });
+
+    const res = await distillWithNeuralFallback("спасибо всем большое, уношу ощущение тепла и поддержки", {
+      phase: "completion",
+    });
+
+    expect(capturedSystemPrompt).toContain("чекаута и интеграции");
+    expect(res.feelings).toHaveLength(1);
+    expect(res.feelings[0].lemma).toBe("уношу ощущение тепла и поддержки");
+    expect(res.feelings[0].family).toBe("завершение");
+  });
 });
