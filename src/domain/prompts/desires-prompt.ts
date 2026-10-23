@@ -1,5 +1,6 @@
 import type { SessionPhase } from "../types";
-import type { PhasePromptStrategy, PhaseDistillResult, PromptDistillPayload } from "./types";
+import type { PhasePromptStrategy, PhaseDistillResult } from "./types";
+import { parsePhaseResponse } from "./parse-response";
 
 export class DesiresPromptStrategy implements PhasePromptStrategy {
   readonly phase: SessionPhase = "desires";
@@ -14,9 +15,10 @@ export class DesiresPromptStrategy implements PhasePromptStrategy {
 3. Если человек выражает намерение или потребность косвенно («надо бы выспаться», «голова гудит, только бы тишины»), переведи это в форму прямого желания («хочется выспаться», «хочется побыть в тишине»).
 4. Если в реплике нет желаний и импульсов (только сухие факты, погода, технические реплики) — верни phrases: [].
 
+Не выдумывай переживания, не анонимизируй имена и не копируй образцы. В phrases запиши только извлечённые из реплики фразы; пустой массив означает отсутствие подходящей реплики.
 Формат строго JSON:
 {
-  "phrases": ["хочется выдохнуть и побыть в тишине"],
+  "phrases": [],
   "family": "желание",
   "valence": число от -0.5 до 1.0,
   "kind": "desire"
@@ -30,65 +32,6 @@ export class DesiresPromptStrategy implements PhasePromptStrategy {
   }
 
   parseResponse(rawLlmOutput: string, originalText: string): PhaseDistillResult {
-    const parsed = this.parseJson(rawLlmOutput);
-    const phrases = this.extractPhrases(parsed);
-
-    if (parsed?.kind === "pass") {
-      return { feelings: [], desires: [], pass: true, repairedText: originalText };
-    }
-
-    if (phrases.length === 0) {
-      return { feelings: [], desires: [], pass: false, repairedText: originalText };
-    }
-
-    return {
-      feelings: [],
-      desires: phrases.map((p) => ({
-        text: p,
-        object: p,
-        who: null,
-      })),
-      pass: false,
-      isDesirePhrase: true,
-      repairedText: originalText,
-    };
-  }
-
-  createFallback(rawText: string): PhaseDistillResult {
-    const clean = rawText.trim();
-    return {
-      feelings: [],
-      desires: [{
-        text: clean,
-        object: clean,
-        who: null,
-      }],
-      pass: false,
-      isDesirePhrase: true,
-      repairedText: clean,
-      fallbackText: clean,
-    };
-  }
-
-  private parseJson(raw: string): PromptDistillPayload | null {
-    try {
-      const clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-      return JSON.parse(clean) as PromptDistillPayload;
-    } catch {
-      return null;
-    }
-  }
-
-  private extractPhrases(parsed: PromptDistillPayload | null): string[] {
-    const out: string[] = [];
-    if (Array.isArray(parsed?.phrases)) {
-      for (const p of parsed.phrases) {
-        const s = String(p).trim();
-        if (s) out.push(s);
-      }
-    } else if (parsed?.phrase && String(parsed.phrase).trim()) {
-      out.push(String(parsed.phrase).trim());
-    }
-    return out;
+    return parsePhaseResponse(rawLlmOutput, originalText, this.phase);
   }
 }

@@ -15,7 +15,7 @@ import {
 interface TechnicalGearPultProps {
   sttEngine: SpeechEngineKind;
   onToggleSttEngine: () => void;
-  distillerEngine?: "openrouter" | "ollama";
+  distillerEngine?: string;
   onToggleDistillerEngine?: () => void;
   isVerbatimMode: boolean;
   onToggleVerbatimMode: () => void;
@@ -93,12 +93,12 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
             <span>{isVerbatimMode ? "целиком" : "сжатие"}</span>
           </button>
 
-          {/* Distiller Engine Switcher (OpenRouter / Ollama) */}
+          {/* Registered distiller plugin switcher */}
           {!isVerbatimMode && onToggleDistillerEngine && (
             <button
               type="button"
               onClick={onToggleDistillerEngine}
-              title="Переключить движок дистилляции (OpenRouter / Ollama)"
+              title="Переключить движок дистилляции (OpenRouter / Ollama / Pi)"
               className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
               <span className="opacity-50">llm:</span>

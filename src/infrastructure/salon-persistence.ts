@@ -4,7 +4,7 @@
  * Compliance: AP-019 (<= 250 lines), AP-022 (explicit warn on storage failure), AP-029 (strict TS)
  */
 
-import type { HearthWordItem } from "@/canvas/hearth-words";
+import type { HearthWordItem } from "@/canvas/hearth-word-types";
 import type { SessionState } from "@/domain/types";
 
 const WORDS_KEY = "salon_presence_words_v2";
@@ -24,6 +24,10 @@ export function saveHearthWordsPersistence(words: HearthWordItem[]): void {
       text: w.text,
       family: w.family,
       seatId: w.seatId,
+      sourceId: w.sourceId,
+      sourceText: w.sourceText,
+      lines: w.lines,
+      height: w.height,
       width: w.width,
       x: w.targetX, // Store at target position so reload doesn't re-animate flight
       y: w.targetY,

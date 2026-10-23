@@ -8,6 +8,7 @@ export interface OpenAiSpeechAdapterConfig {
   model?: string;
   language?: string;
   isLocal?: boolean;
+  transcriptionPath?: "/v1/audio/transcriptions" | "/inference";
 }
 
 export class OpenAiSpeechAdapter implements SpeechToTextPort {
@@ -17,6 +18,7 @@ export class OpenAiSpeechAdapter implements SpeechToTextPort {
   public readonly isLocal: boolean;
   private model: string;
   private language: string;
+  public readonly transcriptionPath: "/v1/audio/transcriptions" | "/inference";
 
   constructor(config: OpenAiSpeechAdapterConfig) {
     this.id = config.id;
@@ -24,6 +26,7 @@ export class OpenAiSpeechAdapter implements SpeechToTextPort {
     this.baseUrl = config.baseUrl;
     this.model = config.model ?? "whisper-1";
     this.language = config.language ?? "ru";
+    this.transcriptionPath = config.transcriptionPath ?? "/v1/audio/transcriptions";
     this.isLocal = config.isLocal ?? true;
   }
 
@@ -32,6 +35,7 @@ export class OpenAiSpeechAdapter implements SpeechToTextPort {
       baseUrl: this.baseUrl,
       model: this.model,
       language: this.language,
+      transcriptionPath: this.transcriptionPath,
     });
   }
 }

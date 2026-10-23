@@ -37,13 +37,9 @@ describe("FeelingsPromptStrategy", () => {
     expect(result.pass).toBe(true);
   });
 
-  it("creates fallback on error", () => {
-    const fallback = strategy.createFallback("сырой текст");
-    expect(fallback.feelings).toHaveLength(1);
-    expect(fallback.feelings[0].family).toBe("живость");
-    expect(fallback.fallbackText).toBe("сырой текст");
-  });
-});
+  it("rejects failure without creating a fallback phrase", () => {
+    expect(() => strategy.parseResponse("invalid JSON", "исходный текст")).toThrow();
+  });});
 
 describe("DesiresPromptStrategy", () => {
   const strategy = new DesiresPromptStrategy();
@@ -57,6 +53,7 @@ describe("DesiresPromptStrategy", () => {
     const rawJson = JSON.stringify({
       phrases: ["хочется выдохнуть и побыть в тишине"],
       kind: "desire",
+      family: "желание",
       valence: 0.4,
     });
     const result = strategy.parseResponse(rawJson, "вся неделя суета... хочется выдохнуть");
@@ -67,14 +64,9 @@ describe("DesiresPromptStrategy", () => {
     expect(result.desires[0].object).toBe("хочется выдохнуть и побыть в тишине");
   });
 
-  it("creates desire fallback on error", () => {
-    const fallback = strategy.createFallback("хочу спать");
-    expect(fallback.isDesirePhrase).toBe(true);
-    expect(fallback.desires).toHaveLength(1);
-    expect(fallback.desires[0].text).toBe("хочу спать");
-    expect(fallback.fallbackText).toBe("хочу спать");
-  });
-});
+  it("rejects failure without creating a fallback phrase", () => {
+    expect(() => strategy.parseResponse("invalid JSON", "исходный текст")).toThrow();
+  });});
 
 describe("CompletionPromptStrategy", () => {
   const strategy = new CompletionPromptStrategy();
@@ -99,10 +91,6 @@ describe("CompletionPromptStrategy", () => {
     expect(result.feelings[0].valence).toBe(0.9);
   });
 
-  it("creates completion fallback on error", () => {
-    const fallback = strategy.createFallback("спасибо кругу");
-    expect(fallback.feelings).toHaveLength(1);
-    expect(fallback.feelings[0].family).toBe("завершение");
-    expect(fallback.fallbackText).toBe("спасибо кругу");
-  });
-});
+  it("rejects failure without creating a fallback phrase", () => {
+    expect(() => strategy.parseResponse("invalid JSON", "исходный текст")).toThrow();
+  });});

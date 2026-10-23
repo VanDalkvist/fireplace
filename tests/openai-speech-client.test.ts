@@ -58,29 +58,17 @@ describe('OpenAI Speech Client', () => {
     expect(result).toBe('Я чувствую спокойствие и тепло');
   });
 
-  it('falls back to /inference when /v1/audio/transcriptions returns 404 (whisper.cpp fallback)', async () => {
-    const fakeBlob = new Blob(['fake audio'], { type: 'audio/webm' });
+  it('does not guess another endpoint after an HTTP 404', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response("Not Found", {status:404}));
+    await expect(transcribeAudioBlobOpenAi(new Blob(["x"]), {baseUrl:"http://127.0.0.1:8085"})).rejects.toThrow("404");
+    expect(fetchSpy.mock.calls.filter(call => String(call[0]).startsWith("http://127.0.0.1:8085"))).toHaveLength(1);
+    expect(fetchSpy.mock.calls.some(call => String(call[0]).endsWith("/inference"))).toBe(false);
+  });
 
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
-      if (String(url).includes('/v1/audio/transcriptions')) {
-        return {
-          ok: false,
-          status: 404,
-          text: async () => 'Not Found',
-        } as unknown as Response;
-      }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({ text: 'Распознано через legacy эндпоинт' }),
-      } as unknown as Response;
-    });
-
-    const result = await transcribeAudioBlobOpenAi(fakeBlob, {
-      baseUrl: 'http://127.0.0.1:8085',
-    });
-
-    expect(result).toBe('Распознано через legacy эндпоинт');
+  it('uses the explicitly configured Whisper transport path', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({text:"распознано"})));
+    expect(await transcribeAudioBlobOpenAi(new Blob(["x"]), {baseUrl:"http://127.0.0.1:8085",transcriptionPath:"/inference"})).toBe("распознано");
+    expect(fetchSpy.mock.calls[0][0]).toBe("http://127.0.0.1:8085/inference");
   });
 
   it('throws descriptive error on server failure', async () => {

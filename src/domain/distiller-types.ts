@@ -10,11 +10,12 @@ export interface LlmCompletionRequest {
 export interface LlmCompletionResponse {
   content: string;
   modelUsed: string;
+  adapterId?: string;
 }
 
 export interface LlmDistillerPort {
   readonly id: string;
   readonly name: string;
-  complete(req: LlmCompletionRequest, timeoutMs?: number): Promise<LlmCompletionResponse | null>;
+  complete(req: LlmCompletionRequest, timeoutMs?: number, validate?: (content: string) => void): Promise<LlmCompletionResponse | null>;
   checkHealth(): Promise<{ online: boolean; model: string }>;
 }

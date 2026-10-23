@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { OpenRouterDistillerAdapter } from "../src/infrastructure/openrouter-distiller-adapter";
 import { OllamaDistillerAdapter } from "../src/infrastructure/ollama-distiller-adapter";
-import { createDefaultDistillerRegistry } from "../src/domain/distiller-registry";
+import { createDefaultDistillerRegistry } from "../src/composition/distillers";
 import { getDistillerConfig } from "../src/config/distiller-config";
 
 describe("OpenRouter & Ollama Distiller Adapters (DI & Registry)", () => {

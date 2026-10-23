@@ -11,6 +11,7 @@ export interface OpenAiTranscribeOptions {
   model?: string;
   language?: string;
   timeoutMs?: number;
+  transcriptionPath?: "/v1/audio/transcriptions" | "/inference";
 }
 
 export async function checkOpenAiSpeechStatus(
@@ -72,23 +73,11 @@ export async function transcribeAudioBlobOpenAi(
 
   try {
     // Standard OpenAI Audio API endpoint
-    let res = await fetch(`${baseUrl}/v1/audio/transcriptions`, {
+    const res = await fetch(`${baseUrl}${options.transcriptionPath ?? "/v1/audio/transcriptions"}`, {
       method: "POST",
       body: formData,
       signal: controller.signal,
     });
-
-    // Fallback: whisper.cpp server legacy endpoint /inference if 404
-    if (res.status === 404) {
-      clientLogger.info(
-        `[OpenAiSpeechClient] /v1/audio/transcriptions not found on ${baseUrl}, trying /inference fallback`
-      );
-      res = await fetch(`${baseUrl}/inference`, {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-      });
-    }
 
     clearTimeout(timer);
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { PhasePromptStrategy, PhaseDistillResult } from "@/domain/prompts/types";
 
 describe("PhasePromptStrategy contract", () => {
-  it("enforces strategy interface with buildPrompt, parseResponse, and createFallback", () => {
+  it("enforces strategy interface with buildPrompt and parseResponse without semantic fallback", () => {
     const mockStrategy: PhasePromptStrategy = {
       phase: "feelings",
       systemPrompt: "System instruction for feelings",
@@ -23,21 +23,7 @@ describe("PhasePromptStrategy contract", () => {
         pass: false,
         repairedText: original,
       }),
-      createFallback: (original: string): PhaseDistillResult => ({
-        feelings: [
-          {
-            lemma: original,
-            family: "живость",
-            valence: 0,
-            arousal: 0.3,
-            form: original,
-            intensity: 1,
-          },
-        ],
-        desires: [],
-        pass: false,
-        repairedText: original,
-      }),
+
     };
 
     expect(mockStrategy.phase).toBe("feelings");

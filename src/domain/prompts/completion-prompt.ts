@@ -1,5 +1,6 @@
 import type { SessionPhase } from "../types";
-import type { PhasePromptStrategy, PhaseDistillResult, PromptDistillPayload } from "./types";
+import type { PhasePromptStrategy, PhaseDistillResult } from "./types";
+import { parsePhaseResponse } from "./parse-response";
 
 export class CompletionPromptStrategy implements PhasePromptStrategy {
   readonly phase: SessionPhase = "completion";
@@ -14,9 +15,10 @@ export class CompletionPromptStrategy implements PhasePromptStrategy {
 3. Если участник благодарит круг или выражает тепло — зафиксируй это как фразу интеграции.
 4. Если в реплике нет итогов или инсайтов — верни phrases: [].
 
+Не выдумывай переживания, не анонимизируй имена и не копируй образцы. В phrases запиши только извлечённые из реплики фразы; пустой массив означает отсутствие подходящей реплики.
 Формат строго JSON:
 {
-  "phrases": ["забираю тепло и понимание, что я не один"],
+  "phrases": [],
   "family": "завершение|благодарность|покой|тепло",
   "valence": число от 0.0 до 1.0,
   "kind": "completion"
@@ -30,69 +32,6 @@ export class CompletionPromptStrategy implements PhasePromptStrategy {
   }
 
   parseResponse(rawLlmOutput: string, originalText: string): PhaseDistillResult {
-    const parsed = this.parseJson(rawLlmOutput);
-    const phrases = this.extractPhrases(parsed);
-
-    if (parsed?.kind === "pass") {
-      return { feelings: [], desires: [], pass: true, repairedText: originalText };
-    }
-
-    if (phrases.length === 0) {
-      return { feelings: [], desires: [], pass: false, repairedText: originalText };
-    }
-
-    return {
-      feelings: phrases.map((p) => ({
-        lemma: p,
-        family: parsed?.family || "завершение",
-        valence: parsed?.valence ?? 0.5,
-        arousal: 0.2,
-        form: p,
-        intensity: 1,
-      })),
-      desires: [],
-      pass: false,
-      repairedText: originalText,
-    };
-  }
-
-  createFallback(rawText: string): PhaseDistillResult {
-    const clean = rawText.trim();
-    return {
-      feelings: [{
-        lemma: clean,
-        family: "завершение",
-        valence: 0.3,
-        arousal: 0.2,
-        form: clean,
-        intensity: 1,
-      }],
-      desires: [],
-      pass: false,
-      repairedText: clean,
-      fallbackText: clean,
-    };
-  }
-
-  private parseJson(raw: string): PromptDistillPayload | null {
-    try {
-      const clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-      return JSON.parse(clean) as PromptDistillPayload;
-    } catch {
-      return null;
-    }
-  }
-
-  private extractPhrases(parsed: PromptDistillPayload | null): string[] {
-    const out: string[] = [];
-    if (Array.isArray(parsed?.phrases)) {
-      for (const p of parsed.phrases) {
-        const s = String(p).trim();
-        if (s) out.push(s);
-      }
-    } else if (parsed?.phrase && String(parsed.phrase).trim()) {
-      out.push(String(parsed.phrase).trim());
-    }
-    return out;
+    return parsePhaseResponse(rawLlmOutput, originalText, this.phase);
   }
 }

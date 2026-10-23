@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
+import { piDistillerPlugin } from "./server/pi-plugin.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 function openrouterProxyPlugin(): Plugin {
@@ -93,7 +94,7 @@ export default defineConfig(({ mode }) => {
   process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY;
 
   return {
-    plugins: [react(), tailwindcss(), clientLoggerPlugin(), openrouterProxyPlugin()],
+    plugins: [react(), tailwindcss(), clientLoggerPlugin(), openrouterProxyPlugin(), piDistillerPlugin()],
     resolve: {
       alias: {
         "@": path.resolve(import.meta.dirname, "./src"),

@@ -13,7 +13,6 @@ interface OpenRouterCompletionPayload {
       content?: string;
     };
   }>;
-  response?: string;
   model?: string;
   error?: {
     message?: string;
@@ -84,7 +83,7 @@ export class OpenRouterDistillerAdapter implements LlmDistillerPort {
       }
 
       const data = (await res.json()) as OpenRouterCompletionPayload;
-      const content = data.choices?.[0]?.message?.content?.trim() || data.response?.trim();
+      const content = data.choices?.[0]?.message?.content?.trim();
       if (!content) {
         console.warn("[OpenRouterDistillerAdapter] Empty response content from upstream");
         return null;

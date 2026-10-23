@@ -1,5 +1,6 @@
 import type { SessionPhase } from "../types";
-import type { PhasePromptStrategy, PhaseDistillResult, PromptDistillPayload } from "./types";
+import type { PhasePromptStrategy, PhaseDistillResult } from "./types";
+import { parsePhaseResponse } from "./parse-response";
 
 export class FeelingsPromptStrategy implements PhasePromptStrategy {
   readonly phase: SessionPhase = "feelings";
@@ -14,9 +15,10 @@ export class FeelingsPromptStrategy implements PhasePromptStrategy {
 3. Только если в реплике действительно два принципиально разных, сменяющих друг друга чувства (например, острая тревога сменилась глубоким теплом), допустимо вернуть 2 фразы. В остальных случаях — строго 1 фраза.
 4. Если в реплике нет чувств и переживаний (технический шум, проверка связи, сухие факты) — верни phrases: [].
 
+Не выдумывай переживания, не анонимизируй имена и не копируй образцы. В phrases запиши только извлечённые из реплики фразы; пустой массив означает отсутствие подходящей реплики.
 Формат строго JSON:
 {
-  "phrases": ["целостная фраза переживания"],
+  "phrases": [],
   "family": "тревога|покой|усталость|тепло|радость|грусть|живость",
   "valence": число от -1.0 до 1.0
 }`;
@@ -29,79 +31,6 @@ export class FeelingsPromptStrategy implements PhasePromptStrategy {
   }
 
   parseResponse(rawLlmOutput: string, originalText: string): PhaseDistillResult {
-    const parsed = this.parseJson(rawLlmOutput);
-    const phrases = this.extractPhrases(parsed);
-
-    if (parsed?.kind === "pass") {
-      return { feelings: [], desires: [], pass: true, repairedText: originalText };
-    }
-
-    if (phrases.length === 0) {
-      return { feelings: [], desires: [], pass: false, repairedText: originalText };
-    }
-
-    if (parsed?.kind === "desire") {
-      return {
-        feelings: [],
-        desires: phrases.map((p) => ({ text: p, object: p, who: null })),
-        pass: false,
-        isDesirePhrase: true,
-        repairedText: originalText,
-      };
-    }
-
-    return {
-      feelings: phrases.map((p) => ({
-        lemma: p,
-        family: parsed?.family || "живость",
-        valence: parsed?.valence ?? 0.0,
-        arousal: 0.3,
-        form: p,
-        intensity: 1,
-      })),
-      desires: [],
-      pass: false,
-      repairedText: originalText,
-    };
-  }
-
-  createFallback(rawText: string): PhaseDistillResult {
-    const clean = rawText.trim();
-    return {
-      feelings: [{
-        lemma: clean,
-        family: "живость",
-        valence: 0,
-        arousal: 0.3,
-        form: clean,
-        intensity: 1,
-      }],
-      desires: [],
-      pass: false,
-      repairedText: clean,
-      fallbackText: clean,
-    };
-  }
-
-  private parseJson(raw: string): PromptDistillPayload | null {
-    try {
-      const clean = raw.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-      return JSON.parse(clean) as PromptDistillPayload;
-    } catch {
-      return null;
-    }
-  }
-
-  private extractPhrases(parsed: PromptDistillPayload | null): string[] {
-    const out: string[] = [];
-    if (Array.isArray(parsed?.phrases)) {
-      for (const p of parsed.phrases) {
-        const s = String(p).trim();
-        if (s) out.push(s);
-      }
-    } else if (parsed?.phrase && String(parsed.phrase).trim()) {
-      out.push(String(parsed.phrase).trim());
-    }
-    return out;
+    return parsePhaseResponse(rawLlmOutput, originalText, this.phase);
   }
 }

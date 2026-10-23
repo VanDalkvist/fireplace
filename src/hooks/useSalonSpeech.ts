@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { SessionPhase } from "@/domain/types";
 import { isPureFillerPhrase } from "@/domain/lexicon-engine";
-import { distillWithNeuralFallback } from "@/domain/phrase-distiller";
+import type { EnrichedDistillationResult, NeuralDistillerOptions } from "@/domain/phrase-distiller";
 import { SpeakerTurnBuffer } from "@/domain/speaker-turn-buffer";
 import { createSpeechEngine } from "@/speech/speech-factory";
 import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@/speech/speech-types";
@@ -18,7 +18,8 @@ import {
 
 interface UseSalonSpeechOptions {
   sttEngine: SpeechEngineKind;
-  distillerEngine?: "openrouter" | "ollama";
+  distillerEngine?: string;
+  distillPhrase: (source: string, options: NeuralDistillerOptions, context: string[]) => Promise<EnrichedDistillationResult>;
   phase: SessionPhase;
   audioRef: React.MutableRefObject<SalonAudioEngine | null>;
   isVerbatimMode?: boolean;
@@ -28,13 +29,13 @@ interface UseSalonSpeechOptions {
   onUpdateFeeling?: (id: string, text: string, family?: string, valence?: number) => void;
   onUpdateDesire?: (id: string, text: string) => void;
   onSelectSpeaker?: (speakerId: number) => void;
-  onSwitchToWhisper?: () => void;
 }
 
 export function useSalonSpeech({
   sttEngine,
   distillerEngine = "openrouter",
   phase,
+  distillPhrase,
   audioRef,
   isVerbatimMode = false,
   onPass,
@@ -43,7 +44,6 @@ export function useSalonSpeech({
   onUpdateFeeling,
   onUpdateDesire,
   onSelectSpeaker,
-  onSwitchToWhisper,
 }: UseSalonSpeechOptions) {
   const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
   const [isListening, setIsListening] = useState(isVoiceInit);
@@ -64,15 +64,14 @@ export function useSalonSpeech({
   const wasListeningRef = useRef(false);
 
   // Stabilize callbacks against re-render cascades (AP-053, AP-054)
-  const callbacksRef = useRef({ phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire, onSelectSpeaker, onSwitchToWhisper });
-  callbacksRef.current = { phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire, onSelectSpeaker, onSwitchToWhisper };
+  const callbacksRef = useRef({ phase, distillPhrase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire, onSelectSpeaker });
+  callbacksRef.current = { phase, distillPhrase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire, onSelectSpeaker };
 
   const { isMeetingConnected, toggleMeetingAudio } = useMeetingAudio({
     audioRef,
     speechRef,
     sttEngine,
     wasListeningRef,
-    onSwitchToWhisper: callbacksRef.current.onSwitchToWhisper,
     onError: (err) => setSpeechError(err),
   });
 
@@ -83,6 +82,7 @@ export function useSalonSpeech({
 
   useEffect(() => {
     turnBufferRef.current.clearHistory();
+    setInterimPhrase(""); setInterimBadge(null);
     lastEmittedTokenRef.current = null;
     if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
   }, [phase]);
@@ -124,7 +124,18 @@ export function useSalonSpeech({
 
     setInterimBadge({ text: "нейрокоррекция", type: curPhase === "desires" ? "desire" : "feeling" });
     const recentContext = turnBufferRef.current.getRecentHistory(3, speakerSeat);
-    const res = await distillWithNeuralFallback(cleanRaw, { engine: callbacksRef.current.distillerEngine, phase: curPhase }, recentContext);
+    let res: EnrichedDistillationResult;
+    try {
+      res = await callbacksRef.current.distillPhrase(cleanRaw, { engine: callbacksRef.current.distillerEngine, phase: curPhase }, recentContext);
+      setSpeechError(null);
+    } catch (cause) {
+      turnBufferRef.current.commitCompletedTurn(cleanRaw, speakerSeat);
+      setLastPhrase(cleanRaw); setInterimPhrase(""); setInterimBadge(null);
+      setSpeechError("Сжатие недоступно: настроенная цепочка адаптеров не сработала");
+      console.warn("[SalonSpeech]", { event: "distillation_failed", type: cause instanceof Error ? cause.name : "unknown" });
+      return;
+    }
+    if (callbacksRef.current.phase !== curPhase) return;
     const settled = stripHandoffWord(res.repairedText || cleanRaw);
 
     turnBufferRef.current.commitCompletedTurn(settled, speakerSeat);

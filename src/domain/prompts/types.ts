@@ -15,7 +15,6 @@ export interface PhaseDistillResult {
   pass: boolean;
   isDesirePhrase?: boolean;
   repairedText?: string;
-  fallbackText?: string;
 }
 
 export interface PhasePromptStrategy {
@@ -23,5 +22,4 @@ export interface PhasePromptStrategy {
   readonly systemPrompt: string;
   buildPrompt(rawText: string, recentContext?: string[]): string;
   parseResponse(rawLlmOutput: string, originalText: string): PhaseDistillResult;
-  createFallback(rawText: string): PhaseDistillResult;
 }

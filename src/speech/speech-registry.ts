@@ -20,14 +20,9 @@ export class SpeechServiceRegistry {
   }
 
   public getActive(): SpeechToTextPort {
-    if (!this.activeId || !this.providers.has(this.activeId)) {
-      const first = this.providers.values().next().value;
-      if (!first) {
-        throw new Error("No ASR providers registered in SpeechServiceRegistry");
-      }
-      return first;
-    }
-    return this.providers.get(this.activeId)!;
+    const active = this.activeId ? this.providers.get(this.activeId) : undefined;
+    if (!active) throw new Error("Active ASR provider is not registered in SpeechServiceRegistry");
+    return active;
   }
 
   public setActive(id: string): void {

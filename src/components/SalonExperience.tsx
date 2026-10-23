@@ -10,6 +10,7 @@ import { TechnicalGearPult } from "./salon/TechnicalGearPult";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { cn } from "@/lib/utils";
+import { distillPhrase } from "@/composition/distillers";
 
 export const SalonExperience: React.FC = () => {
   const {
@@ -62,6 +63,7 @@ export const SalonExperience: React.FC = () => {
     speechRef,
     resetVoiceprints,
   } = useSalonSpeech({
+    distillPhrase,
     sttEngine,
     distillerEngine,
     phase: state.phase,
@@ -73,7 +75,6 @@ export const SalonExperience: React.FC = () => {
     onUpdateFeeling: handleUpdateFeeling,
     onUpdateDesire: handleUpdateDesire,
     onSelectSpeaker: handleSelectSpeaker,
-    onSwitchToWhisper: () => setSttEngine("whisper"),
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

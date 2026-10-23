@@ -34,8 +34,7 @@ export class SalonMotionEngine {
     const persisted = loadSessionPersistence();
     if (persisted) {
       this.currentHeat = persisted.heat || 0.0;
-      persisted.session.feelings?.forEach((f) => this.knownTokenIds.add(f.id));
-      persisted.session.desires?.forEach((d) => this.knownTokenIds.add(d.id));
+      this.words.words.forEach(word => this.knownTokenIds.add(word.sourceId ?? word.id));
     }
   }
 
@@ -46,14 +45,14 @@ export class SalonMotionEngine {
     return Math.min(1.0, wordContribution + speechBoost);
   }
 
-  public resize(width: number, height: number): void {
+  public resize(width: number, height: number, ctx?: CanvasRenderingContext2D): void {
     this.cx = width / 2;
     this.floorCY = height / 2; // EXACT CENTER!
     this.floorRx = width * 0.46; // Fullscreen clearing width without arbitrary 920 cap
     this.floorRy = Math.min(height * 0.39, height / 2 - 40);
 
     this.seats.layout(this.cx, this.floorCY, this.floorRx, this.floorRy, 12);
-    this.words.repositionToViewport(this.cx, this.floorCY, this.floorRx, this.floorRy);
+    this.words.repositionToViewport(this.cx, this.floorCY, this.floorRx, this.floorRy, ctx);
   }
 
   public syncTokens(
@@ -66,7 +65,7 @@ export class SalonMotionEngine {
     ctx: CanvasRenderingContext2D
   ): void {
     if (this.cx === 0 || Math.abs(this.cx - width / 2) > 2) {
-      this.resize(width, height);
+      this.resize(width, height, ctx);
     }
 
     this.seats.syncParticipants(participants, activeSpeakerId);
@@ -103,7 +102,7 @@ export class SalonMotionEngine {
         }
       } else {
         const item = this.words.words.find((w) => w.id === token.id);
-        if (item && item.text !== targetText) {
+        if (item && (item.sourceText ?? item.text) !== targetText) {
           this.words.updateWordText(token.id, targetText, token.family, ctx);
         }
       }
@@ -132,7 +131,7 @@ export class SalonMotionEngine {
         }
       } else {
         const item = this.words.words.find((w) => w.id === token.id);
-        if (item && item.text !== token.text) {
+        if (item && (item.sourceText ?? item.text) !== token.text) {
           this.words.updateWordText(token.id, token.text, 'желание', ctx);
         }
       }
@@ -151,7 +150,7 @@ export class SalonMotionEngine {
     time: number
   ): void {
     if (this.cx === 0 || Math.abs(this.cx - width / 2) > 2) {
-      this.resize(width, height);
+      this.resize(width, height, ctx);
     }
 
     // 1. Dark warm background
@@ -173,7 +172,7 @@ export class SalonMotionEngine {
 
     // 3. Living Contemplative Hearth Flame (Ignited by accumulated words heat)
     const isSpeaking = activeSpeakerId !== null || this.words.flightSparks.length > 0;
-    const targetHeat = this.computeTargetHeat(this.words.words.length, isSpeaking);
+    const targetHeat = this.computeTargetHeat(new Set(this.words.words.map(word => word.sourceId ?? word.id)).size, isSpeaking);
     this.currentHeat += (targetHeat - this.currentHeat) * 0.035;
     if (time - this.lastPersistTime >= 5000) {
       this.lastPersistTime = time;

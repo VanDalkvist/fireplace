@@ -95,7 +95,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
         )}
       </button>
 
-      <div className="h-5 flex items-center justify-center pointer-events-none">
+      <div className="min-h-5 flex flex-col items-center justify-center pointer-events-none max-w-[min(640px,90vw)]">
         {errorMessage ? (
           <div className="flex items-center gap-2 px-3 py-0.5 bg-destructive/15 rounded-full text-[11px] font-mono text-destructive backdrop-blur-sm max-w-lg text-center animate-in fade-in">
             <span>{cleanErrorMessage(errorMessage)}</span>
@@ -114,6 +114,7 @@ export const VoiceIndicator: React.FC<VoiceIndicatorProps> = ({
             «{lastPhraseText}»
           </div>
         ) : null}
+        {errorMessage?.startsWith("Сжатие") && lastPhraseText && <div className="text-[11px] font-mono text-muted/80 whitespace-pre-wrap text-center">«{lastPhraseText}»</div>}
       </div>
     </div>
   );

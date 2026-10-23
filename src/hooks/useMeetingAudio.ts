@@ -13,7 +13,6 @@ interface UseMeetingAudioOptions {
   speechRef: MutableRefObject<SpeechEnginePort | null>;
   sttEngine: SpeechEngineKind;
   wasListeningRef: MutableRefObject<boolean>;
-  onSwitchToWhisper?: () => void;
   onError?: (error: string | null) => void;
 }
 
@@ -22,7 +21,6 @@ export function useMeetingAudio({
   speechRef,
   sttEngine,
   wasListeningRef,
-  onSwitchToWhisper,
   onError,
 }: UseMeetingAudioOptions) {
   const [isMeetingConnected, setIsMeetingConnected] = useState(false);
@@ -36,7 +34,8 @@ export function useMeetingAudio({
       void speechRef.current?.start();
     } else {
       if (sttEngine === "google") {
-        onSwitchToWhisper?.();
+        onError?.("Этот движок не принимает звук встречи. Выберите совместимый STT-адаптер вручную");
+        return;
       }
       const ok = await audioRef.current.captureMeetingAudio();
       setIsMeetingConnected(ok);
@@ -58,7 +57,7 @@ export function useMeetingAudio({
         onError?.("Звук экрана не обнаружен. Выберите 'Весь экран' и включите галочку 'Поделиться аудио'");
       }
     }
-  }, [audioRef, isMeetingConnected, sttEngine, speechRef, onSwitchToWhisper, onError]);
+  }, [audioRef, isMeetingConnected, sttEngine, speechRef, onError]);
 
   useEffect(() => {
     audioRef.current?.onMeetingAudioEnded(() => {

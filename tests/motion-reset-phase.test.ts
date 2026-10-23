@@ -43,6 +43,15 @@ describe("canvas cleanup after a phase-preserving circle reset", () => {
     timestamp: Date.parse("2026-10-23T14:00:00Z"),
   };
 
+  it("restores logical phrase content when the visual cache is absent", () => {
+    const state = { ...createInitialState(1), phase: "feelings" as const, feelings: [token] };
+    saveSessionPersistence(state, 0);
+    const engine = new SalonMotionEngine();
+    const ctx = { font: "", measureText: () => ({ width: 80 }) } as unknown as CanvasRenderingContext2D;
+    engine.syncTokens(state.feelings, [], state.participants, 1, 800, 600, ctx);
+    expect(engine.words.words.map(word => word.text).join("")).toBe(token.text);
+  });
+
   it.each(phases)("keeps persisted phase %s when removing the last canvas words", (phase) => {
     const engine = new SalonMotionEngine();
     const participants = createInitialState(1).participants;

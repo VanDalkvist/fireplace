@@ -127,6 +127,7 @@ describe("SalonMotionEngine", () => {
   it("smoothly interpolates current heat during render loop", () => {
     const engine = new SalonMotionEngine();
     const mockCtx = {
+      measureText: vi.fn(() => ({ width: 70 })),
       fillRect: vi.fn(),
       save: vi.fn(),
       restore: vi.fn(),
@@ -148,7 +149,11 @@ describe("SalonMotionEngine", () => {
     } as unknown as CanvasRenderingContext2D;
 
     // Simulate 15 words accumulated in circle
-    engine.words.words = Array(15).fill({ text: "слово" } as unknown);
+    engine.words.words = Array.from({ length: 15 }, (_, index) => ({
+      id: `heat-${index}`, text: `слово ${index}`, family: "живость", seatId: 1,
+      width: 70, x: 100, y: 100, targetX: 100, targetY: 100,
+      born: 1, lastAt: 1, count: 1, settled: true, opacity: 1, breathOffset: 0,
+    }));
 
     expect(engine.currentHeat).toBe(0);
     engine.render(mockCtx, 800, 600, null, 1000);

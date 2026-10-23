@@ -16,6 +16,7 @@ export function createDefaultSpeechRegistry(
     name: "Whisper Large Turbo",
     baseUrl: whisperUrl,
     model: "whisper-large-v3-turbo",
+    transcriptionPath: "/inference",
   });
   const gigaAmAdapter = new OpenAiSpeechAdapter({
     id: "gigaam",
@@ -44,13 +45,15 @@ export function createSpeechEngine(
   }
 
   const reg = registry || createDefaultSpeechRegistry();
-  const asrPort = reg.get(kind) || reg.getActive();
+  const asrPort = reg.get(kind);
+  if (!asrPort) throw new Error(`Speech adapter '${kind}' is not registered`);
 
   if (baseUrl && asrPort instanceof OpenAiSpeechAdapter) {
     const customAsr = new OpenAiSpeechAdapter({
       id: asrPort.id,
       name: asrPort.name,
       baseUrl,
+      transcriptionPath: asrPort.transcriptionPath,
     });
     return new WhisperSpeechAdapter(callbacks, customAsr, speakerPort);
   }

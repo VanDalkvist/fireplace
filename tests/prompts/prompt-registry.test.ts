@@ -13,10 +13,10 @@ describe("PromptRegistry", () => {
     expect(registry.get("completion")).toBeInstanceOf(CompletionPromptStrategy);
   });
 
-  it("defaults to feelings strategy on silence or unknown phase", () => {
+  it("uses the explicit silence mapping but never guesses an unknown phase", () => {
     const registry = new PromptRegistry();
     expect(registry.get("silence")).toBeInstanceOf(FeelingsPromptStrategy);
-    expect(registry.get("unknown" as SessionPhase)).toBeInstanceOf(FeelingsPromptStrategy);
+    expect(() => registry.get("unknown" as SessionPhase)).toThrow();
   });
 
   it("exports configured defaultPromptRegistry singleton", () => {

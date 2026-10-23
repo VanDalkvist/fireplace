@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { distillWithNeuralFallback, checkOllamaStatus, splitIntoSemanticPhrases } from '../src/domain/phrase-distiller';
+import { distillPhrase as distillWithNeuralFallback } from '../src/composition/distillers';
+import { OllamaClient } from '../src/infrastructure/ollama-client';
+import { LosslessPhraseSegmenter } from '../src/infrastructure/lossless-phrase-segmenter';
 
 describe('Neural Phrase Distiller', () => {
   beforeEach(() => {
@@ -41,29 +43,22 @@ describe('Neural Phrase Distiller', () => {
 
     const rawUtterance = "Ну короче я сегодня утром так устал от созвонов, но сейчас сижу у огня и такое ощущение будто стою на краю тумана и отпускаю всё лишнее";
     const res = await distillWithNeuralFallback(rawUtterance, {
-      ollamaUrl: "http://127.0.0.1:11434",
+      engine: "ollama",
       model: "qwen2.5:1.5b",
     });
 
     expect(res.neuralDistilled).toBe(true);
-    expect(res.engineUsed).toBe("qwen2.5:1.5b");
+    expect(res.engineUsed).toBe("ollama");
+    expect(res.modelUsed).toBe("qwen2.5:1.5b");
     expect(res.feelings[0].lemma).toBe("стою на краю тумана и отпускаю всё лишнее");
     expect(res.feelings[0].family).toBe("спокойствие");
   });
 
-  it('preserves intact verbatim speech without lexicon slicing when neural endpoint times out or errors', async () => {
+  it('reports exhaustion instead of inventing verbatim emotional fallback', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error("Network timeout"));
-
-    const longUtterance = "чувствую, что всё равно остается напряжение";
-    const res = await distillWithNeuralFallback(longUtterance, {
-      ollamaUrl: "http://127.0.0.1:11434",
-      timeoutMs: 100
-    });
-
-    expect(res.neuralDistilled).toBe(false);
-    expect(res.engineUsed).toBe("verbatim");
-    expect(res.feelings.length).toBe(1);
-    expect(res.feelings[0].lemma).toBe(longUtterance);
+    await expect(distillWithNeuralFallback("чувствую, что всё равно остается напряжение", {
+      engine: "ollama", timeoutMs: 100,
+    })).rejects.toThrow("Configured distiller chain exhausted");
   });
 
   it('extracts multiple emotional phrases from rambling speech directly through LLM', async () => {
@@ -94,7 +89,7 @@ describe('Neural Phrase Distiller', () => {
     expect(res.feelings[1].lemma).toBe("глубокое тихое тепло");
   });
 
-  it('routes utterances to Qwen when ollamaUrl is specified', async () => {
+  it('routes utterances only to the explicitly selected Ollama plugin', async () => {
     const fakeLlmResponse = {
       response: JSON.stringify({
         phrases: ["покой у огня и замедление"],
@@ -110,7 +105,7 @@ describe('Neural Phrase Distiller', () => {
 
     const noisyAsrUtterance = "покою огня и за медленнее";
     const res = await distillWithNeuralFallback(noisyAsrUtterance, {
-      ollamaUrl: "http://127.0.0.1:11434",
+      engine: "ollama",
     });
 
     expect(res.feelings[0].lemma).toBe("покой у огня и замедление");
@@ -122,7 +117,7 @@ describe('Neural Phrase Distiller', () => {
       json: async () => ({ models: [{ name: "qwen2.5:0.5b:latest" }] }),
     } as unknown as Response);
 
-    const status = await checkOllamaStatus("http://127.0.0.1:11434", "qwen2.5:0.5b");
+    const status = await new OllamaClient("http://127.0.0.1:11434").checkStatus("qwen2.5:0.5b");
     expect(status.online).toBe(true);
     expect(status.hasModel).toBe(true);
   });
@@ -154,13 +149,11 @@ describe('Neural Phrase Distiller', () => {
     expect(res.desires[0].text).toBe("хочется просто выдохнуть и побыть в тишине");
   });
 
-  it('splits long conversational compound sentences into multiple meaningful semantic phrases', () => {
-    const longSentence = "В общем будем пытаться давать доступ к системе, для того чтобы все присутствующие сами в этом смогли разобраться";
-    const phrases = splitIntoSemanticPhrases(longSentence, 6);
-
-    expect(phrases.length).toBeGreaterThanOrEqual(2);
-    expect(phrases[0]).toContain("будем пытаться давать доступ");
-    expect(phrases[1]).toContain("все присутствующие сами");
+  it('uses an explicit lossless formatting plugin without removing conjunctions', async () => {
+    const text = "В общем будем пытаться давать доступ к системе, для того чтобы все присутствующие сами в этом смогли разобраться";
+    const parts = await new LosslessPhraseSegmenter().segment(text, 40);
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.join(" ")).toBe(text);
   });
 
   it('suppresses meeting operational noise when neural model returns empty phrase', async () => {
@@ -188,6 +181,7 @@ describe('Neural Phrase Distiller', () => {
             phrases: ["хочется наконец выспаться и погулять"],
             kind: "desire",
             family: "желание",
+            valence: 0.5,
           })
         }
       }],

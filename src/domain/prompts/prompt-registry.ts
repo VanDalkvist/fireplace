@@ -1,16 +1,16 @@
 import type { SessionPhase } from "../types";
 import type { PhasePromptStrategy } from "./types";
+import { DistillationError } from "../distillation-error";
 import { FeelingsPromptStrategy } from "./feelings-prompt";
 import { DesiresPromptStrategy } from "./desires-prompt";
 import { CompletionPromptStrategy } from "./completion-prompt";
 
 export class PromptRegistry {
   private strategies = new Map<SessionPhase, PhasePromptStrategy>();
-  private defaultStrategy: PhasePromptStrategy;
-
   constructor() {
-    this.defaultStrategy = new FeelingsPromptStrategy();
-    this.register("feelings", this.defaultStrategy);
+    const feelings = new FeelingsPromptStrategy();
+    this.register("silence", feelings);
+    this.register("feelings", feelings);
     this.register("desires", new DesiresPromptStrategy());
     this.register("completion", new CompletionPromptStrategy());
   }
@@ -20,7 +20,9 @@ export class PromptRegistry {
   }
 
   get(phase: SessionPhase): PhasePromptStrategy {
-    return this.strategies.get(phase) || this.defaultStrategy;
+    const strategy = this.strategies.get(phase);
+    if (!strategy) throw new DistillationError("configuration", `Prompt phase '${phase}' is not registered`);
+    return strategy;
   }
 }
 

@@ -1320,3 +1320,64 @@
 - Not applicable to this slice: database/server/backend migration rules; no such boundaries changed.
 - Residual risk: independent reviewers explicitly waived due quota. Hook tests use public React-hook mocks; real React/UI reset/reload additionally exercised through Browser Automation. Earlier prompt hallucinations and in-flight LLM races remain intentionally out of scope.
 - **VERDICT: PASS — parent verification under user-approved exception. Cycle 40 complete.**
+
+---
+
+## Cycle 41 — 2026-10-23 — Lossless Display, Pi/Codex Plugin, Explicit Recovery
+
+### User Contract and Scope
+- User approved 640px/five-line blocks with full ordered overflow and a third Pi→Codex distiller; additionally required plugin architecture and no hardcoded/implicit recovery content.
+- Latest user instruction requires architecture/product review in this thread. No reviewer subthreads used for this cycle.
+- Plan: `docs/superpowers/plans/2026-10-23-arch-improvement-cycle-41-lossless-pi-fallbacks.md`.
+- Baseline `2970ecc`; preserve preceding phase/reset and model-extracted emotion-family fixes.
+
+### Findings Fixed
+- [P1] Long phrase content was cut with ellipsis.
+  - Evidence: old text-wrapper capped at three lines; tests expected trailing `...`.
+  - Impact: user-visible text and final meaning disappeared.
+  - Rule: AP-013, AP-054.
+  - Fix decision: fixed. Pure grapheme-safe wrapping preserves ordered source ranges in <=5-line display blocks; viewport-aware width <=640; source identity, complete text and lines persist. Height-aware fire/collision placement; scoped layout/render/types decomposition keeps modules bounded.
+- [P1] Adapter errors, unknown provider IDs, and empty extraction produced implicit substitutions.
+  - Evidence: old active/first registry fallback, phase `createFallback`, unmatched→raw token path and legacy lexicon text slicing.
+  - Impact: invented default metadata/phrases or unconfigured service selection.
+  - Rule: AP-012, AP-013, AP-020, AP-022.
+  - Fix decision: fixed. Strict registry lookup, validated semantic output, explicit typed exhaustion and configured FallbackDistillerAdapter only. Default LLM fallback lists empty. Successful empty output stays empty. Source remains visible with failure; no fabricated circle token.
+- [P2] Concrete adapter construction lived inside Domain.
+  - Evidence: domain registry imported Ollama/OpenRouter infrastructure.
+  - Impact: adding Pi would leak integration choices and credentials toward core/client code.
+  - Rule: AP-010, AP-020, AP-026.
+  - Fix decision: fixed. Pure registry/core; `composition/distillers.ts` owns plugins and explicit decorators. Speech receives a bound service. Pi SDK exists only in server modules, not browser output.
+- [P1] Reload with a persisted session but absent visual cache hid logical content.
+  - Evidence: Browser fixture and RED motion-reset test yielded empty words despite persisted token.
+  - Impact: complete content was not displayed.
+  - Rule: AP-013, AP-028.
+  - Fix decision: fixed. Known visual IDs derive from actual cached display items; missing items are rebuilt from canonical session tokens.
+- [P2] A provider-specific model override leaked into a configured fallback provider.
+  - Evidence: RED wrapper test saw primary-only model on the second adapter.
+  - Impact: valid configured fallback attempted an incompatible model.
+  - Rule: AP-026, AP-027.
+  - Fix decision: fixed. Secondary leaves use their own configured models.
+- Explicit STT GigaAM→Whisper decorator retained. Whisper legacy transport is selected by configuration; generic HTTP404 endpoint guessing and Google→Whisper implicit switching removed. Unknown phase IDs fail rather than silently selecting feelings; silence has an explicit mapping.
+
+### Pi and Segmentation Contract
+- Pi plugin implements the existing LlmDistillerPort. Default `openai-codex/gpt-6-luna`, minimal reasoning; Pi ModelRuntime uses existing provider auth with stateless contexts, no agent/tools/MCP/session files.
+- Server DTO is bounded/allowlisted, method/origin validated, errors sanitized, output bounded, disconnects abort provider work. Exact SDK 1.3.0 dependency added; no token copies.
+- Separate semantic splitter is port-based and composed explicitly as `ollama → lossless`. Exact ordered coverage is checked; wrong/missing/reordered/duplicated text is rejected. The local plugin only formats original text, never infers content. No implicit catch-based segmentation.
+- Long-phrase siblings are not merged into one another by subsumption. Reset/phase behavior retained.
+
+### Verification
+- Observed RED/GREEN for lossless wrapping, visual overflow, malformed output, strict lookups, wrappers, missing cache and model override isolation.
+- Unit/contract suite: **212 tests / 47 files** (final fresh command receipt in thread); typecheck/build/diff checks PASS. Touched source/tests <=250 lines.
+- Browser Automation isolated session `8915386d-08f5-4b5e-91ef-f71b987bb173`:
+  - Actual Pi/Codex Luna replies: feelings 2155ms, desires 2013ms.
+  - Pult cycles Pi/OpenRouter/Ollama.
+  - 482-character source survives full display, reload and 1920→1280 resize; blocks <=5 lines and no appended ellipsis; final sentence visible.
+  - Full Pi outage: only Pi called, no token, visible error + original text. Explicit Pi→Ollama chain uses only configured calls and reports Ollama. Empty extraction emits no token.
+  - Prior reset acceptance repeated: four phases, populated/empty, repeated/rapid reset, reload; provider selection unchanged. Speaker reset mocked, no mic/user browser access.
+- Process exception: isolated server-contract tests followed initial server implementation; no separate pre-implementation server RED is claimed. Adapter/wrapper/Canvas regression slices had observed RED.
+
+### Architecture verification — Review in This Thread
+- Passed: AP-010/AP-020 (domain has no concrete infrastructure imports; wiring in composition), AP-012/AP-013 (strict failures, no synthetic content), AP-017 (Pi auth server-only, no source prompts/secrets in new logs), AP-018/AP-019 (bounded responsibility modules), AP-021/AP-026 (server contract), AP-022/AP-023 (typed causes/deadlines/abort), AP-027 (declared model/chains), AP-028/AP-029 (deterministic and runtime-validated contracts), AP-053/AP-054 (injected service/error/source UI).
+- Not applicable: database/migration/backend-service provisioning rules; none created or changed.
+- Residual risk: external provider quota/network/model quality; no promise that an LLM never hallucinates in otherwise valid semantic output. Finite visual density for arbitrarily many phrases. Existing serve/compression audit advisory remains out of scope (not introduced by Pi SDK). No independent review claimed; lead reviewed here as requested.
+- **VERDICT: PASS — scoped architecture and product review by lead.**

@@ -144,12 +144,12 @@ export function dispatchSubsumedToken(options: DispatchTokenOptions): RecentToke
  */
 export function dispatchDistilledResult(
   res: EnrichedDistillationResult,
-  settled: string,
+  _settled: string,
   options: Omit<DispatchTokenOptions, "clean" | "family" | "valence" | "isDesire">
 ): RecentTokenSnapshot | null {
   const { phase, speakerId, recent, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire } = options;
   let currentRecent = recent;
-  let matched = false;
+  let dispatched = 0;
 
   for (const f of res.feelings) {
     const p = stripHandoffWord(f.form || f.lemma || "");
@@ -161,13 +161,12 @@ export function dispatchDistilledResult(
         family: f.family,
         valence: f.valence,
         isDesire: false,
-        recent: currentRecent,
+        recent: dispatched++ === 0 ? currentRecent : null,
         onAddFeeling,
         onAddDesire,
         onUpdateFeeling,
         onUpdateDesire,
       });
-      matched = true;
     }
   }
 
@@ -179,27 +178,7 @@ export function dispatchDistilledResult(
         clean: p,
         speakerId,
         isDesire: true,
-        recent: currentRecent,
-        onAddFeeling,
-        onAddDesire,
-        onUpdateFeeling,
-        onUpdateDesire,
-      });
-      matched = true;
-    }
-  }
-
-  if (!matched) {
-    const clean = stripHandoffWord(res.fallbackText || settled || "");
-    if (clean && !isPureFillerPhrase(clean)) {
-      currentRecent = dispatchSubsumedToken({
-        phase,
-        clean,
-        speakerId,
-        family: phase === "completion" ? "завершение" : "живость",
-        valence: phase === "completion" ? 0.5 : 0,
-        isDesire: res.isDesirePhrase || phase === "desires",
-        recent: currentRecent,
+        recent: dispatched++ === 0 ? currentRecent : null,
         onAddFeeling,
         onAddDesire,
         onUpdateFeeling,

@@ -212,35 +212,7 @@ export function isPureFillerPhrase(text: string): boolean {
   return false;
 }
 
-const PASS_STEMS = ["пас", "помолчу", "паснусь", "пропущу", "пропускаю", "помолчать"];
-
 export interface DistillationResult extends ExtractionResult {
-  fallbackText?: string;
   isDesirePhrase?: boolean;
-}
-
-export function distillSpokenPhrase(rawText: string, idx: LexiconIndex): DistillationResult {
-  const words = tokenize(rawText).filter((t) => t !== "|");
-  const hasPass = words.some((w) => PASS_STEMS.includes(w) || idx.pass.has(w));
-  if (hasPass && words.length <= 4) {
-    return { feelings: [], desires: [], pass: true };
-  }
-
-  const extracted = extractFeelingsAndDesires(rawText, idx);
-  if (extracted.pass || extracted.feelings.length > 0 || extracted.desires.length > 0) {
-    return { ...extracted, isDesirePhrase: extracted.desires.length > 0 };
-  }
-
-  const isDesire = words.some((w) => idx.mark.has(w) || ["хочу", "хочется", "хотелось"].includes(w));
-  const cleaned = words.filter((w) => !CONVERSATIONAL_FILLERS.has(w) && w.length > 1);
-  const coreWords = cleaned.slice(0, 4).join(" ");
-
-  return {
-    feelings: [],
-    desires: [],
-    pass: false,
-    isDesirePhrase: isDesire,
-    fallbackText: coreWords || words.slice(0, 3).join(" "),
-  };
 }
 
