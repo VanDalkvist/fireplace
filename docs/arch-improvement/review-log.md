@@ -1381,3 +1381,33 @@
 - Not applicable: database/migration/backend-service provisioning rules; none created or changed.
 - Residual risk: external provider quota/network/model quality; no promise that an LLM never hallucinates in otherwise valid semantic output. Finite visual density for arbitrarily many phrases. Existing serve/compression audit advisory remains out of scope (not introduced by Pi SDK). No independent review claimed; lead reviewed here as requested.
 - **VERDICT: PASS — scoped architecture and product review by lead.**
+
+---
+
+## Cycle 42 — 2026-10-23 — Book Icon and Circle Rules
+
+### Approved scope
+- Latest user instruction: complete button before audio work; book icon without words, beside the gear. Previous approved design: anchored upper-right panel, exact introduction/eight agreements, no full-screen backdrop, close by toggle/X/Escape.
+- Baseline 529c28a; plan `docs/superpowers/plans/2026-10-23-arch-improvement-cycle-42-circle-rules.md`. Feature branch `feat/circle-rules-panel`, fast-forward main after checks.
+- Presentation-only addition. Audio, speech, Canvas, state/persistence, provider wiring and IntroDialog copy unchanged.
+
+### Findings and fixes
+- [P2] Evidence: header lacked access to the supplied rules. Impact: agreements not available during circle. Rule: AP-054. Fix decision: fixed with icon-only accessible BookOpen trigger and nonmodal right-corner panel.
+- [P2] Evidence: initial browser run showed 803px separation from the gear when its pult expanded; SSR integration test RED. Impact: violates requested adjacency and makes icon jump. Rule: AP-018/AP-054. Fix decision: fixed by placing book immediately after gear/pult in the header row; subsequent browser center distance 36px both states.
+- [P2] Evidence: browser Tab opened the existing technical modal; Space failed book activation and triggered the circle hotkey. Impact: reading/navigation affected unrelated session controls. Rule: AP-053/AP-054. Fix decision: fixed by scoping keyboard event propagation at new trigger/content; existing global shortcuts outside this widget unchanged.
+- [P2] Evidence: computed bg-card/95 background was rgba(0,0,0,0); existing CSS tokens lack Tailwind @theme mapping. Impact: mobile fire showed through and reduced readability. Rule: AP-054/local theme contract. Fix decision: fixed with explicit CSS-variable utilities scoped to new components; actual panel alpha 0.95. Global theme repair remains log-only.
+- Global lowercase/select-none overridden only inside the panel. Exact wording and eight bold leads preserved; no Markdown dependency.
+
+### Verification
+- RED: two SSR assertions failed against empty components; GREEN after implementation. Additional SSR integration adjacency regression observed RED then GREEN.
+- Full fresh suite: **215 tests / 48 files**, typecheck/build and diff check PASS. New modules 32/15/4 lines, test 48 lines, parent 205; <=250 limit.
+- Isolated Browser Automation `8ff2190a-198a-433d-bd8c-552f01e76e00`: 1440×1000 and 375×812 verified. Exact eight items, decimal markers, normal-case selectable text, real dark translucent background, no backdrop/body lock, panel fits viewport, final rule keyboard-reachable through internal scroll.
+- Mouse open/close, toggle, X, Escape with focus return, Enter/Space activation, outside dismissal, Tab/End scroll and pult adjacency PASS. No mic/reset/audio used.
+- Runtime fixture: `/Users/vanya/.bb/thread-storage/thr_vu2zfkhaam/cycle42-rules-acceptance.js`; receipts `cycle42-browser.json`, screenshots `cycle42-rules-0.jpg` / `cycle42-rules-1.jpg` in same thread storage.
+- Lead review in this thread, not an independent reviewer claim.
+
+### Architecture verification
+- Passed: AP-010/AP-020 (UI-only, no inward dependency changes), AP-018/AP-019 (separate behavior/content, bounded modules), AP-028/AP-029 (exact-content/SSR contract, strict TS), AP-053/AP-054 (local Radix state, scoped keys, focus/scroll/accessibility), AP-064 (existing Radix/shadcn/Tailwind stack; no new package).
+- Not applicable: new HTTP/DB/provider/config/credential contracts; none introduced.
+- Residual risk: existing app-wide theme mapping and keyboard interception outside the new widget remain unchanged. Rules are displayed agreements, not new recording consent enforcement. Chromium checked; no Safari/Firefox runtime claim.
+- **VERDICT: PASS — scoped architecture and product review by lead (Cycle 42).**

@@ -7,6 +7,7 @@ import { useSalonCanvas } from "@/hooks/useSalonCanvas";
 import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
 import { TechnicalGearPult } from "./salon/TechnicalGearPult";
+import { CircleRules } from "./salon/CircleRules";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { cn } from "@/lib/utils";
@@ -132,26 +133,29 @@ export const SalonExperience: React.FC = () => {
       {/* Floating Header & Top Controls */}
       <div className={cn("fixed top-3 left-4 right-4 z-10 flex items-center justify-between transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>
         <SalonHeader />
-        <TechnicalGearPult
-          sttEngine={sttEngine}
-          onToggleSttEngine={() =>
-            setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
-          }
-          distillerEngine={distillerEngine}
-          onToggleDistillerEngine={toggleDistillerEngine}
-          isVerbatimMode={isVerbatimMode}
-          onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
-          isAudioOn={isAudioOn}
-          onAudioToggle={handleAudioToggle}
-          phase={state.phase}
-          onPhaseSelect={handlePhaseSelect}
-          isDemoActive={isDemoActive}
-          onToggleDemo={() => setIsDemoActive((prev) => !prev)}
-          onResetCircle={() => {
-            resetVoiceprints();
-            handleResetCircle();
-          }}
-        />
+        <div className="flex items-center gap-2 pointer-events-auto">
+          <TechnicalGearPult
+            sttEngine={sttEngine}
+            onToggleSttEngine={() =>
+              setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
+            }
+            distillerEngine={distillerEngine}
+            onToggleDistillerEngine={toggleDistillerEngine}
+            isVerbatimMode={isVerbatimMode}
+            onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
+            isAudioOn={isAudioOn}
+            onAudioToggle={handleAudioToggle}
+            phase={state.phase}
+            onPhaseSelect={handlePhaseSelect}
+            isDemoActive={isDemoActive}
+            onToggleDemo={() => setIsDemoActive((prev) => !prev)}
+            onResetCircle={() => {
+              resetVoiceprints();
+              handleResetCircle();
+            }}
+          />
+          <CircleRules />
+        </div>
       </div>
 
       {/* Floating Bottom HUD */}
