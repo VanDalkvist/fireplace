@@ -108,11 +108,16 @@ export function dispatchSubsumedToken(options: DispatchTokenOptions): RecentToke
     onUpdateDesire,
   } = options;
 
+  const defaultFamily = phase === "completion" ? "завершение" : "живость";
+  const defaultValence = phase === "completion" ? 0.5 : 0;
+  const targetFamily = family || defaultFamily;
+  const targetValence = valence !== undefined ? valence : defaultValence;
+
   if (shouldSubsumeToken(recent, clean, speakerId) && recent) {
     if (isDesire) {
       onUpdateDesire?.(recent.id, clean);
     } else {
-      onUpdateFeeling?.(recent.id, clean, family, valence);
+      onUpdateFeeling?.(recent.id, clean, targetFamily, targetValence);
     }
     recent.text = clean;
     return recent;
@@ -121,10 +126,8 @@ export function dispatchSubsumedToken(options: DispatchTokenOptions): RecentToke
   let tokenId = "";
   if (isDesire) {
     tokenId = String(onAddDesire(clean, speakerId) || "");
-  } else if (phase === "completion") {
-    tokenId = String(onAddFeeling(clean, "завершение", 0.5, speakerId) || "");
   } else {
-    tokenId = String(onAddFeeling(clean, family, valence, speakerId) || "");
+    tokenId = String(onAddFeeling(clean, targetFamily, targetValence, speakerId) || "");
   }
 
   return {
