@@ -202,7 +202,10 @@ export function useSalonSession(): UseSalonSessionReturn {
 
   const handleResetCircle = useCallback(() => {
     clearAllSalonPersistence();
-    setState(() => resetParticipants(createInitialState(0)));
+    setState((prev: SessionState) => ({
+      ...resetParticipants(createInitialState(0)),
+      phase: prev.phase,
+    }));
   }, []);
 
   return {

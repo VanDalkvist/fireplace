@@ -9,7 +9,7 @@ import { HearthFlameSimulator } from './hearth-flame';
 import { HearthSeatsLayout } from './hearth-seats';
 import { HearthWordsManager } from './hearth-words';
 import {
-  clearAllSalonPersistence,
+  saveHearthWordsPersistence,
   loadSessionPersistence,
   updatePersistedHeat,
 } from '@/infrastructure/salon-persistence';
@@ -76,7 +76,7 @@ export class SalonMotionEngine {
       this.knownTokenIds.clear();
       this.words.words = [];
       this.currentHeat = 0.0;
-      clearAllSalonPersistence();
+      saveHearthWordsPersistence([]);
     }
 
     // Synchronize feelings into hearth ring

@@ -1267,21 +1267,56 @@
    - Сборка `vite build` — 221 мс. Процесс PM2 `salon-presence` (id 7) перезапущен.
    - **Вердикт:** `VERDICT: PASS`.
 
+## Cycle 40: Preserve Active Practice Phase Across Circle Reset (2026-10-23)
 
+### Context & Goal
+- User explicitly requested: «Почини, чтобы кнопка Сброс не сбрасывала Фазу! арх лупом, осторожно, лишнего не меняй.»
+- Desired behavior: Clearing the campfire circle wipes participants, feelings, desires, and connection links as before, but strictly preserves the user's currently selected practice phase across all 4 phases (`silence`, `feelings`, `desires`, `completion`).
 
+### Decisions & Architecture Invariants
+1. **State Invariant & Phase Preservation (AP-013, AP-018)**:
+   - In `src/hooks/useSalonSession.ts`, updated `handleResetCircle` to use a functional state updater:
+     ```typescript
+     setState((prev: SessionState) => ({
+       ...resetParticipants(createInitialState(0)),
+       phase: prev.phase,
+     }));
+     ```
+   - Retains all clean reset defaults (`participants: []`, `activeSpeakerId: null`, `feelings: []`, `desires: []`, `connections: []`, `isListening: true`, `isMuted: false`).
+   - Retains `clearAllSalonPersistence()` call to wipe persisted tokens and links.
+   - Retains `resetVoiceprints()` integration in `SalonExperience.tsx`.
+2. **File Size Budget (AP-019)**:
+   - `src/hooks/useSalonSession.ts`: 228 lines ($\le 250$).
+   - `tests/session-reset-phase.test.ts`: 174 lines ($\le 250$).
+3. **Strict TypeScript & Determinism (AP-028, AP-029)**:
+   - 0 `any` in changed code, strict typing on `prev: SessionState`.
 
+### Findings Fixed
+- [P1] Reset Handler Overwrites Active Phase with Silence:
+  - Evidence: `handleResetCircle` called `setState(() => resetParticipants(createInitialState(0)))`, resetting `state.phase` back to `"silence"` on every circle reset.
+  - Impact: Disrupts group flow during active practice in `feelings`, `desires`, or `completion`, desynchronizing LLM prompt strategies.
+  - Rule: AP-013 (Data Integrity & State Invariants).
+  - Fix Decision: RESOLVED via functional state updater preserving `prev.phase`.
 
+### Additional Finding Fixed
+- [P1] Canvas erased the phase-preserving session after the hook saved it.
+  - Evidence: Browser Storage traces: hook wrote `phase: feelings`, then `SalonMotionEngine.syncTokens` called `clearAllSalonPersistence`. Four new deterministic tests reproduced missing saved session in all phases.
+  - Impact: Phase survived visually but was lost after reload of a reset populated circle.
+  - Rule: AP-013, AP-018, AP-028.
+  - Fix decision: resolved by replacing the Canvas full-storage wipe with the existing `saveHearthWordsPersistence([])`. The hook remains responsible for full circle reset; existing voiceprint reset wiring unchanged.
 
+### Verification (S9 — Explicit User Exception)
+- Mandated Gemini workers/reviewer exhausted provider quota. Product reviewer `thr_pifn444ani` failed before review; implementation worker `thr_brwrkj9r3h` delivered first slice/RED-GREEN evidence before quota failure.
+- On 2026-10-23 the user selected **«Завершить твоей проверкой»**: parent-only implementation/verification authorized, independent S9a/S9b waived for this cycle. No independent PASS claimed.
+- RED: original hook failed 4/5 phase regression tests; Canvas repeated-clear path failed 4/4 persistence tests (saved session undefined).
+- GREEN: reset suites 9/9. Fresh full run: **179/179 tests, 41 suites**, `npm run typecheck` and `npm run build` exit 0, `git diff --check` clean.
+- Source diff limited to functional `prev.phase` preservation in `useSalonSession.ts` and word-only persistence cleanup in `motion-engine.ts`. No prompt/provider/audio/UI changes; no new dependencies.
+- Line budgets: hook 228, motion engine 191, hook reset tests 174, Canvas reset tests 70.
+- Browser acceptance: isolated headless Browser Automation session `17d6c076-1c49-478e-8a6a-666b171ca39e`, cold start, populated circle reset, all four selected phases, repeated reset, quick phase changes, and reload after reset PASS. Phase and STT/LLM/text-mode selections retained; content/participants cleared. Shared speaker `/reset` mocked; user tabs and microphone untouched. Session closed.
+- Artifacts: parent thread storage `reset-phase-acceptance-result.json`, `reset-phase-pass.jpg`, `reset-phase-acceptance.js`.
 
-
-
-
-
-
-
-
-
-
-
-
-
+### Architecture verification (Parent Self-Review)
+- Passed: AP-013 (phase not replaced or deleted on reset), AP-018 (two local responsibility-aligned changes), AP-019 (touched source/tests <=250 lines), AP-028 (both regression slices RED/GREEN; deterministic Canvas fixture), AP-029 (no new any; strict typecheck), AP-053 (latest-state functional updater, no new derived state).
+- Not applicable to this slice: database/server/backend migration rules; no such boundaries changed.
+- Residual risk: independent reviewers explicitly waived due quota. Hook tests use public React-hook mocks; real React/UI reset/reload additionally exercised through Browser Automation. Earlier prompt hallucinations and in-flight LLM races remain intentionally out of scope.
+- **VERDICT: PASS — parent verification under user-approved exception. Cycle 40 complete.**
