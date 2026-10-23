@@ -1499,3 +1499,48 @@
 - Not applicable: new server/provider/database/credentials; none introduced.
 - Residual risk: perceived naturalness/ideal level remains subjective; latest settings follow user feedback, not an agent auditory verdict. Acoustic microphone pickup/ASR feedback not live-tested, existing echoCancellation:false unchanged. Existing capture lifecycle outside FX remains out of scope. No independent reviewer claimed.
 - **VERDICT: PASS — scoped architecture and product review by lead (Cycle 44).**
+
+---
+
+## Cycle 45 — 2026-10-23 — User-Selectable Natural Fire Recordings
+
+### Requested scope
+- User rejected remaining low rumble in the first recording and requested several Internet alternatives with click-to-replace selection. Do not mistake a further gain tweak for choosing a better source.
+- Baseline 08c270d, feature branch feat/fire-recording-selector; plan `docs/superpowers/plans/2026-10-23-arch-improvement-cycle-45-fire-recording-selector.md`.
+- Added compact `треск: 1/4` beside sound toggle. Four choices: Сухой треск / Печь / Камин / Прежний костёр. On enabled audio, each click replaces/previews selected recording. Muted selection remains silent. Choice persists; explicit configured default is dry. No subjective preferred choice attributed to user.
+
+### Source / asset verification
+- Three distinct real recordings, not EQ variants of the first: 29chaza sound 418274 (Zoom H5), Vrymaa 770108 (close stove), Davor 382616 (Zoom H1).
+- First-party HTML verified each specific asset's Creative Commons 0 link. Source/CDN URLs, authors, original-preview SHA256, trim positions, processing and final hashes in src/assets/audio/LICENSE.fire-variants.txt. Source downloads are public HQ MP3 previews, not claimed to be original WAVs.
+- New 3s PCM16 mono/44100Hz clips: dry at 6.5s, stove at 2.5s, hearth at 12.75s; 180Hz high-pass, 9kHz low-pass, static peak matching to -10dBFS. Native recorded sound retained; no synthesis. Principal transient checked to lie within audible cue range, not beyond end.
+- Matucha's no-flame sample excluded because author requests no raw redistribution. Original AntumDeluge clip retained only as named comparison option.
+- All four assets bundled locally; no runtime Freesound/CDN requests.
+
+### Findings / fixes
+- [P2] Single fixed recording did not satisfy listening preference.
+  - Evidence: direct user report of source rumble; catalog/control RED saw zero alternatives and no button.
+  - Impact: user cannot compare/select a suitable timbre.
+  - Rule: AP-018/AP-054.
+  - Fix decision: fixed — explicit catalog, injected keyed loader and selectable SoundEffectsPort, cycle/preview UI and stored choice. Existing soft 0.35 peak / 0.6s rise/fade retained.
+- [P2] Switching during loading/decoding/fade can play stale sound or invalidate new cache.
+  - Evidence: four new selection contracts initially failed against previous API.
+  - Impact: wrong sound after selection, unnecessary reloads or missed preview.
+  - Rule: AP-022/AP-023/AP-028.
+  - Fix decision: fixed — per-recording cache, selection generation guards, old rejection only removes its own matching cache promise. Stopping voices finish a 40ms fade but do not occupy active voice slots. Rapid selections replace, never queue.
+- [P2] Additional selection state risked crossing session-hook line budget.
+  - Evidence: previous hook 236 lines.
+  - Impact: AP-019 breach / mixed preference persistence responsibility.
+  - Rule: AP-018/AP-019/AP-053.
+  - Fix decision: fixed — separate useFireRecording hook; session hook 242 lines. Storage read/write failures logged safely, obsolete saved IDs use declared default policy.
+
+### Verification / review here
+- RED → GREEN: distinct recording/cache behavior, replacement during fade, stale rejection isolation, silent-muted selection vs enabled preview; catalog and SSR control assertions.
+- Final fresh **244 tests / 52 files**, typecheck/build/diff PASS. Four different WAV assets emitted by production build. Touched source <=250.
+- Browser Automation `86d72da5-120e-4f92-9e17-418ea837869b`: live button previews four genuinely distinct decoded PCM fingerprints; matched stored ID/label/file every click; no loop. One shared AudioContext, four total local asset loads and decoded cache reuse.
+- Selecting while muted creates no context/request/source; reload restores chosen option without autoplay. Enabled switching fades prior voice in 40ms. Declared default used for unknown saved ID. Control reachable at 1440/1280 desktop widths.
+- Space on focused selector changes option without adding utterances (before/after feelings count equal), remaining muted. Earlier Space with focus elsewhere correctly invoked existing demo shortcut and is not counted as selector keyboard verification.
+- Script/receipts/screenshot: thread storage cycle45-selector-acceptance.js, cycle45-selector.json, cycle45-selector-0.jpg. Session closed. No microphone/shared service reset/real user browser accessed.
+- Architecture verification Passed: AP-010/AP-020 (technical port/composition wiring, pure catalog), AP-018/AP-019 (bounded preference hook and components), AP-022/AP-023 (safe failure/cache/cancellation), AP-027 (explicit default and validated IDs), AP-028/AP-029 (deterministic contracts/strict TS/native runtime), AP-053/AP-054 (local selection, persistence and scoped keys).
+- Not applicable: new remote service/DB/auth/providers; none introduced.
+- Residual risk: subjective preference still belongs to user; no claim of agent listening. Existing general technical-pult narrow-mobile layout and live microphone pickup remain outside scope. Foreground voices max2; outgoing fade tails may coexist for <=40ms during replacement. Dev tabs need refresh to replace previously instantiated engine class.
+- **VERDICT: PASS — scoped architecture and product review by lead (Cycle 45).**

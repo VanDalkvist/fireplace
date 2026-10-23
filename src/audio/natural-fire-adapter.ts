@@ -1,22 +1,32 @@
 import type { SoundEffectsPort } from "./sound-effects-port";
 
-interface Voice { context: BaseAudioContext; gain: GainNode; filter: BiquadFilterNode }
+interface Voice { context: BaseAudioContext; gain: GainNode; filter: BiquadFilterNode; stopping: boolean }
 
 export class NaturalFireAdapter implements SoundEffectsPort {
-  private loading: Promise<AudioBuffer> | null = null;
+  private buffers = new Map<string | undefined, Promise<AudioBuffer>>();
+  private recording: string | undefined;
   private generation = 0;
   private lastStart = -Infinity;
   private lastCue = -1;
   private voices = new Map<AudioBufferSourceNode, Voice>();
 
-  constructor(private readonly load: (context: BaseAudioContext) => Promise<AudioBuffer>, private readonly random = Math.random) {}
+  constructor(private readonly load: (context: BaseAudioContext, recording?: string) => Promise<AudioBuffer>, private readonly random = Math.random) {}
 
   private buffer(context: BaseAudioContext): Promise<AudioBuffer> {
-    if (!this.loading) this.loading = this.load(context).catch(error => {
-      this.loading = null;
-      throw error;
-    });
-    return this.loading;
+    const id = this.recording;
+    let cached = this.buffers.get(id);
+    if (!cached) {
+      const pending = this.load(context, id).catch(error => {
+        if (this.buffers.get(id) === pending) this.buffers.delete(id);
+        throw error;
+      });
+      this.buffers.set(id, pending); cached = pending;
+    }
+    return cached;
+  }
+
+  selectRecording(id: string): void {
+    this.stop(); this.recording = id; this.lastCue = -1;
   }
 
   async prepare(context: BaseAudioContext): Promise<void> { await this.buffer(context); }
@@ -24,7 +34,7 @@ export class NaturalFireAdapter implements SoundEffectsPort {
   async play(context: BaseAudioContext, output: AudioNode): Promise<void> {
     const generation = this.generation;
     const buffer = await this.buffer(context);
-    if (generation !== this.generation || this.voices.size >= 2 || context.currentTime - this.lastStart < 0.75) return;
+    if (generation !== this.generation || [...this.voices.values()].filter(voice => !voice.stopping).length >= 2 || context.currentTime - this.lastStart < 0.75) return;
     if (context.state === "closed") throw new Error("Audio context is closed");
     const cue = this.lastCue < 0 ? Math.floor(this.random() * 3) : (this.lastCue + 1 + Math.floor(this.random() * 2)) % 3;
     const offset = Math.min(cue * 0.3, Math.max(0, buffer.duration - 1));
@@ -44,7 +54,7 @@ export class NaturalFireAdapter implements SoundEffectsPort {
     gain.gain.linearRampToValueAtTime(0.35, t + Math.min(0.6, length * 0.3));
     gain.gain.linearRampToValueAtTime(0.1, t + length * 0.75);
     gain.gain.linearRampToValueAtTime(0, t + length);
-    this.voices.set(source, { context, gain, filter });
+    this.voices.set(source, { context, gain, filter, stopping: false });
     source.onended = () => this.release(source);
     try {
       source.start(t, offset, duration);
@@ -64,7 +74,10 @@ export class NaturalFireAdapter implements SoundEffectsPort {
 
   stop(): void {
     this.generation++; this.lastStart = -Infinity;
-    for (const [source, { context, gain }] of this.voices) {
+    for (const [source, voice] of this.voices) {
+      if (voice.stopping) continue;
+      voice.stopping = true;
+      const { context, gain } = voice;
       gain.gain.cancelScheduledValues(context.currentTime);
       gain.gain.setTargetAtTime(0, context.currentTime, 0.008);
       source.stop(context.currentTime + 0.04);

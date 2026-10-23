@@ -7,18 +7,28 @@ const flush = async () => { for (let index = 0; index < 6; index++) await Promis
 
 describe("Salon audio effects boundary", () => {
   let f: ReturnType<typeof audioFixture>;
-  let effects: { prepare: Mock<SoundEffectsPort["prepare"]>; play: Mock<SoundEffectsPort["play"]>; stop: Mock<SoundEffectsPort["stop"]> };
+  let effects: { prepare: Mock<SoundEffectsPort["prepare"]>; play: Mock<SoundEffectsPort["play"]>; stop: Mock<SoundEffectsPort["stop"]>; selectRecording: Mock<SoundEffectsPort["selectRecording"]> };
   let failure: Mock<(error: unknown) => void>;
   let engine: SalonAudioEngine;
   beforeEach(() => {
     f = audioFixture();
-    effects = { prepare: vi.fn<SoundEffectsPort["prepare"]>().mockResolvedValue(undefined), play: vi.fn<SoundEffectsPort["play"]>().mockResolvedValue(undefined), stop: vi.fn<SoundEffectsPort["stop"]>() };
+    effects = { prepare: vi.fn<SoundEffectsPort["prepare"]>().mockResolvedValue(undefined), play: vi.fn<SoundEffectsPort["play"]>().mockResolvedValue(undefined), stop: vi.fn<SoundEffectsPort["stop"]>(), selectRecording: vi.fn<SoundEffectsPort["selectRecording"]>() };
     failure = vi.fn<(error: unknown) => void>();
     vi.stubGlobal("window", { AudioContext: function () { return f.context; } });
     vi.spyOn(console, "warn").mockImplementation(() => {});
     engine = new SalonAudioEngine(effects, failure);
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it("changes recording silently while muted and previews a selection only when enabled", async () => {
+    engine.selectRecording("dry");
+    expect(effects.selectRecording).toHaveBeenCalledWith("dry");
+    expect(effects.play).not.toHaveBeenCalled();
+    engine.toggle(); await flush();
+    engine.selectRecording("stove"); await flush();
+    expect(effects.selectRecording).toHaveBeenLastCalledWith("stove");
+    expect(effects.play).toHaveBeenCalledTimes(1);
+  });
 
   it("starts silent and does not load or play before user enable", () => {
     engine.playFeeling("радость"); engine.playDesire();

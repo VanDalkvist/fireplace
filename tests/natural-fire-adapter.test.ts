@@ -5,6 +5,42 @@ import { audioFixture } from "./audio-effects-fixture";
 const buffer = { duration: 2.870612 } as AudioBuffer;
 
 describe("natural fire effects", () => {
+  it("selects distinct recordings and caches each decoded result", async () => {
+    const f = audioFixture(), other = { duration: 3 } as AudioBuffer;
+    const load = vi.fn(async (_context: BaseAudioContext, id?: string) => id === "dry" ? buffer : other);
+    const effect = new NaturalFireAdapter(load, () => 0);
+    effect.selectRecording("dry"); await effect.play(f.context, f.output);
+    effect.selectRecording("stove"); await effect.play(f.context, f.output);
+    expect(f.sources[0].buffer).toBe(buffer);
+    expect(f.sources[1].buffer).toBe(other);
+    effect.selectRecording("dry"); await effect.prepare(f.context);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("replaces fading old voices immediately when another recording is selected", async () => {
+    const f = audioFixture(), effect = new NaturalFireAdapter(async () => buffer);
+    effect.selectRecording("dry"); await effect.play(f.context, f.output);
+    f.runtime.currentTime += 0.8; await effect.play(f.context, f.output);
+    effect.selectRecording("stove"); await effect.play(f.context, f.output);
+    expect(f.sources).toHaveLength(3);
+    expect(f.sources[0].stop).toHaveBeenLastCalledWith(f.runtime.currentTime + 0.04);
+  });
+
+  it("does not let a stale recording failure clear the new recording cache", async () => {
+    const f = audioFixture();
+    let reject: (error: Error) => void = () => { throw new Error("Old load not started"); };
+    const load = vi.fn((_context: BaseAudioContext, id?: string): Promise<AudioBuffer> =>
+      id === "dry" ? new Promise((_resolve, fail) => { reject = fail; }) : Promise.resolve(buffer));
+    const effect = new NaturalFireAdapter(load);
+    effect.selectRecording("dry");
+    const old = effect.play(f.context, f.output).catch(error => error);
+    effect.selectRecording("stove"); await effect.play(f.context, f.output);
+    reject(new Error("old failure")); await old;
+    await effect.prepare(f.context);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(f.sources).toHaveLength(1);
+  });
+
   it("plays one bounded nonlooping recorded source with envelope and once-only loading", async () => {
     const f = audioFixture(), load = vi.fn().mockResolvedValue(buffer);
     const effect = new NaturalFireAdapter(load, () => 0);

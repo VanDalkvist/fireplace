@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import type { SessionPhase } from "@/domain/types";
 import type { SpeechEngineKind } from "@/speech/speech-types";
 import { cn } from "@/lib/utils";
+import { FireRecordingButton } from "./FireRecordingButton";
 import {
   Settings,
   X,
@@ -21,6 +22,9 @@ interface TechnicalGearPultProps {
   onToggleVerbatimMode: () => void;
   isAudioOn: boolean;
   onAudioToggle: () => void;
+  recordingLabel?: string;
+  recordingPosition?: string;
+  onCycleRecording?: () => void;
   phase: SessionPhase;
   onPhaseSelect: (phase: SessionPhase) => void;
   isDemoActive: boolean;
@@ -44,6 +48,7 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
   onToggleVerbatimMode,
   isAudioOn,
   onAudioToggle,
+  recordingLabel, recordingPosition, onCycleRecording,
   phase,
   onPhaseSelect,
   isDemoActive,
@@ -121,6 +126,10 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
             {isAudioOn ? <Volume2 className="w-3 h-3 text-primary" /> : <VolumeX className="w-3 h-3 opacity-60" />}
             <span>звук</span>
           </button>
+
+          {recordingLabel && recordingPosition && onCycleRecording && (
+            <FireRecordingButton label={recordingLabel} position={recordingPosition} onCycle={onCycleRecording} />
+          )}
 
           {/* Phase Selector */}
           <div className="flex items-center gap-0.5 bg-white/5 rounded-full p-0.5">

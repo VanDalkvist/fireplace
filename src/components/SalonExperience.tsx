@@ -20,6 +20,7 @@ export const SalonExperience: React.FC = () => {
     audioRef,
     isAudioOn,
     audioError,
+    recordingLabel, recordingPosition, cycleRecording,
     handlePhaseSelect,
     handleAudioToggle,
     handleAddFeeling,
@@ -147,6 +148,7 @@ export const SalonExperience: React.FC = () => {
             onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
             isAudioOn={isAudioOn}
             onAudioToggle={handleAudioToggle}
+            recordingLabel={recordingLabel} recordingPosition={recordingPosition} onCycleRecording={cycleRecording}
             phase={state.phase}
             onPhaseSelect={handlePhaseSelect}
             isDemoActive={isDemoActive}

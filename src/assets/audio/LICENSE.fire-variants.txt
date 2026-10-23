@@ -1,0 +1,37 @@
+Natural fire alternatives — CC0-1.0
+License: https://creativecommons.org/publicdomain/zero/1.0/
+Fetched 2026-10-23. Each publisher page was checked for the CC0 license link.
+Sources are public high-quality MP3 previews, not original uncompressed WAVs.
+Derived clips have 3 seconds of actual recorded sound; no synthesized audio.
+Trimming/filtering/level matching described below. Names are source descriptors,
+not a claim that subjective naturalness/noise suitability was listened to.
+
+Asset: fire-dry.wav
+Creator: 29chaza
+Page: https://freesound.org/people/29chaza/sounds/418274/
+Downloaded preview: https://cdn.freesound.org/previews/418/418274_6182465-hq.mp3
+Source SHA256: bb701252a38d83c93e6ce4c3a8e527ebc79fe77244e1c9b0ee548fc36bbbac65
+Trim start: 6.5 seconds; duration: 3 seconds
+Processing: mono 44100Hz; highpass 180Hz 2-pole; lowpass 9000Hz 2-pole; static peak -10dBFS; PCM16
+Final RMS: -40.70 dBFS
+Asset SHA256: c847316886d282964ee915a5d8af8e0892ea5cfdb04bbca252d212bb2ed7ffab
+
+Asset: fire-stove.wav
+Creator: Vrymaa
+Page: https://freesound.org/people/Vrymaa/sounds/770108/
+Downloaded preview: https://cdn.freesound.org/previews/770/770108_13973196-hq.mp3
+Source SHA256: 3e7b636865873aacfbe9c36dfa7b2f5bb6c319f8f6efd5874b5e2c78148428c5
+Trim start: 2.5 seconds; duration: 3 seconds
+Processing: mono 44100Hz; highpass 180Hz 2-pole; lowpass 9000Hz 2-pole; static peak -10dBFS; PCM16
+Final RMS: -33.12 dBFS
+Asset SHA256: 3a80728c5d815143e739967374fa5cd71bc236efa34ec18814155876b16b7491
+
+Asset: fire-hearth.wav
+Creator: Davor
+Page: https://freesound.org/people/Davor/sounds/382616/
+Downloaded preview: https://cdn.freesound.org/previews/382/382616_7094269-hq.mp3
+Source SHA256: 1e470bafa4a1a44d143beb0ae65664e574fe01243d82901a8428b4e41251320e
+Trim start: 12.75 seconds; duration: 3 seconds
+Processing: mono 44100Hz; highpass 180Hz 2-pole; lowpass 9000Hz 2-pole; static peak -10dBFS; PCM16
+Final RMS: -33.50 dBFS
+Asset SHA256: e1f68ef3c7965dc0e8b8b214b62345914da87f737561006c30d5fa2966707827

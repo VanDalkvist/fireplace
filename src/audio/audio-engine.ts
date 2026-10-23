@@ -88,6 +88,12 @@ export class SalonAudioEngine {
     this.duck.gain.setTargetAtTime(1, t + 2.4, 0.9);
   }
 
+  public selectRecording(id: string): void {
+    this.generation++; this.playbackGeneration++;
+    this.effects.selectRecording(id);
+    if (this.isEnabled) this.playSound();
+  }
+
   public setVolume(val: number): void {
     this.volume = Math.max(0, Math.min(1, val));
     if (this.master && this.isEnabled) this.ramp(this.master.gain, this.volume * 0.8, 0.2);
