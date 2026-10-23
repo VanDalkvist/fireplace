@@ -201,6 +201,7 @@ export const SalonPult: React.FC<SalonPultProps> = ({
           {/* Hotkey Guide */}
           <div className="border-t border-border/50 pt-4 text-[10px] text-muted/60 space-y-1">
             <div><kbd className="text-foreground">1..4</kbd> — переключение фаз</div>
+            <div><kbd className="text-foreground">n / т</kbd> — следующая фаза</div>
             <div><kbd className="text-foreground">space</kbd> — пауза / эстафета</div>
             <div><kbd className="text-foreground">v</kbd> — микрофон on / off</div>
             <div><kbd className="text-foreground">p</kbd> — передать пас</div>

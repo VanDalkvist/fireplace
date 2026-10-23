@@ -39,6 +39,14 @@ export class SalonMotionEngine {
     }
   }
 
+  /** Transient phase cue: no token, speaker, audio or growth-curve mutation. */
+  public pulsePhaseChange(): void {
+    if (this.cx === 0) return;
+    this.currentHeat = Math.min(1, this.currentHeat + 0.35);
+    this.flame.triggerWordFlare(this.cx, this.floorCY);
+    this.flame.triggerWordFlare(this.cx, this.floorCY);
+  }
+
   public computeTargetHeat(wordCount: number, isSpeaking: boolean): number {
     // Same asymptote; 25% faster progression per phrase, unchanged speech boost.
     const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-(wordCount * 1.25) / 28)) * 0.88 : 0.0;

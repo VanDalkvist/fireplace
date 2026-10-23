@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   createInitialState,
   setPhase,
+  advancePhase,
   nextSpeaker,
   passTurn,
   setSpeaker,
@@ -33,6 +34,7 @@ export interface UseSalonSessionReturn {
   cycleRecording: () => void;
   demoIdx: number;
   handlePhaseSelect: (phase: SessionPhase) => void;
+  handleAdvancePhase: () => void;
   handleAudioToggle: () => void;
   handleAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => string;
   handleAddDesire: (text: string, speakerId?: number) => string;
@@ -62,6 +64,10 @@ export function useSalonSession(): UseSalonSessionReturn {
         getPersistedSessionAnalytics;
     }
   }, [state]);
+
+  const handleAdvancePhase = useCallback(() => {
+    setState((previous: SessionState) => advancePhase(previous));
+  }, []);
 
   const handlePhaseSelect = useCallback((phase: SessionPhase) => {
     setState((prev: SessionState) => setPhase(prev, phase));
@@ -213,6 +219,7 @@ export function useSalonSession(): UseSalonSessionReturn {
     recordingLabel, recordingPosition, cycleRecording,
     demoIdx: demoIdxRef.current,
     handlePhaseSelect,
+    handleAdvancePhase,
     handleAudioToggle,
     handleAddFeeling,
     handleAddDesire,

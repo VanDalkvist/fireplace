@@ -1,0 +1,15 @@
+.phase-notice {
+  position: fixed; top: 4vh; left: 50%; z-index: 20;
+  pointer-events: none; transform: translateX(-50%);
+  color: rgba(236, 228, 214, 0.9); font: 400 20px/1.2 "JetBrains Mono", monospace;
+  letter-spacing: 0.12em; text-transform: lowercase;
+  animation: phase-evaporate 4s ease-in-out both;
+}
+@keyframes phase-evaporate {
+  0% { opacity: 0; filter: blur(3px); transform: translate(-50%, 8px); }
+  18%, 62% { opacity: 1; filter: blur(0); transform: translate(-50%, 0); }
+  100% { opacity: 0; filter: blur(6px); transform: translate(-50%, -14px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .phase-notice { animation: none; }
+}

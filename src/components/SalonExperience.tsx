@@ -8,6 +8,7 @@ import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
 import { TechnicalGearPult } from "./salon/TechnicalGearPult";
 import { CircleRules } from "./salon/CircleRules";
+import { PhaseNotice } from "./salon/PhaseNotice";
 import { CopyCircleRulesButton } from "./salon/CopyCircleRulesButton";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
@@ -22,6 +23,7 @@ export const SalonExperience: React.FC = () => {
     audioError,
     recordingLabel, recordingPosition, cycleRecording,
     handlePhaseSelect,
+    handleAdvancePhase,
     handleAudioToggle,
     handleAddFeeling,
     handleAddDesire,
@@ -107,6 +109,7 @@ export const SalonExperience: React.FC = () => {
     onToggleSpeech: () => speechRef.current?.toggle(),
     onAdvanceTurn: handleAdvanceTurn,
     onSelectPhase: handlePhaseSelect,
+    onAdvancePhase: handleAdvancePhase,
   });
 
   useEffect(() => {
@@ -120,6 +123,8 @@ export const SalonExperience: React.FC = () => {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
       <canvas ref={canvasRef} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
+
+      <PhaseNotice phase={state.phase} onTransition={() => motionRef.current?.pulsePhaseChange()} />
 
       {/* Floating Header & Top Controls */}
       <div className={cn("fixed top-3 left-4 right-4 z-10 flex items-center justify-between transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>

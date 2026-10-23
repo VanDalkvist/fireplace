@@ -12,6 +12,7 @@ export interface UseSalonHotkeysOptions {
   onToggleSpeech?: () => void;
   onAdvanceTurn?: () => void;
   onSelectPhase: (phase: SessionPhase) => void;
+  onAdvancePhase: () => void;
 }
 
 export function useSalonHotkeys({
@@ -25,12 +26,18 @@ export function useSalonHotkeys({
   onToggleSpeech,
   onAdvanceTurn,
   onSelectPhase,
+  onAdvancePhase,
 }: UseSalonHotkeysOptions): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.code === "Space") {
+      if (e.code === "KeyN") {
+        if (e.repeat || e.isComposing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+        if (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.tagName === "SELECT")) return;
+        e.preventDefault();
+        onAdvancePhase();
+      } else if (e.code === "Space") {
         e.preventDefault();
         onTriggerTurn();
       } else if (e.key === "h" || e.key === "р") {
@@ -71,5 +78,6 @@ export function useSalonHotkeys({
     onToggleSpeech,
     onAdvanceTurn,
     onSelectPhase,
+    onAdvancePhase,
   ]);
 }
