@@ -35,9 +35,7 @@ export class HearthWordsManager {
 
   constructor() {
     this.words = loadHearthWordsPersistence();
-    if (this.words.length > 0) {
-      this.lastSpokenWord = this.words[this.words.length - 1];
-    }
+    this.lastSpokenWord = this.words.length > 0 ? this.words[this.words.length - 1] : null;
   }
 
   public findSlot(
@@ -48,10 +46,7 @@ export class HearthWordsManager {
     let targetBaseAngle = speakerAngle;
 
     if (this.lastSpokenWord) {
-      const dx = this.lastSpokenWord.targetX - cx;
-      const dy = this.lastSpokenWord.targetY - cy;
-      const prevAngle = Math.atan2(dy / ry, dx / rx);
-      let diff = prevAngle - speakerAngle;
+      let diff = Math.atan2((this.lastSpokenWord.targetY - cy) / ry, (this.lastSpokenWord.targetX - cx) / rx) - speakerAngle;
       while (diff > Math.PI) diff -= TAU;
       while (diff < -Math.PI) diff += TAU;
       targetBaseAngle = speakerAngle + diff * 0.22; // 22% conversational gravity
@@ -117,9 +112,7 @@ export class HearthWordsManager {
   }
 
   public ageWords(): void {
-    for (let i = 0; i < this.words.length; i++) {
-      this.words[i].opacity = Math.max(0.20, this.words[i].opacity - 0.02);
-    }
+    for (let i = 0; i < this.words.length; i++) this.words[i].opacity = Math.max(0.20, this.words[i].opacity - 0.02);
     saveHearthWordsPersistence(this.words);
   }
 
@@ -147,9 +140,8 @@ export class HearthWordsManager {
     }
 
     const slot = this.findSlot(speakerSeat.angle, wordWidth, cx, cy, rx, ry);
-    const dx = slot.x - cx; const dy = slot.y - cy;
-    const relAngle = Math.atan2(dy / ry, dx / rx);
-    const relRadius = Math.hypot(dx / rx, dy / ry);
+    const relAngle = Math.atan2((slot.y - cy) / ry, (slot.x - cx) / rx);
+    const relRadius = Math.hypot((slot.x - cx) / rx, (slot.y - cy) / ry);
 
     const item: HearthWordItem = {
       id, text, family, seatId: speakerSeat.id, width: wordWidth,
@@ -169,6 +161,21 @@ export class HearthWordsManager {
       born: now, duration: 1200,
     });
     this.lastSpokenWord = item;
+  }
+
+  public updateWordText(id: string, text: string, family?: string, ctx?: CanvasRenderingContext2D): void {
+    const item = this.words.find((w) => w.id === id);
+    if (!item) return;
+    item.text = text;
+    if (family) item.family = family;
+    item.lastAt = Date.now();
+    if (ctx) {
+      ctx.font = "20px 'JetBrains Mono'";
+      const wrapped = wrapCanvasText(text, 380, (str) => ctx.measureText(str).width);
+      item.width = wrapped.effectiveWidth;
+      item.lines = wrapped.lines;
+    }
+    saveHearthWordsPersistence(this.words);
   }
 
   public render(ctx: CanvasRenderingContext2D, _seats: IsometricSeat[], time: number): void {
@@ -200,13 +207,10 @@ export class HearthWordsManager {
     for (let i = 0; i < this.words.length; i++) {
       const w = this.words[i];
 
-      // Smooth organic deceleration into target slot
       if (!w.settled) {
-        const dx = w.targetX - w.x;
-        const dy = w.targetY - w.y;
-        w.x += dx * 0.055;
-        w.y += dy * 0.055;
-        if (Math.hypot(dx, dy) < 1.0) w.settled = true;
+        w.x += (w.targetX - w.x) * 0.055;
+        w.y += (w.targetY - w.y) * 0.055;
+        if (Math.hypot(w.targetX - w.x, w.targetY - w.y) < 1.0) w.settled = true;
       } else {
         w.y = w.targetY + Math.sin(t * 0.7 + w.breathOffset) * 0.7;
       }
