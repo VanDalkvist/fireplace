@@ -37,7 +37,7 @@ const PHASES: Array<{ id: SessionPhase; label: string }> = [
   { id: "silence", label: "начало" },
   { id: "feelings", label: "чувства" },
   { id: "desires", label: "желания" },
-  { id: "completion", label: "финал" },
+  { id: "completion", label: "завершение" },
 ];
 
 export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({

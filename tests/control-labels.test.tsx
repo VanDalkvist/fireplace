@@ -11,6 +11,7 @@ function panel(verbatim: boolean) {
 it("shows начало / нейро and luna for the configured default Luna model without changing IDs", () => {
   const html=panel(false);
   expect(html).toContain(">начало<");
+  expect(html).toContain(">завершение<");
   expect(html).toContain(">нейро<");
   expect(html).toContain(">luna<");
 });

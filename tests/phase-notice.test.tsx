@@ -33,6 +33,9 @@ it("announces a real phase change once, despite callback rerenders, then disappe
   render("feelings",vi.fn());vi.advanceTimersByTime(4001);
   expect(render("feelings")).not.toContain("data-phase-notice");
 });
+it("names the final phase завершение",()=>{
+  render("desires");expect(render("completion")).toContain("завершение");
+});
 it("replaces the notice safely and cancels the previous timeout",()=>{
   render("silence");render("feelings");vi.advanceTimersByTime(1000);
   expect(render("desires")).toContain("желания");vi.advanceTimersByTime(3001);

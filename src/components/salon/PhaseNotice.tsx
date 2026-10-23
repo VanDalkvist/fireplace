@@ -3,7 +3,7 @@ import type { SessionPhase } from "@/domain/types";
 import "./phase-notice.css";
 
 const LABELS: Record<SessionPhase, string> = {
-  silence: "начало", feelings: "чувства", desires: "желания", completion: "финал",
+  silence: "начало", feelings: "чувства", desires: "желания", completion: "завершение",
 };
 
 export function PhaseNotice({ phase, onTransition }: { phase: SessionPhase; onTransition: () => void }) {
