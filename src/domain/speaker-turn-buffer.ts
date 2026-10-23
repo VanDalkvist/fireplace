@@ -18,6 +18,7 @@ export class SpeakerTurnBuffer {
   private currentTurn: PendingTurn | null = null;
   private maxGapMs: number;
   private history: string[] = [];
+  private historyBySpeaker = new Map<number, string[]>();
   private maxHistory: number;
 
   constructor(maxGapMs = 2200, maxHistory = 6) {
@@ -112,16 +113,31 @@ export class SpeakerTurnBuffer {
     return flushed;
   }
 
-  public commitCompletedTurn(phrase: string): void {
+  public commitCompletedTurn(phrase: string, speakerSeat?: number): void {
     const clean = phrase.trim();
     if (!clean) return;
     this.history.push(clean);
     if (this.history.length > this.maxHistory) {
       this.history.shift();
     }
+    if (speakerSeat !== undefined) {
+      const spkHist = this.historyBySpeaker.get(speakerSeat) || [];
+      spkHist.push(clean);
+      if (spkHist.length > this.maxHistory) spkHist.shift();
+      this.historyBySpeaker.set(speakerSeat, spkHist);
+    }
   }
 
-  public getRecentHistory(limit = 3): string[] {
+  public getRecentHistory(limit = 3, speakerSeat?: number): string[] {
+    if (speakerSeat !== undefined) {
+      return this.historyBySpeaker.get(speakerSeat)?.slice(-limit) || [];
+    }
     return this.history.slice(-limit);
+  }
+
+  public clearHistory(): void {
+    this.history = [];
+    this.historyBySpeaker.clear();
+    this.currentTurn = null;
   }
 }

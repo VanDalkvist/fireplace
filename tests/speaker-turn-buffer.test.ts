@@ -57,4 +57,37 @@ describe('SpeakerTurnBuffer', () => {
       "новые параметры задач",
     ]);
   });
+
+  it('isolates history by speaker seat so one speaker context does not contaminate another', () => {
+    buffer.commitCompletedTurn("я очень устал сегодня", 1);
+    buffer.commitCompletedTurn("много задач навалилось", 1);
+
+    // Requesting history for Seat 1
+    expect(buffer.getRecentHistory(3, 1)).toEqual([
+      "я очень устал сегодня",
+      "много задач навалилось",
+    ]);
+
+    // Requesting history for Seat 2: should be isolated and empty
+    expect(buffer.getRecentHistory(3, 2)).toEqual([]);
+
+    // Now Seat 2 speaks
+    buffer.commitCompletedTurn("а я наоборот полон сил", 2);
+    expect(buffer.getRecentHistory(3, 2)).toEqual(["а я наоборот полон сил"]);
+    expect(buffer.getRecentHistory(3, 1)).toEqual([
+      "я очень устал сегодня",
+      "много задач навалилось",
+    ]);
+  });
+
+  it('clears all history and pending turns on clearHistory', () => {
+    buffer.commitCompletedTurn("фраза из фазы чувств", 1);
+    buffer.feed("незавершенная мысль", 1);
+
+    buffer.clearHistory();
+
+    expect(buffer.getRecentHistory(3, 1)).toEqual([]);
+    expect(buffer.getRecentHistory(3)).toEqual([]);
+    expect(buffer.flush()).toBeNull();
+  });
 });

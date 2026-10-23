@@ -60,6 +60,11 @@ export function useSalonSpeech({
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speakerDecayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    turnBufferRef.current.clearHistory();
+    if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+  }, [phase]);
+
   const scheduleSpeakerDecay = useCallback(() => {
     if (speakerDecayTimerRef.current) clearTimeout(speakerDecayTimerRef.current);
     speakerDecayTimerRef.current = setTimeout(() => {
@@ -75,7 +80,7 @@ export function useSalonSpeech({
     if (isVerbatim) {
       const clean = text.trim();
       if (!clean || isPureFillerPhrase(clean)) return;
-      turnBufferRef.current.commitCompletedTurn(clean);
+      turnBufferRef.current.commitCompletedTurn(clean, speakerSeat);
       setLastPhrase(clean);
       setInterimPhrase("");
       setInterimBadge(null);
@@ -87,11 +92,11 @@ export function useSalonSpeech({
     }
 
     setInterimBadge({ text: "нейрокоррекция", type: curPhase === "desires" ? "desire" : "feeling" });
-    const recentContext = turnBufferRef.current.getRecentHistory(3);
+    const recentContext = turnBufferRef.current.getRecentHistory(3, speakerSeat);
     const res = await distillWithNeuralFallback(text, { engine: callbacksRef.current.distillerEngine, phase: curPhase }, recentContext);
     const settled = res.repairedText || text;
 
-    turnBufferRef.current.commitCompletedTurn(settled);
+    turnBufferRef.current.commitCompletedTurn(settled, speakerSeat);
     setLastPhrase(settled);
     setInterimPhrase("");
     setInterimBadge(null);
