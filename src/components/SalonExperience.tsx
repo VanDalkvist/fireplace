@@ -8,6 +8,7 @@ import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
 import { TechnicalGearPult } from "./salon/TechnicalGearPult";
 import { CircleRules } from "./salon/CircleRules";
+import { CopyCircleRulesButton } from "./salon/CopyCircleRulesButton";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { cn } from "@/lib/utils";
@@ -155,6 +156,7 @@ export const SalonExperience: React.FC = () => {
             }}
           />
           <CircleRules />
+          <CopyCircleRulesButton />
         </div>
       </div>
 

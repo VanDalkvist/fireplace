@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { CircleRules } from "@/components/salon/CircleRules";
 import { SalonExperience } from "@/components/SalonExperience";
 import { CircleRulesContent } from "@/components/salon/CircleRulesContent";
+import { CopyCircleRulesButton } from "@/components/salon/CopyCircleRulesButton";
+import { CIRCLE_RULES } from "@/content/circle-rules";
+import { writeClipboardText } from "@/infrastructure/browser-clipboard";
 
 const introduction = "Это может быть непривычно. Если собьёмся — просто вернёмся к договорённостям.";
 const agreements = [
@@ -16,8 +19,37 @@ const agreements = [
   "Эти договорённости относятся и ко мне. Если мы от них отойдём, я буду останавливать и возвращать разговор к рамке.",
 ];
 const stripTags = (html: string) => html.replace(/<[^>]+>/g, "");
+const expectedCopy = [introduction, ...agreements.map((rule, i) => `${i + 1}. ${rule}`)].join("\n\n");
 
 describe("circle rules", () => {
+  it("provides full plain text with the introduction and numbered original paragraphs", () => {
+    expect(CIRCLE_RULES.text).toBe(expectedCopy);
+  });
+
+  it("renders an independent icon-only Copy button in the header without opening rules", () => {
+    const html = renderToStaticMarkup(<CopyCircleRulesButton />);
+    expect(html).toContain('aria-label="Копировать правила круга"');
+    expect(html).toContain("lucide-copy");
+    expect(html).not.toContain("aria-haspopup");
+    expect(html).not.toContain('role="dialog"');
+    const page = renderToStaticMarkup(<SalonExperience />);
+    expect(page.indexOf('aria-label="Копировать правила круга"')).toBeGreaterThan(page.indexOf('aria-label="Правила круга"'));
+  });
+
+  it("awaits the clipboard and writes the exact full text", async () => {
+    let text = "";
+    await writeClipboardText(CIRCLE_RULES.text, { writeText: async value => { text = value; } });
+    expect(text).toBe(expectedCopy);
+  });
+
+  it("preserves permission rejection instead of reporting copied", async () => {
+    const denied = new DOMException("Denied", "NotAllowedError");
+    await expect(writeClipboardText("rules", { writeText: async () => { throw denied; } })).rejects.toBe(denied);
+  });
+
+  it("rejects unavailable clipboard without a hidden fallback", async () => {
+    await expect(writeClipboardText("rules", undefined)).rejects.toMatchObject({ name: "NotSupportedError" });
+  });
   it("preserves the exact supplied introduction and eight ordered agreements", () => {
     const html = renderToStaticMarkup(<CircleRulesContent />);
     expect(html).toContain(`<p>${introduction}</p>`);

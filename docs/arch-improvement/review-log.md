@@ -1411,3 +1411,43 @@
 - Not applicable: new HTTP/DB/provider/config/credential contracts; none introduced.
 - Residual risk: existing app-wide theme mapping and keyboard interception outside the new widget remain unchanged. Rules are displayed agreements, not new recording consent enforcement. Chromium checked; no Safari/Firefox runtime claim.
 - **VERDICT: PASS — scoped architecture and product review by lead (Cycle 42).**
+
+---
+
+## Cycle 43 — 2026-10-23 — Standalone Copy Rules Button
+
+### Scope and changes
+- Explicit user request: a separate copy button that copies all rules without opening the popup. Icon-only Copy sibling after the book, same corner style.
+- Baseline 9de6910, feature branch feat/copy-circle-rules. Plan: `docs/superpowers/plans/2026-10-23-arch-improvement-cycle-43-copy-rules.md`.
+- Canonical immutable static content now drives both panel rendering and copied plain text: original introduction, eight numbered paragraphs, original case/punctuation, blank line separation. No manual duplicate copy string.
+- Clipboard writer takes an injected typed browser clipboard port; native failures propagate. Button awaits completion, disables while pending, shows Check/accessible success only after resolve, resets success with a cleaned timer, visibly reports denial/unavailability and allows retry. Keyboard scoped to avoid global Space/Tab side effects.
+- No changes to audio, mic, session, model/provider or analytics behavior.
+
+### Findings
+- [P2] Missing direct full-rules copying.
+  - Evidence: Cycle42 header contained only book/gear; new SSR copy-control and full-text tests initially failed.
+  - Impact: user had to open/read/select the popup; separately duplicated text would drift.
+  - Rule: AP-018/AP-054.
+  - Fix decision: fixed — separate sibling action, shared canonical content and numbered plaintext.
+- [P2] Clipboard failures could be falsely represented as success if existing analytics pattern were reused.
+  - Evidence: new rejection/unavailable contract tests initially resolved rather than rejecting against stub; old analytics uses unawaited writeText.
+  - Impact: user thinks text copied despite browser denial.
+  - Rule: AP-022/AP-023/AP-054.
+  - Fix decision: fixed in new widget — await, pending/error states, native typed errors, safe diagnostic. Existing analytics refactor remains log-only/out of scope.
+
+### Verification
+- RED: five assertion failures for full payload, control, clipboard write/denial/unavailability (after initial missing-module failure). GREEN after implementation; three original rules tests retained.
+- Fresh full suite: **220 tests / 48 files**, typecheck/build/diff check PASS. New source modules 17/7/42 lines; parent 207 and test 80, all <=250.
+- Isolated Browser Automation `28cb2595-80bf-4b5d-841a-a18b586420d3`:
+  - Actual Clipboard API write/read after own successful write: exact 1252-character payload, nine paragraphs, eight numbered items; popup remained closed.
+  - Space activation copies without opening rules. Deferred write keeps pending/disabled and no premature success.
+  - Injected NotAllowedError and unavailable API show failure (not success), preserve closed popup and allow retry.
+  - Restored real API succeeds on retry at 375px; controls fit; existing book opens/closes normally.
+  - Browser-context clipboard read/write/sanitized-write grants used only in isolated test context; app does not auto-grant permissions. No pre-existing clipboard content read. No mic/reset/audio used.
+- Receipts/script/screenshots: thread storage `cycle43-copy-rules-acceptance.js`, `cycle43-browser.json`, `cycle43-copy-0.jpg`, `cycle43-copy-1.jpg`. Browser closed after copying artifacts.
+
+### Architecture verification — lead review here
+- Passed: AP-010/AP-020 (content independent of React/browser; clipboard is explicit UI boundary with injected typed port), AP-018/AP-019 (bounded presentation/content/transport roles), AP-022/AP-023 (awaited write, native rejection, visible error, timer cleanup), AP-028/AP-029 (exact deterministic contracts, strict TS), AP-053/AP-054 (local status, accessible icon/live message, keyboard isolation).
+- Not applicable: new server/API/DB/provider/auth contracts; none introduced.
+- Residual risk: Clipboard API depends on browser secure context and permission; failure is explicit rather than fake success. Chromium runtime verified, no Safari/Firefox runtime claim. No independent review claimed.
+- **VERDICT: PASS — scoped architecture and product review by lead (Cycle 43).**
