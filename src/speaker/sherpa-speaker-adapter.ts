@@ -6,15 +6,18 @@ import type {
 export interface SherpaSpeakerAdapterOptions {
   serviceUrl?: string;
   timeoutMs?: number;
+  threshold?: number;
 }
 
 export class SherpaSpeakerAdapter implements SpeakerIdentificationPort {
   private serviceUrl: string;
   private timeoutMs: number;
+  private threshold: number;
 
   constructor(options: SherpaSpeakerAdapterOptions = {}) {
     this.serviceUrl = (options.serviceUrl || "http://127.0.0.1:8086").replace(/\/+$/, "");
     this.timeoutMs = options.timeoutMs ?? 2000;
+    this.threshold = options.threshold ?? 0.65;
   }
 
   public async isAvailable(): Promise<boolean> {
@@ -39,7 +42,7 @@ export class SherpaSpeakerAdapter implements SpeakerIdentificationPort {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
-      const res = await fetch(`${this.serviceUrl}/identify`, {
+      const res = await fetch(`${this.serviceUrl}/identify?threshold=${this.threshold}`, {
         method: "POST",
         headers: { "Content-Type": audioBlob.type || "audio/webm" },
         body: audioBlob,
