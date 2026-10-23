@@ -6,6 +6,7 @@
 
 import type { FeelingToken, DesireToken, Participant } from '@/domain/types';
 import { HearthFlameSimulator } from './hearth-flame';
+import { renderScaledHearth } from './render-scaled-hearth';
 import { HearthSeatsLayout, type IsometricSeat } from './hearth-seats';
 import { HearthWordsManager } from './hearth-words';
 import {
@@ -189,7 +190,7 @@ export class SalonMotionEngine {
       updatePersistedHeat(this.currentHeat);
     }
 
-    this.flame.render(ctx, this.cx, this.floorCY, time, this.currentHeat);
+    renderScaledHearth(ctx, this.flame, this.cx, this.floorCY, time, this.currentHeat);
 
     // 4. Seats Ring (Pure glowing ember dots, no text numbers)
     this.seats.render(ctx, activeSpeakerId, time);

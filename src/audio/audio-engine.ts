@@ -52,6 +52,12 @@ export class SalonAudioEngine {
     return true;
   }
 
+  public resumeIfEnabled(): void {
+    if (!this.isEnabled || !this.ac || this.ac.state !== "suspended") return;
+    const generation = this.generation;
+    void this.activate(this.ac, generation).catch(error => this.fail(error, generation));
+  }
+
   private async activate(context: AudioContext, generation: number): Promise<void> {
     if (context.state === "suspended") await context.resume();
     if (this.isEnabled && generation === this.generation) await this.effects.prepare(context);

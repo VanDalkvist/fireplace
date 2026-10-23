@@ -1,5 +1,6 @@
 import type { IsometricSeat } from "./hearth-seats";
 import type { FlightSpark, HearthViewport, HearthWordItem } from "./hearth-word-types";
+import { PHRASE_WARM_FONT, PHRASE_LINE_HEIGHT, FIRE_HALF_WIDTH } from "./hearth-presentation";
 import { wrapCanvasText } from "./text-wrapper";
 import { findHearthSlot } from "./hearth-word-layout";
 import { renderHearthWords } from "./hearth-word-renderer";
@@ -15,21 +16,21 @@ export class HearthWordsManager {
   public lastSpokenWord: HearthWordItem | null = this.words.at(-1) ?? null;
   private viewport: HearthViewport = { cx: 500, cy: 300, rx: 400, ry: 200 };
 
-  public findSlot(angle: number, width: number, cx: number, cy: number, rx: number, ry: number, height = 24) {
+  public findSlot(angle: number, width: number, cx: number, cy: number, rx: number, ry: number, height = PHRASE_LINE_HEIGHT) {
     return findHearthSlot(angle, width, height, { cx, cy, rx, ry }, this.words, this.lastSpokenWord);
   }
 
   private appendBlocks(source: HearthWordItem, text: string, ctx: CanvasRenderingContext2D): HearthWordItem {
     const v = this.viewport;
-    ctx.font = "600 21px 'JetBrains Mono'";
-    const wrapped = wrapCanvasText(text, Math.max(1, Math.min(640, v.cx * 2 - 96, Math.max(240, v.cx - 232))), s => ctx.measureText(s).width);
+    ctx.font = PHRASE_WARM_FONT;
+    const wrapped = wrapCanvasText(text, Math.max(1, Math.min(640, v.cx * 2 - 96, Math.max(240, v.cx - FIRE_HALF_WIDTH - 72))), s => ctx.measureText(s).width);
     const sourceId = source.sourceId ?? source.id;
     let first: HearthWordItem | undefined;
     wrapped.blocks.forEach((block, index) => {
-      const slot = this.findSlot(source.relAngle ?? 0, block.width, v.cx, v.cy, v.rx, v.ry, block.lines.length * 24);
+      const slot = this.findSlot(source.relAngle ?? 0, block.width, v.cx, v.cy, v.rx, v.ry, block.lines.length * PHRASE_LINE_HEIGHT);
       const item: HearthWordItem = {
         ...source, id: index === 0 ? sourceId : `${sourceId}::${index}`, sourceId, sourceText: text,
-        text: block.text, width: block.width, height: block.lines.length * 24, lines: block.lines,
+        text: block.text, width: block.width, height: block.lines.length * PHRASE_LINE_HEIGHT, lines: block.lines,
         targetX: slot.x, targetY: slot.y,
         relAngle: Math.atan2((slot.y - v.cy) / v.ry, (slot.x - v.cx) / v.rx),
         relRadius: Math.hypot((slot.x - v.cx) / v.rx, (slot.y - v.cy) / v.ry),
@@ -60,7 +61,7 @@ export class HearthWordsManager {
     for (const word of this.words) {
       if (word.relAngle === undefined || word.relRadius === undefined) continue;
       word.targetX = Math.max(word.width / 2 + 48, Math.min(cx * 2 - word.width / 2 - 48, cx + Math.cos(word.relAngle) * rx * word.relRadius));
-      word.targetY = Math.max(48 + (word.height ?? 24) / 2, Math.min(cy * 2 - 48 - (word.height ?? 24) / 2, cy + Math.sin(word.relAngle) * ry * word.relRadius));
+      word.targetY = Math.max(48 + (word.height ?? PHRASE_LINE_HEIGHT) / 2, Math.min(cy * 2 - 48 - (word.height ?? PHRASE_LINE_HEIGHT) / 2, cy + Math.sin(word.relAngle) * ry * word.relRadius));
       if (word.settled) { word.x = word.targetX; word.y = word.targetY; }
     }
   }

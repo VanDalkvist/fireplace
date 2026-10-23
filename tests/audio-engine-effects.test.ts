@@ -20,6 +20,16 @@ describe("Salon audio effects boundary", () => {
   });
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
+  it("unlocks restored enabled audio on a gesture without toggling or unsolicited playback", async () => {
+    engine.resumeIfEnabled();
+    expect(f.runtime.resume).not.toHaveBeenCalled();
+    engine.toggle(); await flush(); f.runtime.state = "suspended";
+    engine.resumeIfEnabled(); await flush();
+    expect(f.runtime.resume).toHaveBeenCalledTimes(1);
+    expect(engine.active).toBe(true);
+    expect(effects.play).not.toHaveBeenCalled();
+  });
+
   it("changes recording silently while muted and previews a selection only when enabled", async () => {
     engine.selectRecording("dry");
     expect(effects.selectRecording).toHaveBeenCalledWith("dry");

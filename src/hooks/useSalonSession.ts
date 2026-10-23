@@ -14,7 +14,7 @@ import {
 import type { SessionState, SessionPhase } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
 import { SalonAudioEngine } from "@/audio/audio-engine";
-import { createSalonAudioEngine } from "@/composition/audio";
+import { useSalonAudio } from "./useSalonAudio";
 import { useFireRecording } from "./useFireRecording";
 import {
   loadSessionPersistence,
@@ -50,11 +50,10 @@ export function useSalonSession(): UseSalonSessionReturn {
     const persisted = loadSessionPersistence();
     return persisted?.session || createInitialState(0);
   });
-  const [isAudioOn, setIsAudioOn] = useState(false);
-  const [audioError, setAudioError] = useState<string | null>(null);
   const demoIdxRef = useRef(0);
   const audioRef = useRef<SalonAudioEngine | null>(null);
   const { recordingId, recordingLabel, recordingPosition, cycleRecording } = useFireRecording(audioRef);
+  const { isAudioOn, audioError, handleAudioToggle } = useSalonAudio(audioRef, recordingId);
 
   useEffect(() => {
     saveSessionPersistence(state, 0.0);
@@ -63,20 +62,6 @@ export function useSalonSession(): UseSalonSessionReturn {
         getPersistedSessionAnalytics;
     }
   }, [state]);
-
-  if (!audioRef.current && typeof window !== "undefined") {
-    audioRef.current = createSalonAudioEngine(() => {
-      setIsAudioOn(false);
-      setAudioError("Звук костра недоступен. Включи звук ещё раз, чтобы повторить загрузку.");
-    }, recordingId);
-  }
-
-  const handleAudioToggle = useCallback(() => {
-    if (!audioRef.current) return;
-    setAudioError(null);
-    const next = audioRef.current.toggle();
-    setIsAudioOn(next);
-  }, []);
 
   const handlePhaseSelect = useCallback((phase: SessionPhase) => {
     setState((prev: SessionState) => setPhase(prev, phase));

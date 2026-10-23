@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { configureCanvasViewport } from "@/canvas/canvas-viewport";
 import type { SessionState } from "@/domain/types";
 import type { SalonMotionEngine } from "@/canvas/motion-engine";
 
@@ -19,12 +20,8 @@ export function useSalonCanvas(
 
     const render = (time: number) => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const targetW = Math.round(window.innerWidth * dpr);
-      const targetH = Math.round(window.innerHeight * dpr);
-
-      // Only resize canvas if dimensions actually changed to avoid buffer invalidation (AP-055)
-      if (canvas.width !== targetW) canvas.width = targetW;
-      if (canvas.height !== targetH) canvas.height = targetH;
+      const targetW = window.innerWidth, targetH = window.innerHeight;
+      configureCanvasViewport(canvas, ctx, targetW, targetH, dpr);
 
       const current = stateRef.current;
       motionRef.current?.syncTokens(

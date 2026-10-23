@@ -1575,3 +1575,32 @@
 - Not applicable: audio/provider/HTTP/DB changes; none introduced.
 - Residual risk: accent reflects accepted attributed speech/phrase events, not speculative live diarization before ASR identifies speaker. Historical invalid storage entries are preserved but not drawn. Five-second fade is intentional, never persistent selection. Lead review only, no independent claim.
 - **VERDICT: PASS — scoped architecture and product review by lead (Cycle 46).**
+
+---
+
+## Cycle 47 — 2026-10-23 — Larger Hearth, Readable Phrases, Persistent Sound
+
+### Scope / design
+User requested larger starting fire with heat growth retained, larger phrase type, then explicitly added persistent recording and sound toggle. Baseline7f1034a; branch feat/larger-hearth-readable-phrases; cycle47 plan. User's recording identity is unspecified; never inferred from QA fixture.
+- Centered 1.2x hearth presentation, unchanged heat/event/stone ratios; shared24px resting/25px warm font and30px line height. Five-line overflow and complete source retained. Shared full-hot keep-out192/400/90.
+- Fix DPR2 shrink: high-resolution backing, absolute DPR transform, logical CSS viewport. Whole artwork now has consistent CSS units; word cache reflows on resize.
+- useSalonAudio extracts toggle/error/factory wiring from session, restores guarded boolean storage, keeps existing recording key. Suspended enabled context resumes on trusted pointer/key without toggling or unsolicited playback. Listener cleanup included; microphone/meeting listening never restored.
+
+### Findings / fixes
+- [P2] Evidence: previous20/21px type,24px leading and no centered scale; four genuine presentation assertion REDs after behavior-neutral baseline helpers. Impact: poor default reading size and small cold fire, doubled shrink on Retina. Rule: AP-018/AP-026/AP-054/AP-055. Fix decision: fixed — shared metrics, centered scale preserving heat, CSS/DPR boundary with guarded backing resize.
+- [P2] Evidence: collision literals160/260/75 did not cover larger fire. Impact: bigger words could overlap flame/mismeasure boxes. Rule: AP-018/AP-028/AP-054. Fix decision: fixed — warm-font measurement, shared30px boxes and expanded keep-out/width budget, no truncation.
+- [P2] Evidence: isAudioOn initialized false on every reload; observed two preference REDs and one suspended-resume RED. Impact: lost toggle setting. Rule: AP-018/AP-026/AP-054. Fix decision: fixed — persisted boolean, existing saved recording preserved, generation-safe gesture resume; native restore silent.
+- [P3] Evidence: reset mock lacked event listeners; old1000x600 dispersion fixture had reduced free area after enlarged keep-out. Impact: obsolete fixture assumptions. Rule: AP-028/AP-029. Fix decision: fixed — mock actual browser contract; retain >=0.28 dispersion assertion using1920x1080 full-size clearing, original tier algorithm unchanged.
+
+### Verification / receipts
+- Initial missing-module import error is not claimed as behavior RED. After extracting inert/old-behavior boundaries, observed4 presentation and3 audio assertion REDs; GREEN after implementation.
+- **260 tests /56 files**, typecheck/build/diff PASS. Touched source <=250: session227, motion201, words113, audio hook45; small new helpers6–16.
+- Isolated Browser Automation fafef5e2-9f7f-4f46-9fe9-a650fffc835a closed. At1280x800 DPR1/2: backing1280/2560, native transform1/2; actual24px fillText CSS size at both. Full482-char phrase retained across reload/DPR change in5 blocks, <=5 lines,30px heights, zero overlaps and all target boxes outside enlarged hot-fire bounds. Retina screenshot inspected.
+- Native scaled cold tongue span103.36 vs hot195.35 (>1.4x), preserving growth; existing raw geometry/stone invariants pass.
+- QA recording=stove is a fixture, NOT a claim about user's choice. Saved enabled=true and recording survive reload at both DPIs: one context, zero source starts. First trusted pointer action yields running context, still zero starts. Explicit M mute survives reload, recording retained, zero contexts/starts.
+- Artifacts: thread storage cycle47-acceptance.js, cycle47-browser.json, cycle47-reading-0.jpg/-1.jpg. No mic, user tab or shared service reset.
+
+### Architecture verification — lead review here
+- Passed: AP-010/AP-020 (Canvas React-free, storage boundary), AP-018/AP-019 (shared metrics/focused bounded modules), AP-023 (gesture/RAF cleanup), AP-026/AP-029 (typed context/storage, strict compile), AP-028 (RED/GREEN and native acceptance), AP-053/AP-054 (explicit preferences, no unsolicited clip, visible failure), AP-055 (DPR and guarded buffer resize).
+- Residual risk: finite/tiny/dense viewports cannot guarantee no collisions; no content discarded. Browser autoplay can defer sound until trusted action; unit suspended-state and native first-gesture checks do not cover every browser policy. Storage denial warns and cannot guarantee persistence. Existing one-high dependency advisory unchanged.
+- **VERDICT: PASS — scoped architecture and product review by lead (Cycle 47); no independent reviewer claim.**

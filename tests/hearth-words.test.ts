@@ -106,10 +106,11 @@ describe('HearthWordsManager', () => {
       measureText: vi.fn(() => ({ width: 70 })),
     } as unknown as CanvasRenderingContext2D;
 
-    const cx = 500;
-    const cy = 300;
-    const rx = 400;
-    const ry = 200;
+    // Full-size clearing: the enlarged hearth intentionally takes more room on small viewports.
+    const cx = 960;
+    const cy = 540;
+    const rx = 883;
+    const ry = 421;
 
     const seat: IsometricSeat = {
       id: 3,

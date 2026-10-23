@@ -65,7 +65,7 @@ describe("useSalonSession handleResetCircle Phase Preservation (Cycle 40)", () =
       }),
     };
     vi.stubGlobal("localStorage", mockStorage);
-    vi.stubGlobal("window", { localStorage: mockStorage });
+    vi.stubGlobal("window", { localStorage: mockStorage, addEventListener: vi.fn(), removeEventListener: vi.fn() });
 
     hookIndex = 0;
     hookValues.length = 0;

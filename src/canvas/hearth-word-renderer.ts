@@ -1,4 +1,5 @@
 import type { FlightSpark, HearthWordItem } from "./hearth-word-types";
+import { PHRASE_FONT, PHRASE_WARM_FONT, PHRASE_LINE_HEIGHT } from "./hearth-presentation";
 const TAU = Math.PI * 2;
 
 function renderSparks(ctx: CanvasRenderingContext2D, sparks: FlightSpark[], now: number): void {
@@ -25,13 +26,13 @@ function renderWord(ctx: CanvasRenderingContext2D, word: HearthWordItem, time: n
   const age = now - (word.lastAt || word.born);
   const warm = age >= 0 && age < 4000 ? Math.min(1, Math.pow(1 - age / 4000, 2)) : 0;
   ctx.save(); ctx.translate(word.x, word.y);
-  ctx.font = warm > 0.3 ? "600 21px 'JetBrains Mono'" : "20px 'JetBrains Mono'";
+  ctx.font = warm > 0.3 ? PHRASE_WARM_FONT : PHRASE_FONT;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   const alpha = Math.max(0.20, Math.min(1, word.opacity));
   ctx.fillStyle = `rgba(${Math.round(236 + 19 * warm)}, ${Math.round(228 - 43 * warm)}, ${Math.round(214 - 99 * warm)}, ${alpha * (0.88 + warm * 0.12)})`;
   ctx.shadowColor = warm > 0.05 ? `rgba(255, 178, 102, ${0.60 * warm})` : "transparent";
   ctx.shadowBlur = warm > 0.05 ? Math.min(6, Math.round(6 * warm)) : 0;
-  lines.forEach((line, index) => ctx.fillText(index === lines.length - 1 && word.count > 1 ? `${line} ×${word.count}` : line, 0, -((lines.length - 1) * 24) / 2 + index * 24));
+  lines.forEach((line, index) => ctx.fillText(index === lines.length - 1 && word.count > 1 ? `${line} ×${word.count}` : line, 0, -((lines.length - 1) * PHRASE_LINE_HEIGHT) / 2 + index * PHRASE_LINE_HEIGHT));
   ctx.restore();
 }
 
