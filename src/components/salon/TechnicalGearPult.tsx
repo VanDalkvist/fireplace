@@ -3,6 +3,7 @@ import type { SessionPhase } from "@/domain/types";
 import type { SpeechEngineKind } from "@/speech/speech-types";
 import { cn } from "@/lib/utils";
 import { FireRecordingButton } from "./FireRecordingButton";
+import { getDistillerConfig } from "@/config/distiller-config";
 import {
   Settings,
   X,
@@ -33,7 +34,7 @@ interface TechnicalGearPultProps {
 }
 
 const PHASES: Array<{ id: SessionPhase; label: string }> = [
-  { id: "silence", label: "тишина" },
+  { id: "silence", label: "начало" },
   { id: "feelings", label: "чувства" },
   { id: "desires", label: "желания" },
   { id: "completion", label: "финал" },
@@ -86,7 +87,7 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
           <button
             type="button"
             onClick={onToggleVerbatimMode}
-            title="Режим распознавания: фразы целиком или дистилляция через LLM"
+            title="Обработка текста: нейро / фраза"
             className={cn(
               "px-2 py-0.5 rounded-full cursor-pointer transition-colors",
               isVerbatimMode
@@ -95,7 +96,7 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
             )}
           >
             <span className="opacity-50 mr-1">текст:</span>
-            <span>{isVerbatimMode ? "целиком" : "сжатие"}</span>
+            <span>{isVerbatimMode ? "фраза" : "нейро"}</span>
           </button>
 
           {/* Registered distiller plugin switcher */}
@@ -107,7 +108,7 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
               className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
             >
               <span className="opacity-50">llm:</span>
-              <span className="font-semibold text-primary/90">{distillerEngine}</span>
+              <span className="font-semibold text-primary/90">{distillerEngine === "pi" && getDistillerConfig().pi.model.split("/").at(-1) === "gpt-6-luna" ? "luna" : distillerEngine}</span>
             </button>
           )}
 

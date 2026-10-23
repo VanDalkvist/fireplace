@@ -86,7 +86,7 @@ export const SalonPult: React.FC<SalonPultProps> = ({
                   className="text-[11px]"
                   onClick={() => onPhaseChange(p)}
                 >
-                  {p}
+                  {p === "silence" ? "начало" : p}
                 </Button>
               ))}
             </div>
@@ -156,7 +156,7 @@ export const SalonPult: React.FC<SalonPultProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-muted block">отображение фраз</label>
               <span className="text-[10px] text-primary">
-                {isVerbatimMode ? "целиком" : "дистилляция"}
+                {isVerbatimMode ? "фраза" : "нейро"}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
@@ -166,7 +166,7 @@ export const SalonPult: React.FC<SalonPultProps> = ({
                 className="text-[11px]"
                 onClick={() => onToggleVerbatimMode?.(false)}
               >
-                дистилляция
+                нейро
               </Button>
               <Button
                 variant={isVerbatimMode ? "primary" : "outline"}
@@ -174,13 +174,13 @@ export const SalonPult: React.FC<SalonPultProps> = ({
                 className="text-[11px]"
                 onClick={() => onToggleVerbatimMode?.(true)}
               >
-                целиком
+                фраза
               </Button>
             </div>
             <p className="text-[10px] text-muted/70 leading-normal">
               {isVerbatimMode
                 ? "фраза показывается в круге полностью без сокращений"
-                : "сжатие до 2–4 слов через лексикон и qwen"}
+                : "смысловые фразы выделяет выбранная нейромодель"}
             </p>
           </div>
 

@@ -31,7 +31,7 @@ interface SalonControlsProps {
 }
 
 const PHASES: Array<{ id: SessionPhase; label: string }> = [
-  { id: "silence", label: "тишина" },
+  { id: "silence", label: "начало" },
   { id: "feelings", label: "чувства" },
   { id: "desires", label: "желания" },
   { id: "completion", label: "завершение" },
@@ -153,7 +153,7 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
               <button
                 type="button"
                 onClick={onToggleVerbatimMode}
-                title="Переключить: фразы целиком или дистилляция через LLM"
+                title="Обработка текста: нейро / фраза"
                 className={cn(
                   "flex items-center gap-1 px-2.5 py-1.5 border rounded-[2px] cursor-pointer transition-colors",
                   isVerbatimMode
@@ -162,7 +162,7 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
                 )}
               >
                 <span className="opacity-60">фразы:</span>
-                <span>{isVerbatimMode ? "целиком" : "сжатие"}</span>
+                <span>{isVerbatimMode ? "фраза" : "нейро"}</span>
               </button>
             )}
 
