@@ -110,7 +110,7 @@ export const TechnicalGearPult: React.FC<TechnicalGearPultProps> = ({
           <button
             type="button"
             onClick={onAudioToggle}
-            title="Процедурный эмбиент костра (клавиша M)"
+            title="Потрескивание костра при репликах (клавиша M)"
             className={cn(
               "flex items-center gap-1 px-2 py-0.5 rounded-full cursor-pointer transition-colors",
               isAudioOn

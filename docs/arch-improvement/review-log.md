@@ -1451,3 +1451,51 @@
 - Not applicable: new server/API/DB/provider/auth contracts; none introduced.
 - Residual risk: Clipboard API depends on browser secure context and permission; failure is explicit rather than fake success. Chromium runtime verified, no Safari/Firefox runtime claim. No independent review claimed.
 - **VERDICT: PASS — scoped architecture and product review by lead (Cycle 43).**
+
+---
+
+## Cycle 44 — 2026-10-23 — Natural Short Fire Response, Soft Entry
+
+### Approved scope / listening correction
+- User approved natural short crackling instead of music/continuous ambience, preserving existing sound mechanics. During implementation user heard the first envelope and requested lower level and a gradual increase plus fade-out, because the initial onset was abrupt.
+- Baseline 7f4b7d4; plan `docs/superpowers/plans/2026-10-23-arch-improvement-cycle-44-natural-fire-audio.md`; feature branch feat/natural-fire-audio.
+- Final envelope rises from zero over 0.6s (instead of 20ms), peaks at gain 0.35 (was 0.65), then falls smoothly to zero. Existing master volume remains. No ongoing loop or synthesis.
+
+### Findings and decisions
+- [P2] Musical oscillators did not match the requested natural fire response.
+  - Evidence: old playFeeling/playDesire used pitched triangle/sine/FM oscillators; new engine contract initially failed and old playDesire hit oscillator-prohibited fixture.
+  - Impact: wrong sound experience.
+  - Rule: AP-018/AP-054.
+  - Fix decision: fixed — SoundEffectsPort injected into facade; NaturalFireAdapter wired only in composition/audio.ts. Both legacy utterance callbacks use the same recorded effect; capture/mixer methods retained.
+- [P2] Abrupt/loud onset of first sample envelope.
+  - Evidence: direct user listening feedback; RED regression saw 0.65 peak and early 20ms attack.
+  - Impact: sound interrupts rather than gently joins the conversation.
+  - Rule: AP-054.
+  - Fix decision: fixed — lower 0.35 peak, 0.6s fade-in, no early fixed-gain step, retained fade-out; regression GREEN.
+- [P2] Async loading/playback and phrase fragmentation require explicit lifecycle control.
+  - Evidence: new loading/mute/cooldown/cleanup/rejection contracts initially failed.
+  - Impact: stale sound after mute, piling effects, misleading enabled state.
+  - Rule: AP-022/AP-023/AP-054.
+  - Fix decision: fixed — generation guards, 0.75s coalescing, max two active voices, <=3s nonlooping source, fast fade/stop and ended disconnection. Resume/load/play failures disable sound and show explicit error; no fallback notes. Retry requires a new user enable.
+
+### Asset and boundaries
+- Original natural fireplace recording by AntumDeluge, CC0: https://opengameart.org/content/fire-crackling ; original https://opengameart.org/sites/default/files/fire-1.wav .
+- Bundled unmodified 253232-byte mono PCM16/44100Hz WAV, duration 2.870612s; SHA256 26702de8a195bcbafeae72034861d875a1b7917168a25106f4e1957ecdddf7e5. Provenance/deed in src/assets/audio/LICENSE.fire-crackling.txt.
+- Three starting offsets and small rate variation avoid direct repetition; gentle high-pass/volume envelope. Bundled local fetch/decode cached once; 5s fetch deadline; original failure cause retained.
+- No asset request or AudioContext before explicit audio enable; enabling alone produces no sound. No new library/service/API and no audio upload. Existing meeting capture/mixing, speech and circle data behavior unchanged. Legacy music constants remain only as compatibility exports, not played.
+
+### Verification
+- Adapter/loader RED: seven failing contracts against stubs; engine RED: six failures against old implementation; soft-envelope RED: 0.65 > allowed 0.35. GREEN after selected implementations.
+- Final fresh **237 tests / 51 files**, typecheck/build/diff check PASS. Engine 133 lines, adapter 73, session hook 236; touched files <=250 and new methods <=40.
+- Browser Automation isolated sessions: initial 838e5332-54e9-4898-b058-5c78b633da9f replaced by 268fa581-ff42-41fe-9d20-b83173949884 after artifact-export RPC size limit; production code was not responsible.
+- Real native OfflineAudioContext render with bundled decoded sample + final envelope: nonzero PCM, peak 0.05617 <1, RMS 0.002403 versus initial 0.004416 (~54% RMS amplitude), silence before scheduled start and after 3s. Output file has 4s including final silence. These are technical measurements, not a claim of agent listening.
+- UI/native AudioContext instrumentation: no autoplay, one shared context, one asset fetch; accepted demo utterance starts a nonlooping buffer with expected offset/rate, zero oscillators. Rapid synthetic accepted non-pass demo fixture coalesces; at most two concurrent voices. Mute and natural end stop/disconnect all sources. Re-enable reuses cache/context.
+- Forced local asset HTTP404: visible audio error, muted icon, no sources/oscillators. Removing failure then explicit enable retries and plays real sample. No microphone/shared voice reset used.
+- Test harness corrections: original demo includes pass events that intentionally stop/restart sound; stress fixture explicitly excludes them. Error check normalizes existing app lowercase styling. No product workaround for harness issues.
+- Thread artifacts: cycle44-ui-audio-acceptance.js / cycle44-ui.json; cycle44-offline-render.js / cycle44-offline-soft.json; natural-fire-response-soft.wav (processed audition), original fire-1-original.wav. Browser sessions closed.
+
+### Architecture verification — lead here
+- Passed: AP-010/AP-020 (typed technical port, leaf wiring in composition, no domain/UI dependency in effect), AP-018/AP-019 (small loader/player/facade roles), AP-022/AP-023 (cause retained, explicit observed failure, cancellation and cleanup), AP-026/AP-028/AP-029 (typed contract, deterministic doubles plus native PCM/runtime verification), AP-053/AP-054 (error surfaced without blocking text, user toggle/volume preserved).
+- Not applicable: new server/provider/database/credentials; none introduced.
+- Residual risk: perceived naturalness/ideal level remains subjective; latest settings follow user feedback, not an agent auditory verdict. Acoustic microphone pickup/ASR feedback not live-tested, existing echoCancellation:false unchanged. Existing capture lifecycle outside FX remains out of scope. No independent reviewer claimed.
+- **VERDICT: PASS — scoped architecture and product review by lead (Cycle 44).**

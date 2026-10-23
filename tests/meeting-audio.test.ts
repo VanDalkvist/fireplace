@@ -51,7 +51,7 @@ describe('SalonAudioEngine Meeting Audio Capture', () => {
       AudioContext: MockAudioContext,
     };
 
-    engine = new SalonAudioEngine();
+    engine = new SalonAudioEngine({ prepare: vi.fn().mockResolvedValue(undefined), play: vi.fn().mockResolvedValue(undefined), stop: vi.fn() });
   });
 
   afterEach(() => {

@@ -19,6 +19,7 @@ export const SalonExperience: React.FC = () => {
     state,
     audioRef,
     isAudioOn,
+    audioError,
     handlePhaseSelect,
     handleAudioToggle,
     handleAddFeeling,
@@ -169,7 +170,7 @@ export const SalonExperience: React.FC = () => {
           lastPhraseText={lastPhrase}
           interimText={interimPhrase}
           interimBadge={interimBadge}
-          errorMessage={speechError}
+          errorMessage={speechError ?? audioError}
           engineType={sttEngine}
           isMeetingAudio={isMeetingConnected}
           onToggleListening={() => speechRef.current?.toggle()}

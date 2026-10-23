@@ -14,6 +14,7 @@ import {
 import type { SessionState, SessionPhase } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
 import { SalonAudioEngine } from "@/audio/audio-engine";
+import { createSalonAudioEngine } from "@/composition/audio";
 import {
   loadSessionPersistence,
   saveSessionPersistence,
@@ -25,6 +26,7 @@ export interface UseSalonSessionReturn {
   state: SessionState;
   audioRef: React.MutableRefObject<SalonAudioEngine | null>;
   isAudioOn: boolean;
+  audioError: string | null;
   demoIdx: number;
   handlePhaseSelect: (phase: SessionPhase) => void;
   handleAudioToggle: () => void;
@@ -45,6 +47,7 @@ export function useSalonSession(): UseSalonSessionReturn {
     return persisted?.session || createInitialState(0);
   });
   const [isAudioOn, setIsAudioOn] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const demoIdxRef = useRef(0);
   const audioRef = useRef<SalonAudioEngine | null>(null);
 
@@ -57,11 +60,15 @@ export function useSalonSession(): UseSalonSessionReturn {
   }, [state]);
 
   if (!audioRef.current && typeof window !== "undefined") {
-    audioRef.current = new SalonAudioEngine();
+    audioRef.current = createSalonAudioEngine(() => {
+      setIsAudioOn(false);
+      setAudioError("Звук костра недоступен. Включи звук ещё раз, чтобы повторить загрузку.");
+    });
   }
 
   const handleAudioToggle = useCallback(() => {
     if (!audioRef.current) return;
+    setAudioError(null);
     const next = audioRef.current.toggle();
     setIsAudioOn(next);
   }, []);
@@ -212,6 +219,7 @@ export function useSalonSession(): UseSalonSessionReturn {
     state,
     audioRef,
     isAudioOn,
+    audioError,
     demoIdx: demoIdxRef.current,
     handlePhaseSelect,
     handleAudioToggle,

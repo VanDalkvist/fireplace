@@ -121,7 +121,7 @@ export const SalonControls: React.FC<SalonControlsProps> = ({
               </button>
             )}
 
-            {/* D Dorian sound toggle */}
+            {/* Natural fire response toggle */}
             <button
               type="button"
               onClick={onAudioToggle}

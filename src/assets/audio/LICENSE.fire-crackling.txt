@@ -1,0 +1,15 @@
+Fire Crackling — natural recorded fireplace sound
+Creator: AntumDeluge
+Publication: https://opengameart.org/content/fire-crackling
+Original download: https://opengameart.org/sites/default/files/fire-1.wav
+License stated by the publisher/creator: Creative Commons Zero (CC0 1.0)
+License/deed: https://creativecommons.org/publicdomain/zero/1.0/
+Retrieved: 2026-10-23
+
+Bundled as fire-crackling.wav, unchanged from the original file.
+253232 bytes; PCM signed 16-bit LE, mono, 44100 Hz; 2.870612 seconds.
+SHA256: 26702de8a195bcbafeae72034861d875a1b7917168a25106f4e1957ecdddf7e5
+
+Playback uses short nonlooping portions with a gentle gain envelope.
+This notice records source and license provenance even though CC0 does not
+require attribution. No recording of circle participants is included.
