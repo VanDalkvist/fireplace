@@ -118,3 +118,16 @@ export function clearAllSalonPersistence(): void {
     console.warn("[SalonPersistence] Failed to clear persistence:", err);
   }
 }
+
+export function recordHearthLink(fromSeat: number, toSeat: number, fromWord: string, toWord: string): void {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    const key = 'salon_presence_links';
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    existing.push({ fromSeat, toSeat, fromWord, toWord, timestamp: Date.now() });
+    if (existing.length > 200) existing.splice(0, existing.length - 200);
+    localStorage.setItem(key, JSON.stringify(existing));
+  } catch (err) {
+    console.warn("[SalonPersistence] Failed to persist link:", err);
+  }
+}

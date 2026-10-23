@@ -6,18 +6,22 @@
  */
 
 import type { IsometricSeat } from './hearth-seats';
+import { wrapCanvasText } from './text-wrapper';
 import {
   loadHearthWordsPersistence,
   saveHearthWordsPersistence,
+  recordHearthLink,
 } from '@/infrastructure/salon-persistence';
 
 const TAU = Math.PI * 2;
+const PAD = 48;
 
 export interface HearthWordItem {
   id: string; text: string; family: string; seatId: number; width: number;
   x: number; y: number; targetX: number; targetY: number; born: number;
   lastAt: number; count: number; settled: boolean; opacity: number; breathOffset: number;
   relAngle?: number; relRadius?: number;
+  lines?: string[];
 }
 
 interface FlightSpark {
@@ -79,6 +83,10 @@ export class HearthWordsManager {
         }
       }
 
+      // Viewport margin clamp: words strictly never clip screen borders
+      testX = Math.max(halfW + PAD, Math.min(cx * 2 - halfW - PAD, testX));
+      testY = Math.max(36 + PAD, Math.min(cy * 2 - 36 - PAD, testY));
+
       let overlaps = false;
       for (let i = 0; i < this.words.length; i++) {
         const w = this.words[i];
@@ -90,19 +98,20 @@ export class HearthWordsManager {
       if (!overlaps) { bestX = testX; bestY = testY; break; }
       attempts++;
     }
-    return { x: bestX, y: bestY };
+    return {
+      x: Math.max(halfW + PAD, Math.min(cx * 2 - halfW - PAD, bestX)),
+      y: Math.max(36 + PAD, Math.min(cy * 2 - 36 - PAD, bestY)),
+    };
   }
 
   public repositionToViewport(cx: number, cy: number, rx: number, ry: number): void {
     for (let i = 0; i < this.words.length; i++) {
       const w = this.words[i];
       if (w.relAngle !== undefined && w.relRadius !== undefined) {
-        w.targetX = cx + Math.cos(w.relAngle) * (rx * w.relRadius);
-        w.targetY = cy + Math.sin(w.relAngle) * (ry * w.relRadius);
-        if (w.settled) {
-          w.x = w.targetX;
-          w.y = w.targetY;
-        }
+        const halfW = w.width / 2;
+        w.targetX = Math.max(halfW + PAD, Math.min(cx * 2 - halfW - PAD, cx + Math.cos(w.relAngle) * (rx * w.relRadius)));
+        w.targetY = Math.max(36 + PAD, Math.min(cy * 2 - 36 - PAD, cy + Math.sin(w.relAngle) * (ry * w.relRadius)));
+        if (w.settled) { w.x = w.targetX; w.y = w.targetY; }
       }
     }
   }
@@ -121,14 +130,17 @@ export class HearthWordsManager {
     const now = Date.now();
     this.ageWords();
     ctx.font = "20px 'JetBrains Mono'";
-    const wordWidth = ctx.measureText(text).width;
+    const wrapped = wrapCanvasText(text, 380, (str) => ctx.measureText(str).width);
+    const wordWidth = wrapped.effectiveWidth;
 
     const existing = this.words.find((w) => w.text === text && w.seatId === speakerSeat.id);
     if (existing) {
       existing.count++;
       existing.lastAt = now;
       existing.opacity = 1.0;
-      this.recordLink(existing);
+      if (this.lastSpokenWord && this.lastSpokenWord.id !== existing.id) {
+      recordHearthLink(this.lastSpokenWord.seatId, existing.seatId, this.lastSpokenWord.text, existing.text);
+    }
       this.lastSpokenWord = existing;
       saveHearthWordsPersistence(this.words);
       return;
@@ -144,10 +156,12 @@ export class HearthWordsManager {
       x: speakerSeat.x, y: speakerSeat.y, targetX: slot.x, targetY: slot.y,
       born: now, lastAt: now, count: 1, settled: false, opacity: 1.0,
       breathOffset: Math.random() * TAU,
-      relAngle, relRadius,
+      relAngle, relRadius, lines: wrapped.lines,
     };
 
-    this.recordLink(item);
+    if (this.lastSpokenWord && this.lastSpokenWord.id !== item.id) {
+      recordHearthLink(this.lastSpokenWord.seatId, item.seatId, this.lastSpokenWord.text, item.text);
+    }
     this.words.push(item);
     saveHearthWordsPersistence(this.words);
     this.flightSparks.push({
@@ -155,24 +169,6 @@ export class HearthWordsManager {
       born: now, duration: 1200,
     });
     this.lastSpokenWord = item;
-  }
-
-  private recordLink(newWord: HearthWordItem): void {
-    if (!this.lastSpokenWord || this.lastSpokenWord.id === newWord.id) return;
-    if (typeof window === "undefined" || !window.localStorage) return;
-    try {
-      const key = 'salon_presence_links';
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      existing.push({
-        fromSeat: this.lastSpokenWord.seatId, toSeat: newWord.seatId,
-        fromWord: this.lastSpokenWord.text, toWord: newWord.text,
-        timestamp: Date.now(),
-      });
-      if (existing.length > 200) existing.splice(0, existing.length - 200);
-      localStorage.setItem(key, JSON.stringify(existing));
-    } catch (err) {
-      console.warn("[HearthWords] Failed to persist link in localStorage:", err);
-    }
   }
 
   public render(ctx: CanvasRenderingContext2D, _seats: IsometricSeat[], time: number): void {
@@ -186,11 +182,9 @@ export class HearthWordsManager {
       if (elapsed < 0 || elapsed >= sp.duration) { this.flightSparks.splice(i, 1); continue; }
       const q = Math.max(0, Math.min(1, elapsed / sp.duration));
       const ease = 1 - Math.pow(1 - q, 3);
-      const midX = (sp.sx + sp.tx) / 2;
-      const midY = Math.min(sp.sy, sp.ty) - 30;
       const u = 1 - ease;
-      const x = u * u * sp.sx + 2 * u * ease * midX + ease * ease * sp.tx;
-      const y = u * u * sp.sy + 2 * u * ease * midY + ease * ease * sp.ty;
+      const x = u * u * sp.sx + 2 * u * ease * ((sp.sx + sp.tx) / 2) + ease * ease * sp.tx;
+      const y = u * u * sp.sy + 2 * u * ease * (Math.min(sp.sy, sp.ty) - 30) + ease * ease * sp.ty;
 
       ctx.save();
       ctx.fillStyle = `rgba(255, 178, 102, ${0.85 * (1 - q * 0.7)})`;
@@ -219,7 +213,7 @@ export class HearthWordsManager {
 
       ctx.save();
       ctx.translate(w.x, w.y);
-      const label = w.count > 1 ? `${w.text} ×${w.count}` : w.text;
+      const lines = w.lines && w.lines.length > 0 ? w.lines : [w.text];
 
       // Warm orange arrival fade to calm linen white over 4.0 seconds (strictly clamped!)
       const age = now - (w.lastAt || w.born);
@@ -230,18 +224,19 @@ export class HearthWordsManager {
       ctx.textBaseline = 'middle';
 
       const alpha = Math.max(0.20, Math.min(1.0, w.opacity));
-      const r = Math.round(236 + (255 - 236) * warmRatio);
-      const g = Math.round(228 + (185 - 228) * warmRatio);
-      const b = Math.round(214 + (115 - 214) * warmRatio);
-
+      const r = Math.round(236 + 19 * warmRatio);
+      const g = Math.round(228 - 43 * warmRatio);
+      const b = Math.round(214 - 99 * warmRatio);
       ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha * (0.88 + warmRatio * 0.12)})`;
-      if (warmRatio > 0.05) {
-        ctx.shadowColor = `rgba(255, 178, 102, ${0.60 * warmRatio})`;
-        ctx.shadowBlur = Math.min(6, Math.max(0, Math.round(6 * warmRatio)));
-      } else {
-        ctx.shadowBlur = 0;
-      }
-      ctx.fillText(label, 0, 0);
+      ctx.shadowColor = warmRatio > 0.05 ? `rgba(255, 178, 102, ${0.60 * warmRatio})` : "transparent";
+      ctx.shadowBlur = warmRatio > 0.05 ? Math.min(6, Math.round(6 * warmRatio)) : 0;
+
+      const lineHeight = 24;
+      const startY = -((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((line, idx) => {
+        const textToDraw = (idx === lines.length - 1 && w.count > 1) ? `${line} ×${w.count}` : line;
+        ctx.fillText(textToDraw, 0, startY + idx * lineHeight);
+      });
       ctx.restore();
     }
   }
