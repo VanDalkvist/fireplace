@@ -185,3 +185,46 @@ export function addDesireToken(
     desires: [...state.desires, token],
   };
 }
+
+export function updateFeelingToken(
+  state: SessionState,
+  tokenId: string,
+  newText: string,
+  family?: string,
+  valence?: number
+): SessionState {
+  return {
+    ...state,
+    feelings: state.feelings.map((f) =>
+      f.id === tokenId
+        ? {
+            ...f,
+            text: newText,
+            lemma: newText,
+            ...(family ? { family } : {}),
+            ...(valence !== undefined ? { valence } : {}),
+          }
+        : f
+    ),
+  };
+}
+
+export function updateDesireToken(
+  state: SessionState,
+  tokenId: string,
+  newText: string
+): SessionState {
+  return {
+    ...state,
+    desires: state.desires.map((d) =>
+      d.id === tokenId
+        ? {
+            ...d,
+            text: newText,
+            object: newText,
+          }
+        : d
+    ),
+  };
+}
+

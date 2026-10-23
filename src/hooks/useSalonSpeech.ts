@@ -8,6 +8,13 @@ import type { SpeechEnginePort, SpeechEngineKind, SpeechPipelineStatus } from "@
 import type { SalonAudioEngine } from "@/audio/audio-engine";
 import type { InterimBadge } from "@/components/salon/VoiceIndicator";
 import { createSpeakerIdentifier } from "@/speaker/speaker-factory";
+import { useMeetingAudio } from "@/hooks/useMeetingAudio";
+import {
+  stripHandoffWord,
+  dispatchSubsumedToken,
+  dispatchDistilledResult,
+  type RecentTokenSnapshot,
+} from "@/domain/token-subsumption";
 
 interface UseSalonSpeechOptions {
   sttEngine: SpeechEngineKind;
@@ -16,8 +23,10 @@ interface UseSalonSpeechOptions {
   audioRef: React.MutableRefObject<SalonAudioEngine | null>;
   isVerbatimMode?: boolean;
   onPass: () => void;
-  onAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => void;
-  onAddDesire: (text: string, speakerId?: number) => void;
+  onAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => void | string;
+  onAddDesire: (text: string, speakerId?: number) => void | string;
+  onUpdateFeeling?: (id: string, text: string, family?: string, valence?: number) => void;
+  onUpdateDesire?: (id: string, text: string) => void;
   onSelectSpeaker?: (speakerId: number) => void;
   onSwitchToWhisper?: () => void;
 }
@@ -31,12 +40,13 @@ export function useSalonSpeech({
   onPass,
   onAddFeeling,
   onAddDesire,
+  onUpdateFeeling,
+  onUpdateDesire,
   onSelectSpeaker,
   onSwitchToWhisper,
 }: UseSalonSpeechOptions) {
   const isVoiceInit = typeof window !== "undefined" && window.location.search.includes("voice=1");
   const [isListening, setIsListening] = useState(isVoiceInit);
-  const [isMeetingConnected, setIsMeetingConnected] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [pipelineStatus, setPipelineStatus] = useState<SpeechPipelineStatus>("idle");
   const [lastPhrase, setLastPhrase] = useState("тишина у огня");
@@ -51,17 +61,29 @@ export function useSalonSpeech({
   const [speechError, setSpeechError] = useState<string | null>(null);
   const speechRef = useRef<SpeechEnginePort | null>(null);
   const speakerPort = useRef(createSpeakerIdentifier()).current;
+  const wasListeningRef = useRef(false);
 
   // Stabilize callbacks against re-render cascades (AP-053, AP-054)
-  const callbacksRef = useRef({ phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper });
-  callbacksRef.current = { phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onSelectSpeaker, onSwitchToWhisper };
+  const callbacksRef = useRef({ phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire, onSelectSpeaker, onSwitchToWhisper });
+  callbacksRef.current = { phase, isVerbatimMode, distillerEngine, onPass, onAddFeeling, onAddDesire, onUpdateFeeling, onUpdateDesire, onSelectSpeaker, onSwitchToWhisper };
+
+  const { isMeetingConnected, toggleMeetingAudio } = useMeetingAudio({
+    audioRef,
+    speechRef,
+    sttEngine,
+    wasListeningRef,
+    onSwitchToWhisper: callbacksRef.current.onSwitchToWhisper,
+    onError: (err) => setSpeechError(err),
+  });
 
   const turnBufferRef = useRef(new SpeakerTurnBuffer(2200));
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speakerDecayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastEmittedTokenRef = useRef<RecentTokenSnapshot | null>(null);
 
   useEffect(() => {
     turnBufferRef.current.clearHistory();
+    lastEmittedTokenRef.current = null;
     if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
   }, [phase]);
 
@@ -74,27 +96,36 @@ export function useSalonSpeech({
   }, []);
 
   const processCompletedTurn = useCallback(async (text: string, speakerSeat?: number) => {
-    const { phase: curPhase, isVerbatimMode: isVerbatim, onPass: passFn, onAddFeeling: feelFn, onAddDesire: desireFn } = callbacksRef.current;
+    const cleanRaw = stripHandoffWord(text);
+    if (!cleanRaw || isPureFillerPhrase(cleanRaw)) return;
 
-    // Verbatim Mode: phrase is displayed directly in full without neural or lexical compression!
+    const { phase: curPhase, isVerbatimMode: isVerbatim, onPass: passFn } = callbacksRef.current;
+    const spk = speakerSeat ?? 1;
+
+    // Verbatim Mode: phrase is displayed directly without neural compression
     if (isVerbatim) {
-      const clean = text.trim();
-      if (!clean || isPureFillerPhrase(clean)) return;
-      turnBufferRef.current.commitCompletedTurn(clean, speakerSeat);
-      setLastPhrase(clean);
+      turnBufferRef.current.commitCompletedTurn(cleanRaw, speakerSeat);
+      setLastPhrase(cleanRaw);
       setInterimPhrase("");
       setInterimBadge(null);
-      if (curPhase === "desires") desireFn(clean, speakerSeat);
-      else if (curPhase === "completion") feelFn(clean, "завершение", 0.5, speakerSeat);
-      else feelFn(clean, "живость", 0, speakerSeat);
+      lastEmittedTokenRef.current = dispatchSubsumedToken({
+        phase: curPhase,
+        clean: cleanRaw,
+        speakerId: spk,
+        recent: lastEmittedTokenRef.current,
+        onAddFeeling: callbacksRef.current.onAddFeeling,
+        onAddDesire: callbacksRef.current.onAddDesire,
+        onUpdateFeeling: callbacksRef.current.onUpdateFeeling,
+        onUpdateDesire: callbacksRef.current.onUpdateDesire,
+      });
       if (speakerSeat) scheduleSpeakerDecay();
       return;
     }
 
     setInterimBadge({ text: "нейрокоррекция", type: curPhase === "desires" ? "desire" : "feeling" });
     const recentContext = turnBufferRef.current.getRecentHistory(3, speakerSeat);
-    const res = await distillWithNeuralFallback(text, { engine: callbacksRef.current.distillerEngine, phase: curPhase }, recentContext);
-    const settled = res.repairedText || text;
+    const res = await distillWithNeuralFallback(cleanRaw, { engine: callbacksRef.current.distillerEngine, phase: curPhase }, recentContext);
+    const settled = stripHandoffWord(res.repairedText || cleanRaw);
 
     turnBufferRef.current.commitCompletedTurn(settled, speakerSeat);
     setLastPhrase(settled);
@@ -103,23 +134,16 @@ export function useSalonSpeech({
 
     if (res.pass) return passFn();
 
-    let matched = false;
-    for (const f of res.feelings) {
-      const p = (f.form || f.lemma || "").trim();
-      if (p && !isPureFillerPhrase(p)) { feelFn(p, f.family, f.valence, speakerSeat); matched = true; }
-    }
-    for (const d of res.desires) {
-      const p = (d.text || "").trim();
-      if (p && !isPureFillerPhrase(p)) { desireFn(p, speakerSeat); matched = true; }
-    }
-    if (!matched) {
-      const clean = (res.fallbackText || settled || "").trim();
-      if (clean && !isPureFillerPhrase(clean)) {
-        if (res.isDesirePhrase || curPhase === "desires") desireFn(clean, speakerSeat);
-        else if (curPhase === "completion") feelFn(clean, "завершение", 0.5, speakerSeat);
-        else feelFn(clean, "живость", 0, speakerSeat);
-      }
-    }
+    lastEmittedTokenRef.current = dispatchDistilledResult(res, settled, {
+      phase: curPhase,
+      speakerId: spk,
+      recent: lastEmittedTokenRef.current,
+      onAddFeeling: callbacksRef.current.onAddFeeling,
+      onAddDesire: callbacksRef.current.onAddDesire,
+      onUpdateFeeling: callbacksRef.current.onUpdateFeeling,
+      onUpdateDesire: callbacksRef.current.onUpdateDesire,
+    });
+
     if (speakerSeat) scheduleSpeakerDecay();
   }, [scheduleSpeakerDecay]);
 
@@ -146,50 +170,7 @@ export function useSalonSpeech({
     }, timeoutGap);
   }, [processCompletedTurn]);
 
-  const handleToggleMeetingAudio = useCallback(async () => {
-    if (!audioRef.current) return;
-    if (isMeetingConnected) {
-      audioRef.current.disconnectMeetingAudio();
-      setIsMeetingConnected(false);
-      void speechRef.current?.stop();
-      void speechRef.current?.start();
-    } else {
-      if (sttEngine === "google") {
-        callbacksRef.current.onSwitchToWhisper?.();
-      }
-      const ok = await audioRef.current.captureMeetingAudio();
-      setIsMeetingConnected(ok);
-      if (ok) {
-        const meetingStream = audioRef.current.getMeetingStream();
-        if (meetingStream) {
-          try {
-            const micStream = await navigator.mediaDevices.getUserMedia({
-              audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true },
-            });
-            void speechRef.current?.stop();
-            void speechRef.current?.start(micStream, meetingStream);
-          } catch {
-            void speechRef.current?.stop();
-            void speechRef.current?.start(undefined, meetingStream);
-          }
-        }
-      } else {
-        setSpeechError("Звук экрана не обнаружен. Выберите 'Весь экран' и включите галочку 'Поделиться аудио'");
-      }
-    }
-  }, [audioRef, isMeetingConnected, sttEngine]);
-
-  useEffect(() => {
-    audioRef.current?.onMeetingAudioEnded(() => {
-      setIsMeetingConnected(false);
-      if (wasListeningRef.current) {
-        void speechRef.current?.stop();
-        void speechRef.current?.start();
-      }
-    });
-  }, [audioRef]);
-
-  const wasListeningRef = useRef(false);
+  const handleToggleMeetingAudio = toggleMeetingAudio;
 
   useEffect(() => {
     const wasListening = isListening || wasListeningRef.current;

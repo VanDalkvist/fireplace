@@ -20,6 +20,8 @@ export const SalonExperience: React.FC = () => {
     handleAudioToggle,
     handleAddFeeling,
     handleAddDesire,
+    handleUpdateFeeling,
+    handleUpdateDesire,
     handlePass,
     handleAdvanceTurn,
     triggerNextTurn,
@@ -68,6 +70,8 @@ export const SalonExperience: React.FC = () => {
     onPass: handlePass,
     onAddFeeling: handleAddFeeling,
     onAddDesire: handleAddDesire,
+    onUpdateFeeling: handleUpdateFeeling,
+    onUpdateDesire: handleUpdateDesire,
     onSelectSpeaker: handleSelectSpeaker,
     onSwitchToWhisper: () => setSttEngine("whisper"),
   });

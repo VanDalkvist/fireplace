@@ -81,6 +81,7 @@ export class SalonMotionEngine {
 
     // Synchronize feelings into hearth ring
     feelings.forEach((token) => {
+      const targetText = token.lemma || token.text;
       if (!this.knownTokenIds.has(token.id)) {
         this.knownTokenIds.add(token.id);
         const speakerSeat = this.seats.seats.find((s) => s.id === token.speakerId) || this.seats.seats[0];
@@ -90,7 +91,7 @@ export class SalonMotionEngine {
           this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(
             token.id,
-            token.lemma || token.text,
+            targetText,
             token.family,
             speakerSeat,
             this.cx,
@@ -99,6 +100,11 @@ export class SalonMotionEngine {
             this.floorRy,
             ctx
           );
+        }
+      } else {
+        const item = this.words.words.find((w) => w.id === token.id);
+        if (item && item.text !== targetText) {
+          this.words.updateWordText(token.id, targetText, token.family, ctx);
         }
       }
     });
@@ -123,6 +129,11 @@ export class SalonMotionEngine {
             this.floorRy,
             ctx
           );
+        }
+      } else {
+        const item = this.words.words.find((w) => w.id === token.id);
+        if (item && item.text !== token.text) {
+          this.words.updateWordText(token.id, token.text, 'желание', ctx);
         }
       }
     });

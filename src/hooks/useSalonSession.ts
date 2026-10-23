@@ -8,6 +8,8 @@ import {
   resetParticipants,
   addFeelingToken,
   addDesireToken,
+  updateFeelingToken,
+  updateDesireToken,
 } from "@/domain/session-fsm";
 import type { SessionState, SessionPhase } from "@/domain/types";
 import { DEMO_PHRASES } from "@/domain/demo-script";
@@ -26,8 +28,10 @@ export interface UseSalonSessionReturn {
   demoIdx: number;
   handlePhaseSelect: (phase: SessionPhase) => void;
   handleAudioToggle: () => void;
-  handleAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => void;
-  handleAddDesire: (text: string, speakerId?: number) => void;
+  handleAddFeeling: (text: string, family?: string, valence?: number, speakerId?: number) => string;
+  handleAddDesire: (text: string, speakerId?: number) => string;
+  handleUpdateFeeling: (id: string, text: string, family?: string, valence?: number) => void;
+  handleUpdateDesire: (id: string, text: string) => void;
   handlePass: () => void;
   handleAdvanceTurn: () => void;
   triggerNextTurn: () => void;
@@ -67,13 +71,14 @@ export function useSalonSession(): UseSalonSessionReturn {
   }, []);
 
   const handleAddFeeling = useCallback(
-    (phrase: string, family = "живость", valence = 0, spkId?: number) => {
+    (phrase: string, family = "живость", valence = 0, spkId?: number): string => {
+      const tokenId = `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       audioRef.current?.playFeeling(family, valence);
       setState((prev: SessionState) => {
         const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
         const withSpeaker = setSpeaker(prev, speakerId);
         return addFeelingToken(withSpeaker, {
-          id: `feel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: tokenId,
           text: phrase,
           lemma: phrase,
           family,
@@ -84,18 +89,20 @@ export function useSalonSession(): UseSalonSessionReturn {
           timestamp: Date.now(),
         });
       });
+      return tokenId;
     },
     []
   );
 
   const handleAddDesire = useCallback(
-    (desireText: string, spkId?: number) => {
+    (desireText: string, spkId?: number): string => {
+      const tokenId = `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       audioRef.current?.playDesire();
       setState((prev: SessionState) => {
         const speakerId = spkId ?? prev.activeSpeakerId ?? 1;
         const withSpeaker = setSpeaker(prev, speakerId);
         return addDesireToken(withSpeaker, {
-          id: `desire-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: tokenId,
           text: desireText,
           object: desireText,
           who: "",
@@ -103,6 +110,21 @@ export function useSalonSession(): UseSalonSessionReturn {
           timestamp: Date.now(),
         });
       });
+      return tokenId;
+    },
+    []
+  );
+
+  const handleUpdateFeeling = useCallback(
+    (id: string, phrase: string, family?: string, valence?: number) => {
+      setState((prev: SessionState) => updateFeelingToken(prev, id, phrase, family, valence));
+    },
+    []
+  );
+
+  const handleUpdateDesire = useCallback(
+    (id: string, phrase: string) => {
+      setState((prev: SessionState) => updateDesireToken(prev, id, phrase));
     },
     []
   );
@@ -192,6 +214,8 @@ export function useSalonSession(): UseSalonSessionReturn {
     handleAudioToggle,
     handleAddFeeling,
     handleAddDesire,
+    handleUpdateFeeling,
+    handleUpdateDesire,
     handlePass,
     handleAdvanceTurn,
     triggerNextTurn,
