@@ -9,6 +9,7 @@ import type { SalonAudioEngine } from "@/audio/audio-engine";
 import type { InterimBadge } from "@/components/salon/VoiceIndicator";
 import { createSpeakerIdentifier } from "@/speaker/speaker-factory";
 import { useMeetingAudio } from "@/hooks/useMeetingAudio";
+import { useSpeakerDecay } from "./useSpeakerDecay";
 import {
   stripHandoffWord,
   dispatchSubsumedToken,
@@ -28,7 +29,7 @@ interface UseSalonSpeechOptions {
   onAddDesire: (text: string, speakerId?: number) => void | string;
   onUpdateFeeling?: (id: string, text: string, family?: string, valence?: number) => void;
   onUpdateDesire?: (id: string, text: string) => void;
-  onSelectSpeaker?: (speakerId: number) => void;
+  onSelectSpeaker?: (speakerId: number | null) => void;
 }
 
 export function useSalonSpeech({
@@ -77,7 +78,10 @@ export function useSalonSpeech({
 
   const turnBufferRef = useRef(new SpeakerTurnBuffer(2200));
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speakerDecayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleSpeakerDecay = useSpeakerDecay(phase, () => {
+    callbacksRef.current.onSelectSpeaker?.(null);
+    setIdentifiedSpeaker(null);
+  });
   const lastEmittedTokenRef = useRef<RecentTokenSnapshot | null>(null);
 
   useEffect(() => {
@@ -86,14 +90,6 @@ export function useSalonSpeech({
     lastEmittedTokenRef.current = null;
     if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
   }, [phase]);
-
-  const scheduleSpeakerDecay = useCallback(() => {
-    if (speakerDecayTimerRef.current) clearTimeout(speakerDecayTimerRef.current);
-    speakerDecayTimerRef.current = setTimeout(() => {
-      callbacksRef.current.onSelectSpeaker?.(null as unknown as number);
-      setIdentifiedSpeaker(null);
-    }, 5000);
-  }, []);
 
   const processCompletedTurn = useCallback(async (text: string, speakerSeat?: number) => {
     const cleanRaw = stripHandoffWord(text);
@@ -162,6 +158,7 @@ export function useSalonSpeech({
     if (speakerSeat) {
       setIdentifiedSpeaker({ seatNumber: speakerSeat, speakerId: `seat_${speakerSeat}` });
       callbacksRef.current.onSelectSpeaker?.(speakerSeat);
+      scheduleSpeakerDecay();
     }
 
     setInterimPhrase(phrase);
@@ -179,7 +176,7 @@ export function useSalonSpeech({
         void processCompletedTurn(flushed.text, flushed.speakerSeat);
       }
     }, timeoutGap);
-  }, [processCompletedTurn]);
+  }, [processCompletedTurn, scheduleSpeakerDecay]);
 
   const handleToggleMeetingAudio = toggleMeetingAudio;
 

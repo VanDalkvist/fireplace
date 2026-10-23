@@ -153,8 +153,13 @@ export function resetParticipants(state: SessionState): SessionState {
 
 export function setSpeaker(
   state: SessionState,
-  speakerId: number
+  speakerId: number | null
 ): SessionState {
+  if (speakerId === null) return {
+    ...state,
+    activeSpeakerId: null,
+    participants: state.participants.map(person => ({ ...person, isSpeaking: false })),
+  };
   const ensured = ensureParticipant(state, speakerId);
   return {
     ...ensured,

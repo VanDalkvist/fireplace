@@ -6,7 +6,7 @@
 
 import type { FeelingToken, DesireToken, Participant } from '@/domain/types';
 import { HearthFlameSimulator } from './hearth-flame';
-import { HearthSeatsLayout } from './hearth-seats';
+import { HearthSeatsLayout, type IsometricSeat } from './hearth-seats';
 import { HearthWordsManager } from './hearth-words';
 import {
   saveHearthWordsPersistence,
@@ -83,9 +83,9 @@ export class SalonMotionEngine {
       const targetText = token.lemma || token.text;
       if (!this.knownTokenIds.has(token.id)) {
         this.knownTokenIds.add(token.id);
-        const speakerSeat = this.seats.seats.find((s) => s.id === token.speakerId) || this.seats.seats[0];
+        const speakerSeat = this.wordOrigin(token.speakerId);
         if (speakerSeat) {
-          this.seats.pulseSeat(speakerSeat.id);
+          this.seats.pulseSeat(token.speakerId);
           this.currentHeat = Math.min(1.0, this.currentHeat + 0.22);
           this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(
@@ -103,6 +103,7 @@ export class SalonMotionEngine {
       } else {
         const item = this.words.words.find((w) => w.id === token.id);
         if (item && (item.sourceText ?? item.text) !== targetText) {
+          this.seats.pulseSeat(token.speakerId);
           this.words.updateWordText(token.id, targetText, token.family, ctx);
         }
       }
@@ -112,9 +113,9 @@ export class SalonMotionEngine {
     desires.forEach((token) => {
       if (!this.knownTokenIds.has(token.id)) {
         this.knownTokenIds.add(token.id);
-        const speakerSeat = this.seats.seats.find((s) => s.id === token.speakerId) || this.seats.seats[0];
+        const speakerSeat = this.wordOrigin(token.speakerId);
         if (speakerSeat) {
-          this.seats.pulseSeat(speakerSeat.id);
+          this.seats.pulseSeat(token.speakerId);
           this.currentHeat = Math.min(1.0, this.currentHeat + 0.22);
           this.flame.triggerWordFlare(this.cx, this.floorCY);
           this.words.addWord(
@@ -132,10 +133,19 @@ export class SalonMotionEngine {
       } else {
         const item = this.words.words.find((w) => w.id === token.id);
         if (item && (item.sourceText ?? item.text) !== token.text) {
+          this.seats.pulseSeat(token.speakerId);
           this.words.updateWordText(token.id, token.text, 'желание', ctx);
         }
       }
     });
+  }
+
+  /** Keep unmatched text visible without inventing or accenting a participant dot. */
+  private wordOrigin(speakerId: number): IsometricSeat {
+    return this.seats.seats.find(seat => seat.id === speakerId) ?? {
+      id: speakerId, angle: -Math.PI / 2, x: this.cx, y: this.floorCY,
+      depth: 0.5, pulse: 0, spokenCount: 0,
+    };
   }
 
   public getSeatAtPoint(px: number, py: number): number | null {
@@ -171,7 +181,7 @@ export class SalonMotionEngine {
     ctx.restore();
 
     // 3. Living Contemplative Hearth Flame (Ignited by accumulated words heat)
-    const isSpeaking = activeSpeakerId !== null || this.words.flightSparks.length > 0;
+    const isSpeaking = this.words.flightSparks.length > 0;
     const targetHeat = this.computeTargetHeat(new Set(this.words.words.map(word => word.sourceId ?? word.id)).size, isSpeaking);
     this.currentHeat += (targetHeat - this.currentHeat) * 0.035;
     if (time - this.lastPersistTime >= 5000) {

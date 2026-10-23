@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef } from "react";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
 import { useSalonSession } from "@/hooks/useSalonSession";
 import { useSalonUiState } from "@/hooks/useSalonUiState";
@@ -86,18 +86,6 @@ export const SalonExperience: React.FC = () => {
 
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
 
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !motionRef.current) return;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const seatId = motionRef.current.getSeatAtPoint((e.clientX - rect.left) * dpr, (e.clientY - rect.top) * dpr);
-    if (seatId !== null) {
-      speechRef.current?.flush();
-      handleSelectSpeaker(seatId);
-    }
-  }, [handleSelectSpeaker, speechRef]);
-
   useSalonHotkeys({
     onTogglePult: () => setIsPultOpen((p) => !p),
     onToggleHelp: () => setIsIntroOpen((p) => !p),
@@ -131,7 +119,7 @@ export const SalonExperience: React.FC = () => {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-background text-foreground select-none">
-      <canvas ref={canvasRef} onClick={handleCanvasClick} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
+      <canvas ref={canvasRef} className="fixed inset-0 z-0 block w-full h-full cursor-default" />
 
       {/* Floating Header & Top Controls */}
       <div className={cn("fixed top-3 left-4 right-4 z-10 flex items-center justify-between transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>

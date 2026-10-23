@@ -1544,3 +1544,34 @@
 - Not applicable: new remote service/DB/auth/providers; none introduced.
 - Residual risk: subjective preference still belongs to user; no claim of agent listening. Existing general technical-pult narrow-mobile layout and live microphone pickup remain outside scope. Foreground voices max2; outgoing fade tails may coexist for <=40ms during replacement. Dev tabs need refresh to replace previously instantiated engine class.
 - **VERDICT: PASS — scoped architecture and product review by lead (Cycle 45).**
+
+---
+
+## Cycle 46 — 2026-10-23 — Passive Dots, Phrase-Driven Speaker Accent
+
+### Scope and root cause
+- User requested removal of manually selectable participant dots and stuck idle selection. Baseline 8ea5b63; branch fix/automatic-speaker-accent. Plan: docs/superpowers/plans/2026-10-23-arch-improvement-cycle-46-automatic-speaker-accent.md.
+- Canvas onClick previously selected a seat and flushed speech. Idle rendering conflated persisted activeSpeakerId with current speech, re-highlighting after the 5s tail. Null-as-number decay callback reached ensureParticipant and could append id:null. Timer also omitted ignored/failed-turn paths.
+
+### Findings / fixes
+- [P2] Evidence: isolated browser RED click changed owner 1→2. Impact: passive participant dots were manual selection controls. Rule: AP-053/AP-054. Fix decision: fixed — removed canvas click/flush handler; actual attribution callbacks retained.
+- [P1] Evidence: RED null-clear test grew two participants to three; production callback cast null to number. Impact: phantom participant/idle highlight. Rule: AP-013/AP-026/AP-029. Fix decision: fixed — nullable ownership contract clears flags without ensuring a participant; typed decay hook handles recognition, phase cleanup and unmount, including ignored turns. Malformed historical IDs ignored visually, not destructively deleted.
+- [P2] Evidence: RED renderer kept stroking an idle owner, revived expired accent, showed two accents and unequal resting colors. Impact: persistent selection instead of current phrase emphasis. Rule: AP-018/AP-054. Fix decision: fixed — deterministic phrase-event strength, one latest valid speaker accent, uniform idle appearance and finite 5s decay. No activity inferred from stale owner/VAD.
+- [P2] Evidence: RED updated phrase did not refresh its author; missing owner pulsed an arbitrary fallback seat. Impact: wrong/missing speaker emphasis. Rule: AP-013/AP-028. Fix decision: fixed — accepted token creation/update pulses exact owner; absent participant uses a neutral technical word origin with original token speakerId, never a new dot. Orphan text remains visible. Flame speech boost no longer comes from stale logical owner.
+
+### Verification
+- Observed seven assertion REDs across renderer, null clear, token update and wrong-owner accent; GREEN after changes. Extra orphan-text/identity coverage added after neutral-origin implementation.
+- Final full suite **252 tests / 54 files**, typecheck/build/diff PASS. Touched source <=250; seat renderer split into <=40-line functions, timer in dedicated hook; speech hook 235 and session hook 242.
+- Browser RED session ccb238eb-e966-4081-8d78-a12c3863e817; replaced after idle expiry. Final session 647f0a30-8103-4947-9b8e-01b239d21196:
+  - Actual dot click leaves owner unchanged (null→null), only two valid points from a historical null-ghost fixture, no idle accent.
+  - New accepted demo phrase accents exactly its token speaker. Native Canvas stroke instrumentation sees one corresponding ring.
+  - After virtual +6s, zero accent rings despite logical owner retained; no reactivation.
+  - Real useSalonSession/useSalonSpeech hooks with synthetic ASR input: phrase attributed to seat2; after real timer ownership/identification null, participants still [1,2]. Ignored filler also clears after timer without tokens/phantom.
+  - Initial filler fixture 'так' was rejected by the test because it is not in the current filler contract; corrected to explicit 'ага', no product change.
+- Browser artifact/script: thread storage cycle46-speaker-accent-acceptance.js, cycle46-browser.json, cycle46-accent-0.jpg / -1.jpg. No microphone, shared resets or user tab accessed.
+
+### Architecture verification — lead review here
+- Passed: AP-010/AP-020 (Canvas remains React-free; visual activity separated from attribution), AP-013 (typed null clear, no fabricated participant/owner or text loss), AP-018/AP-019 (focused renderer/strength/timer modules), AP-023 (timer cancellation/phase cleanup), AP-026/AP-028/AP-029 (nullable contracts, deterministic regression and real-hook/browser checks), AP-053/AP-054 (passive canvas, bounded automatic accent).
+- Not applicable: audio/provider/HTTP/DB changes; none introduced.
+- Residual risk: accent reflects accepted attributed speech/phrase events, not speculative live diarization before ASR identifies speaker. Historical invalid storage entries are preserved but not drawn. Five-second fade is intentional, never persistent selection. Lead review only, no independent claim.
+- **VERDICT: PASS — scoped architecture and product review by lead (Cycle 46).**

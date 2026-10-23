@@ -41,7 +41,7 @@ export interface UseSalonSessionReturn {
   handlePass: () => void;
   handleAdvanceTurn: () => void;
   triggerNextTurn: () => void;
-  handleSelectSpeaker: (speakerId: number) => void;
+  handleSelectSpeaker: (speakerId: number | null) => void;
   handleResetCircle: () => void;
 }
 
@@ -208,7 +208,7 @@ export function useSalonSession(): UseSalonSessionReturn {
     }
   }, []);
 
-  const handleSelectSpeaker = useCallback((speakerId: number) => {
+  const handleSelectSpeaker = useCallback((speakerId: number | null) => {
     setState((prev: SessionState) => setSpeaker(prev, speakerId));
   }, []);
 
