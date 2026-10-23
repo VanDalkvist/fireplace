@@ -40,8 +40,8 @@ export class SalonMotionEngine {
   }
 
   public computeTargetHeat(wordCount: number, isSpeaking: boolean): number {
-    // 1-hour session curve (asymptotic saturation over 30-60 phrases, k = 28)
-    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-wordCount / 28)) * 0.88 : 0.0;
+    // Same asymptote; 25% faster progression per phrase, unchanged speech boost.
+    const wordContribution = wordCount > 0 ? (1.0 - Math.exp(-(wordCount * 1.25) / 28)) * 0.88 : 0.0;
     const speechBoost = isSpeaking ? 0.12 : 0.0;
     return Math.min(1.0, wordContribution + speechBoost);
   }
