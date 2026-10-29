@@ -39,7 +39,16 @@ describe("Demo Script Phase Awareness", () => {
   });
 });
 
-describe("SalonHeader Author Credit", () => {
+describe("SalonHeader Author Credit & Showcase Link", () => {
+  it("renders showcase link for salon presence", () => {
+    const html = renderToString(<SalonHeader />);
+
+    expect(html).toContain("салон присутствия");
+    expect(html).toContain('href="https://space-season-salon.lab.aimindset.org/tools/"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+  });
+
   it("renders author name and link to personal landing page", () => {
     const html = renderToString(<SalonHeader />);
 
