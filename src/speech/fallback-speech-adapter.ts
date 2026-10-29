@@ -33,17 +33,20 @@ export class FallbackSpeechAdapter implements SpeechToTextPort {
     try {
       return await this.primary.transcribe(audioBlob);
     } catch (primaryErr) {
-      clientLogger.warn(
-        `[FallbackSpeechAdapter] Primary provider "${this.primary.name}" failed, delegating to "${this.fallback.name}":`,
-        primaryErr
-      );
+      clientLogger.warn({
+        event: "asr_fallback_triggered",
+        primaryProvider: this.primary.id || this.primary.name,
+        fallbackProvider: this.fallback.id || this.fallback.name,
+        errorType: primaryErr instanceof Error ? primaryErr.name : "unknown",
+      });
       try {
         return await this.fallback.transcribe(audioBlob);
       } catch (fallbackErr) {
-        clientLogger.error(
-          `[FallbackSpeechAdapter] Fallback provider "${this.fallback.name}" also failed:`,
-          fallbackErr
-        );
+        clientLogger.error({
+          event: "asr_fallback_exhausted",
+          fallbackProvider: this.fallback.id || this.fallback.name,
+          errorType: fallbackErr instanceof Error ? fallbackErr.name : "unknown",
+        });
         throw primaryErr;
       }
     }

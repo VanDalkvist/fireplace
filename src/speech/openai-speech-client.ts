@@ -82,21 +82,24 @@ export async function transcribeAudioBlobOpenAi(
     clearTimeout(timer);
 
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      clientLogger.error(`ASR server failed with HTTP ${res.status}`, {
-        status: res.status,
-        body: errText,
-        baseUrl,
+      clientLogger.error({
+        event: "asr_http_error",
+        provider: "openai",
+        statusCode: res.status,
         blobSize: audioBlob.size,
       });
-      throw new Error(`ASR server responded with HTTP ${res.status}${errText ? `: ${errText}` : ""}`);
+      throw new Error(`ASR server responded with HTTP ${res.status}`);
     }
 
     const data = (await res.json()) as { text?: string };
     return (data.text || "").trim();
   } catch (err) {
     clearTimeout(timer);
-    clientLogger.warn(`transcribeAudioBlobOpenAi error: ${err instanceof Error ? err.message : String(err)}`);
+    clientLogger.warn({
+      event: "asr_inference_failed",
+      provider: "openai",
+      errorType: err instanceof Error ? err.name : "unknown",
+    });
     throw err;
   }
 }

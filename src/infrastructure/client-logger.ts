@@ -1,67 +1,71 @@
 /**
- * Client Logger: Dispatches client-side logs to Vite dev server / PM2 output.
- * Ensures browser errors (VAD, Whisper, Sherpa) are visible in PM2 stdout/stderr.
- * Compliance: AP-019 (<= 250 lines), AP-022 (explicit error logging), AP-029 (strict TS)
+ * Client Logger: Dispatches allowlisted technical events to local console & Vite server.
+ * Guarantees privacy: drops free-form messages/details, ensuring recognized speech,
+ * arbitrary errors or remote response bodies never leak (AP-017, AP-019, AP-022, AP-024).
  */
 
-export type LogLevel = "info" | "warn" | "error";
+import {
+  type LogLevel,
+  type TechnicalEventName,
+  type TechnicalLogRecord,
+  validateTechnicalLogPayload,
+} from "./technical-log-dto.ts";
 
-export interface LogPayload {
-  level: LogLevel;
-  message: string;
-  details?: Record<string, unknown> | string;
-  timestamp: string;
-}
+export type ClientLogInput =
+  | { event: TechnicalEventName; [key: string]: unknown }
+  | TechnicalLogRecord;
 
 class ClientLogger {
   private endpoint = "/api/client-log";
 
-  public log(level: LogLevel, message: string, details?: unknown): void {
-    // 1. Local browser console
-    const formattedDetails = details instanceof Error
-      ? { name: details.name, message: details.message, stack: details.stack }
-      : (details as Record<string, unknown> | undefined);
+  public log(level: LogLevel, input: ClientLogInput): void {
+    const raw = typeof input === "object" && input !== null
+      ? { ...input, level, timestamp: new Date().toISOString() }
+      : null;
 
-    if (level === "error") {
-      console.error(`[ClientLogger] ${message}`, formattedDetails || "");
-    } else if (level === "warn") {
-      console.warn(`[ClientLogger] ${message}`, formattedDetails || "");
-    } else {
-      console.log(`[ClientLogger] ${message}`, formattedDetails || "");
+    const validated = validateTechnicalLogPayload(raw);
+    if (!validated) {
+      // Drop unallowlisted or malformed diagnostic data without reflecting contents (AP-024)
+      return;
     }
 
-    // 2. Dispatch to Vite server middleware (PM2 captures stdout/stderr)
-    const payload: LogPayload = {
-      level,
-      message,
-      details: formattedDetails,
-      timestamp: new Date().toISOString(),
-    };
+    // 1. Local browser console with allowlisted metadata only
+    const logTag = `[ClientLogger] [${validated.level.toUpperCase()}] [${validated.event}]`;
+    const detailsOutput = validated.details ? JSON.stringify(validated.details) : "";
 
-    this.send(payload);
+    if (validated.level === "error") {
+      console.error(logTag, detailsOutput);
+    } else if (validated.level === "warn") {
+      console.warn(logTag, detailsOutput);
+    } else {
+      console.log(logTag, detailsOutput);
+    }
+
+    // 2. Dispatch allowlisted record to Vite dev server / PM2
+    this.send(validated);
   }
 
-  public info(message: string, details?: unknown): void {
-    this.log("info", message, details);
+  public info(input: ClientLogInput): void {
+    this.log("info", input);
   }
 
-  public warn(message: string, details?: unknown): void {
-    this.log("warn", message, details);
+  public warn(input: ClientLogInput): void {
+    this.log("warn", input);
   }
 
-  public error(message: string, details?: unknown): void {
-    this.log("error", message, details);
+  public error(input: ClientLogInput): void {
+    this.log("error", input);
   }
 
-  private send(payload: LogPayload): void {
-    const json = JSON.stringify(payload);
+  private send(record: TechnicalLogRecord): void {
+    const json = JSON.stringify(record);
 
-    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
       try {
         const blob = new Blob([json], { type: "application/json" });
         if (navigator.sendBeacon(this.endpoint, blob)) return;
       } catch {
-        // Fallback to fetch
+        // Fall through to fetch without recursive logging
       }
     }
 
@@ -72,10 +76,11 @@ class ClientLogger {
         body: json,
         keepalive: true,
       }).catch(() => {
-        // Suppress network errors from logger itself to prevent infinite loops (AP-022)
+        // Suppress network errors from logger to prevent infinite recursion (AP-022)
       });
     }
   }
 }
 
 export const clientLogger = new ClientLogger();
+export type { LogLevel, TechnicalEventName, TechnicalLogRecord };

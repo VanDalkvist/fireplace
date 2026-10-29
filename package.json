@@ -1,7 +1,7 @@
 {
-  "name": "salon-presence",
+  "name": "fireplace",
   "version": "1.0.0",
-  "description": "Салон присутствия и чувств: интерактивные моушен-облака, процедурный Web Audio и визуализация групповой динамики (AI Mindset)",
+  "description": "Костёр: авторский инструмент для разговора о чувствах и желаниях — живой костёр, слова вокруг огня, процедурный звук и четыре фазы круга",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,9 +11,8 @@
     "preview": "vite preview"
   },
   "keywords": [
-    "salon-presence",
+    "fireplace",
     "motion-design",
-    "ai-mindset",
     "web-audio",
     "feelings-cloud"
   ],

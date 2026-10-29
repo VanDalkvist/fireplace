@@ -22,11 +22,11 @@ export class MeetingAudioCapture {
       });
       const audioTracks = stream.getAudioTracks();
       if (!audioTracks.length) {
-        clientLogger.warn("[MeetingAudioCapture] No audio track available in display stream. Select Entire Screen with audio enabled.");
+        clientLogger.warn({ event: "meeting_audio_no_tracks" });
         this.disconnect();
         return false;
       }
-      clientLogger.info(`[MeetingAudioCapture] Captured display stream: ${audioTracks.length} audio track(s)`);
+      clientLogger.info({ event: "meeting_audio_captured", trackCount: audioTracks.length });
 
       audioTracks.forEach((track) => {
         track.addEventListener?.("ended", () => {
@@ -44,7 +44,10 @@ export class MeetingAudioCapture {
       }
       return true;
     } catch (err) {
-      clientLogger.warn(`[MeetingAudioCapture] capture failed: ${err instanceof Error ? err.message : String(err)}`);
+      clientLogger.warn({
+        event: "meeting_audio_capture_failed",
+        errorType: err instanceof Error ? err.name : "unknown",
+      });
       return false;
     }
   }

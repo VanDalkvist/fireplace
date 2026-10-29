@@ -43,8 +43,8 @@ export function saveHearthWordsPersistence(words: HearthWordItem[]): void {
       relRadius: w.relRadius,
     }));
     localStorage.setItem(WORDS_KEY, JSON.stringify(serialized));
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to save words:", err);
+  } catch {
+    console.warn({ event: "words_save_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
   }
 }
 
@@ -62,8 +62,8 @@ export function loadHearthWordsPersistence(): HearthWordItem[] {
       born: typeof w.born === "number" && w.born <= now ? w.born : now - 10000,
       lastAt: typeof w.lastAt === "number" && w.lastAt <= now ? w.lastAt : now - 10000,
     }));
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to load words:", err);
+  } catch {
+    console.warn({ event: "words_load_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
     return [];
   }
 }
@@ -79,8 +79,8 @@ export function saveSessionPersistence(session: SessionState, heat?: number): vo
       savedAt: Date.now(),
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to save session:", err);
+  } catch {
+    console.warn({ event: "session_save_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
   }
 }
 
@@ -93,8 +93,8 @@ export function updatePersistedHeat(heat: number): void {
       prev.savedAt = Date.now();
       localStorage.setItem(SESSION_KEY, JSON.stringify(prev));
     }
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to update heat:", err);
+  } catch {
+    console.warn({ event: "heat_update_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
   }
 }
 
@@ -104,8 +104,8 @@ export function loadSessionPersistence(): PersistedSession | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as PersistedSession;
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to load session:", err);
+  } catch {
+    console.warn({ event: "session_load_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
     return null;
   }
 }
@@ -118,8 +118,8 @@ export function clearAllSalonPersistence(): void {
     localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem("salon_presence_session_v1");
     localStorage.removeItem("salon_presence_links");
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to clear persistence:", err);
+  } catch {
+    console.warn({ event: "persistence_clear_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
   }
 }
 
@@ -131,7 +131,7 @@ export function recordHearthLink(fromSeat: number, toSeat: number, fromWord: str
     existing.push({ fromSeat, toSeat, fromWord, toWord, timestamp: Date.now() });
     if (existing.length > 200) existing.splice(0, existing.length - 200);
     localStorage.setItem(key, JSON.stringify(existing));
-  } catch (err) {
-    console.warn("[SalonPersistence] Failed to persist link:", err);
+  } catch {
+    console.warn({ event: "link_save_failed", severity: "warn", outcome: "failed", error_type: "storage_error" });
   }
 }

@@ -93,8 +93,8 @@ export class OpenRouterDistillerAdapter implements LlmDistillerPort {
         content,
         modelUsed: data.model || targetModel,
       };
-    } catch (err) {
-      console.warn("[OpenRouterDistillerAdapter] Request failed:", err);
+    } catch {
+      console.warn({ event: "openrouter_request_failed", severity: "warn", outcome: "failed", error_type: "provider_error" });
       return null;
     } finally {
       clearTimeout(timer);

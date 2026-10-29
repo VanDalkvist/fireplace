@@ -43,8 +43,8 @@ export class OllamaClient {
       }
 
       return (await res.json()) as { response?: string };
-    } catch (err) {
-      console.warn("[OllamaClient] generate call failed:", err);
+    } catch {
+      console.warn({ event: "ollama_generate_failed", severity: "warn", outcome: "failed", error_type: "provider_error" });
       return null;
     } finally {
       clearTimeout(timer);
@@ -70,8 +70,8 @@ export class OllamaClient {
       const data = (await res.json()) as { models?: Array<{ name: string }> };
       const hasModel = Boolean(data.models?.some((m) => m.name.includes(targetModel)));
       return { online: true, hasModel };
-    } catch (err) {
-      console.warn("[OllamaClient] checkStatus call failed:", err);
+    } catch {
+      console.warn({ event: "ollama_health_failed", severity: "warn", outcome: "failed", error_type: "provider_error" });
       return { online: false, hasModel: false };
     } finally {
       clearTimeout(timer);

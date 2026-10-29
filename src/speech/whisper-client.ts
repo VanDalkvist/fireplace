@@ -46,21 +46,24 @@ export async function transcribeAudioBlob(
     clearTimeout(timer);
 
     if (!res.ok) {
-      const errText = typeof res.text === "function" ? await res.text().catch(() => "") : "";
-      clientLogger.error(`Whisper inference failed with HTTP ${res.status}`, {
-        status: res.status,
-        body: errText,
+      clientLogger.error({
+        event: "asr_http_error",
+        provider: "whisper",
+        statusCode: res.status,
         blobSize: audioBlob.size,
-        blobType: audioBlob.type,
       });
-      throw new Error(`Whisper server responded with HTTP ${res.status}${errText ? `: ${errText}` : ""}`);
+      throw new Error(`Whisper server responded with HTTP ${res.status}`);
     }
 
     const data = (await res.json()) as { text?: string };
     return (data.text || "").trim();
   } catch (err) {
     clearTimeout(timer);
-    clientLogger.warn(`transcribeAudioBlob exception: ${err instanceof Error ? err.message : String(err)}`);
+    clientLogger.warn({
+      event: "asr_inference_failed",
+      provider: "whisper",
+      errorType: err instanceof Error ? err.name : "unknown",
+    });
     throw err;
   }
 }

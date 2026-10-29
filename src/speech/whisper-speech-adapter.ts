@@ -101,7 +101,12 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
     const hasSpeech = this.recorder.hasSpeechInCurrentSegment?.() ?? true;
     if (!hasSpeech && !isExplicitFlush) {
-      clientLogger.info(`[${this.asrPort.name}] segment skipped: quiet/silence (ringBuffer: ${this.recorder.getRingBufferSize?.() ?? 0})`);
+      clientLogger.info({
+        event: "asr_segment_skipped",
+        provider: this.asrPort.id || this.asrPort.name,
+        reason: "silence",
+        bufferSize: this.recorder.getRingBufferSize?.() ?? 0,
+      });
       return;
     }
 
@@ -111,7 +116,12 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
 
     if (!blob || blob.size === 0) return;
 
-    clientLogger.info(`[${this.asrPort.name}] processing segment: ${blob.size} bytes (${blob.type})`);
+    clientLogger.info({
+      event: "asr_segment_processing",
+      provider: this.asrPort.id || this.asrPort.name,
+      blobSize: blob.size,
+      mimeType: blob.type,
+    });
     this.callbacks.onPipelineStatus?.("transcribing");
 
     try {
@@ -123,15 +133,28 @@ export class WhisperSpeechAdapter implements SpeechEnginePort {
       this.consecutiveErrors = 0;
 
       if (text && text.trim().length > 0) {
-        clientLogger.info(`[${this.asrPort.name}] Final phrase recognized: "${text.trim()}" (seat: ${speakerResult?.seatNumber ?? "none"})`);
+        clientLogger.info({
+          event: "asr_phrase_recognized",
+          provider: this.asrPort.id || this.asrPort.name,
+          charCount: text.trim().length,
+          seatNumber: speakerResult?.seatNumber,
+        });
         this.callbacks.onPipelineStatus?.("distilling");
         this.callbacks.onFinalPhrase?.(text, speakerResult?.seatNumber);
       } else {
-        clientLogger.info(`[${this.asrPort.name}] Clean audio had no verbal words`);
+        clientLogger.info({
+          event: "asr_phrase_empty",
+          provider: this.asrPort.id || this.asrPort.name,
+        });
       }
     } catch (err) {
       this.consecutiveErrors++;
-      clientLogger.warn(`${this.asrPort.name} segment error (${this.consecutiveErrors}/3)`, err);
+      clientLogger.warn({
+        event: "asr_segment_failed",
+        provider: this.asrPort.id || this.asrPort.name,
+        attempt: this.consecutiveErrors,
+        errorType: err instanceof Error ? err.name : "unknown",
+      });
       this.callbacks.onPipelineStatus?.("error");
 
       // In a contemplative presence circle, do not blast error popups on one glitchy segment.
