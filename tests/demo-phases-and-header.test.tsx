@@ -6,6 +6,11 @@ import { isRemoteHost } from "@/hooks/useSalonUiState";
 
 describe("Demo Script Phase Awareness", () => {
   it("provides distinct phrase sets for all 4 session phases", () => {
+    expect(DEMO_PHRASES_BY_PHASE.silence.length).toBeGreaterThanOrEqual(25);
+    expect(DEMO_PHRASES_BY_PHASE.feelings.length).toBeGreaterThanOrEqual(30);
+    expect(DEMO_PHRASES_BY_PHASE.desires.length).toBeGreaterThanOrEqual(25);
+    expect(DEMO_PHRASES_BY_PHASE.completion.length).toBeGreaterThanOrEqual(20);
+
     const silence = getDemoPhrasesForPhase("silence");
     const feelings = getDemoPhrasesForPhase("feelings");
     const desires = getDemoPhrasesForPhase("desires");
