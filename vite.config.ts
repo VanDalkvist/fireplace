@@ -94,6 +94,7 @@ export default defineConfig(({ mode }) => {
   process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || env.OPENROUTER_API_KEY;
 
   return {
+    base: "./",
     plugins: [react(), tailwindcss(), clientLoggerPlugin(), openrouterProxyPlugin(), piDistillerPlugin()],
     resolve: {
       alias: {
