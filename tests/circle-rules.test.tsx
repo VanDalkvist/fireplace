@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CircleRules } from "@/components/salon/CircleRules";
+import { Dialog } from "@/components/ui/dialog";
+import { CircleRules, CircleRulesHeader } from "@/components/salon/CircleRules";
 import { SalonExperience } from "@/components/SalonExperience";
 import { CircleRulesContent } from "@/components/salon/CircleRulesContent";
 import { CopyCircleRulesButton } from "@/components/salon/CopyCircleRulesButton";
@@ -26,14 +27,42 @@ describe("circle rules", () => {
     expect(CIRCLE_RULES.text).toBe(expectedCopy);
   });
 
-  it("renders an independent icon-only Copy button in the header without opening rules", () => {
+  it("renders an icon-only Copy button for circle rules", () => {
     const html = renderToStaticMarkup(<CopyCircleRulesButton />);
     expect(html).toContain('aria-label="Копировать правила круга"');
     expect(html).toContain("lucide-copy");
     expect(html).not.toContain("aria-haspopup");
     expect(html).not.toContain('role="dialog"');
+  });
+
+  it("renders Copy button inside the CircleRules popover header in top-right corner", () => {
+    const html = renderToStaticMarkup(
+      <Dialog modal={false}>
+        <CircleRulesHeader />
+      </Dialog>
+    );
+    expect(html).toContain("правила круга");
+    expect(html).toContain('aria-label="Копировать правила круга"');
+    expect(html).toContain('aria-label="Закрыть правила круга"');
+    const copyIdx = html.indexOf('aria-label="Копировать правила круга"');
+    const closeIdx = html.indexOf('aria-label="Закрыть правила круга"');
+    expect(copyIdx).toBeGreaterThan(-1);
+    expect(closeIdx).toBeGreaterThan(copyIdx);
+  });
+
+  it("moves copy button out of floating top header into popover, and places GitHub link in top-right corner", () => {
     const page = renderToStaticMarkup(<SalonExperience />);
-    expect(page.indexOf('aria-label="Копировать правила круга"')).toBeGreaterThan(page.indexOf('aria-label="Правила круга"'));
+    // Copy button is no longer in the outer header
+    expect(page).not.toContain('aria-label="Копировать правила круга"');
+
+    // GitHub repository link is placed in the top-right corner, after rules button
+    const book = page.indexOf('aria-label="Правила круга"');
+    const github = page.indexOf('aria-label="Репозиторий на GitHub"');
+    expect(book).toBeGreaterThan(-1);
+    expect(github).toBeGreaterThan(book);
+    expect(page).toContain('href="https://github.com/VanDalkvist/fireplace"');
+    expect(page).toContain('target="_blank"');
+    expect(page).toContain('rel="noopener noreferrer"');
   });
 
   it("awaits the clipboard and writes the exact full text", async () => {
@@ -50,6 +79,7 @@ describe("circle rules", () => {
   it("rejects unavailable clipboard without a hidden fallback", async () => {
     await expect(writeClipboardText("rules", undefined)).rejects.toMatchObject({ name: "NotSupportedError" });
   });
+
   it("preserves the exact supplied introduction and eight ordered agreements", () => {
     const html = renderToStaticMarkup(<CircleRulesContent />);
     expect(html).toContain(`<p>${introduction}</p>`);

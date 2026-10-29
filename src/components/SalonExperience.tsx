@@ -9,7 +9,7 @@ import { SalonHeader } from "./salon/SalonHeader";
 import { TechnicalGearPult } from "./salon/TechnicalGearPult";
 import { CircleRules } from "./salon/CircleRules";
 import { PhaseNotice } from "./salon/PhaseNotice";
-import { CopyCircleRulesButton } from "./salon/CopyCircleRulesButton";
+import { GithubRepoLink } from "./salon/GithubRepoLink";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
 import { SalonToast } from "./salon/SalonToast";
@@ -187,7 +187,7 @@ export const SalonExperience: React.FC = () => {
             }}
           />
           <CircleRules />
-          <CopyCircleRulesButton />
+          <GithubRepoLink />
         </div>
       </div>
 
