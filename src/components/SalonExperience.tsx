@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback } from "react";
 import { SalonMotionEngine } from "@/canvas/motion-engine";
 import { useSalonSession } from "@/hooks/useSalonSession";
 import { useSalonUiState } from "@/hooks/useSalonUiState";
@@ -12,6 +12,7 @@ import { PhaseNotice } from "./salon/PhaseNotice";
 import { CopyCircleRulesButton } from "./salon/CopyCircleRulesButton";
 import { SalonModals } from "./salon/SalonModals";
 import { VoiceIndicator } from "./salon/VoiceIndicator";
+import { SalonToast } from "./salon/SalonToast";
 import { cn } from "@/lib/utils";
 import { distillPhrase } from "@/composition/distillers";
 
@@ -37,6 +38,10 @@ export const SalonExperience: React.FC = () => {
   } = useSalonSession();
 
   const {
+    isRemote,
+    toastMessage,
+    showToast,
+    clearToast,
     isPultOpen,
     setIsPultOpen,
     isIntroOpen,
@@ -56,6 +61,38 @@ export const SalonExperience: React.FC = () => {
     isDemoActive,
     setIsDemoActive,
   } = useSalonUiState();
+
+  const handleToggleSttEngine = useCallback(() => {
+    if (isRemote) {
+      showToast("В веб-витрине работает только демо-режим. Локальный STT (GigaAM / Whisper) требует запущенный сервер на 127.0.0.1.");
+      return;
+    }
+    setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"));
+  }, [isRemote, showToast, setSttEngine]);
+
+  const handleToggleVerbatimMode = useCallback(() => {
+    if (isRemote && isVerbatimMode) {
+      showToast("В веб-витрине работает только демо-режим. Нейросетевая компрессия (Ollama / OpenRouter) требует локального бэкенда.");
+      return;
+    }
+    setIsVerbatimMode((prev) => !prev);
+  }, [isRemote, isVerbatimMode, showToast, setIsVerbatimMode]);
+
+  const handleToggleDistillerEngine = useCallback(() => {
+    if (isRemote) {
+      showToast("Локальные LLM-адаптеры требуют бэкенд на машине ведущего. В веб-витрине работает демо-режим.");
+      return;
+    }
+    toggleDistillerEngine();
+  }, [isRemote, showToast, toggleDistillerEngine]);
+
+  const handleToggleListening = useCallback(() => {
+    if (isRemote && sttEngine !== "google") {
+      showToast("Локальный STT недоступен на удалённом сервере. Запустите демо-режим (?demo=1) или переключите на Google STT.");
+      return;
+    }
+    speechRef.current?.toggle();
+  }, [isRemote, sttEngine, showToast]);
 
   const {
     isListening,
@@ -132,13 +169,11 @@ export const SalonExperience: React.FC = () => {
         <div className="flex items-center gap-2 pointer-events-auto">
           <TechnicalGearPult
             sttEngine={sttEngine}
-            onToggleSttEngine={() =>
-              setSttEngine((prev) => (prev === "gigaam" ? "whisper" : prev === "whisper" ? "google" : "gigaam"))
-            }
+            onToggleSttEngine={handleToggleSttEngine}
             distillerEngine={distillerEngine}
-            onToggleDistillerEngine={toggleDistillerEngine}
+            onToggleDistillerEngine={handleToggleDistillerEngine}
             isVerbatimMode={isVerbatimMode}
-            onToggleVerbatimMode={() => setIsVerbatimMode((prev) => !prev)}
+            onToggleVerbatimMode={handleToggleVerbatimMode}
             isAudioOn={isAudioOn}
             onAudioToggle={handleAudioToggle}
             recordingLabel={recordingLabel} recordingPosition={recordingPosition} onCycleRecording={cycleRecording}
@@ -168,7 +203,7 @@ export const SalonExperience: React.FC = () => {
           errorMessage={speechError ?? audioError}
           engineType={sttEngine}
           isMeetingAudio={isMeetingConnected}
-          onToggleListening={() => speechRef.current?.toggle()}
+          onToggleListening={handleToggleListening}
           isSupported={speechRef.current?.isSupported()}
         />
       </div>
@@ -198,6 +233,8 @@ export const SalonExperience: React.FC = () => {
           if (!isAudioOn) handleAudioToggle();
         }}
       />
+
+      <SalonToast message={toastMessage} onClose={clearToast} />
     </div>
   );
 };

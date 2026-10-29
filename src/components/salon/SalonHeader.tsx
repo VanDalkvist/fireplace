@@ -1,4 +1,5 @@
 import React from "react";
+import { ExternalLink } from "lucide-react";
 
 export const SalonHeader: React.FC = () => {
   return (
@@ -7,6 +8,17 @@ export const SalonHeader: React.FC = () => {
       <span className="font-medium tracking-wide text-foreground/90">салон присутствия</span>
       <span className="text-muted/40">·</span>
       <span className="text-primary/90 font-normal tracking-wide">разговор у костра</span>
+      <span className="text-muted/40">·</span>
+      <a
+        href="https://vanya-arc.lovable.app"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Автор инструмента: Ваня Афанасов"
+        className="inline-flex items-center gap-1 text-muted-foreground/75 hover:text-primary transition-colors cursor-pointer group underline-offset-2 hover:underline"
+      >
+        <span>автор: Ваня Афанасов</span>
+        <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 transition-opacity" />
+      </a>
     </header>
   );
 };
