@@ -53,6 +53,12 @@ export function useSalonSession(): UseSalonSessionReturn {
     return persisted?.session || createInitialState(0);
   });
   const demoIdxRef = useRef(0);
+  const phasePoolsRef = useRef<Record<SessionPhase, number[]>>({
+    silence: [],
+    feelings: [],
+    desires: [],
+    completion: [],
+  });
   const phaseRef = useRef<SessionPhase>(state.phase);
   phaseRef.current = state.phase;
   const audioRef = useRef<SalonAudioEngine | null>(null);
@@ -149,9 +155,19 @@ export function useSalonSession(): UseSalonSessionReturn {
   const triggerNextTurn = useCallback(() => {
     const currentPhase = phaseRef.current;
     const phrases = getDemoPhrasesForPhase(currentPhase);
-    const idx = demoIdxRef.current;
-    demoIdxRef.current += 1;
-    const item = phrases[idx % phrases.length];
+
+    let pool = phasePoolsRef.current[currentPhase];
+    if (!pool || pool.length === 0) {
+      pool = Array.from({ length: phrases.length }, (_, i) => i);
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      phasePoolsRef.current[currentPhase] = pool;
+    }
+
+    const idx = pool.pop() ?? (demoIdxRef.current++ % phrases.length);
+    const item = phrases[idx];
 
     if (item.isPass) {
       audioRef.current?.playPass();

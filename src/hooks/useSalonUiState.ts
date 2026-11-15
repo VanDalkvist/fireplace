@@ -33,10 +33,12 @@ export function useSalonUiState() {
   const [isDemoActive, setIsDemoActive] = useState(() => {
     if (typeof window === "undefined") return false;
     const search = window.location.search;
+    if (search.includes("demo=0") || search.includes("demo=false")) return false;
     return (
       search.includes("demo=1") ||
       search.includes("demo=true") ||
-      new URLSearchParams(search).has("demo")
+      new URLSearchParams(search).has("demo") ||
+      isRemote
     );
   });
 
