@@ -9,6 +9,8 @@ import { AnalyticsModal } from "./AnalyticsModal";
 interface SalonModalsProps {
   isPultOpen: boolean;
   setIsPultOpen: (open: boolean) => void;
+  onPultCloseAutoFocus: (event: Event) => void;
+  onToggleListening: () => void;
   isIntroOpen: boolean;
   setIsIntroOpen: (open: boolean) => void;
   isAnalyticsOpen: boolean;
@@ -33,6 +35,8 @@ interface SalonModalsProps {
 export const SalonModals: React.FC<SalonModalsProps> = ({
   isPultOpen,
   setIsPultOpen,
+  onPultCloseAutoFocus,
+  onToggleListening,
   isIntroOpen,
   setIsIntroOpen,
   isAnalyticsOpen,
@@ -58,6 +62,7 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
       <SalonPult
         open={isPultOpen}
         onOpenChange={setIsPultOpen}
+        onCloseAutoFocus={onPultCloseAutoFocus}
         volume={volume}
         onVolumeChange={(v) => {
           setVolume(v);
@@ -73,7 +78,7 @@ export const SalonModals: React.FC<SalonModalsProps> = ({
         isVerbatimMode={isVerbatimMode}
         onToggleVerbatimMode={onToggleVerbatimMode}
         isListening={isListening}
-        onToggleListening={() => speechEngine?.toggle()}
+        onToggleListening={onToggleListening}
         isSpeechSupported={speechEngine?.isSupported()}
       />
 

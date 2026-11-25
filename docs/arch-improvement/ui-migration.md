@@ -23,3 +23,8 @@ Plan:
 - [ ] Behavioral tests for Tab/Shift+Tab, Space/Arrow on focused controls, existing scene shortcuts, and source wiring. Run existing types, tests, build; verify actual browser focus/pointer and demo after build.
 
 S7 self-review: change confined to UI orchestration; preserve primary canvas/phase semantics and existing button callbacks. No provider calls in test. Browser and independent S9 still pending.
+
+## S8 · implementation checkpoint
+- Native Tab traversal is no longer intercepted. Focused native controls and dialog-local input own their keyboard events. Scene shortcuts remain on the global boundary, with modifier/repeat/composition guards.
+- Existing session sheet has a visible trigger and accessible title, close focus return; hidden HUD uses inert; speech keyboard and session-sheet controls call the same existing guard as the microphone button.
+- Added behavioral shortcut tests; execution, typecheck, build, actual browser focus/zen/demo verification and independent reviews pending. No product completion claim.

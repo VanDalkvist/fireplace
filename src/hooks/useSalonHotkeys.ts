@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import type { SessionPhase } from "@/domain/types";
 
 export interface UseSalonHotkeysOptions {
-  onTogglePult: () => void;
   onToggleHelp: () => void;
   onToggleZen: () => void;
   onToggleFullscreen: () => void;
@@ -16,7 +15,6 @@ export interface UseSalonHotkeysOptions {
 }
 
 export function useSalonHotkeys({
-  onTogglePult,
   onToggleHelp,
   onToggleZen,
   onToggleFullscreen,
@@ -30,11 +28,17 @@ export function useSalonHotkeys({
 }: UseSalonHotkeysOptions): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Preserve browser navigation and native controls, including portalled dialogs.
+      if (e.key === "Tab" || e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLElement && (
+        e.target.isContentEditable ||
+        ["SELECT", "BUTTON", "A"].includes(e.target.tagName) ||
+        e.target.closest?.("button, a[href], input, textarea, select, [contenteditable=true], [role=button], [role=slider], [role=dialog], [role=menu], [role=tab], [role=combobox]")
+      )) return;
 
       if (e.code === "KeyN") {
-        if (e.repeat || e.isComposing || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-        if (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.tagName === "SELECT")) return;
+        if (e.shiftKey) return;
         e.preventDefault();
         onAdvancePhase();
       } else if (e.code === "Space") {
@@ -46,9 +50,6 @@ export function useSalonHotkeys({
         onToggleFullscreen();
       } else if (e.key === "m" || e.key === "ь") {
         onToggleAudio();
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        onTogglePult();
       } else if (e.key === "?") {
         onToggleHelp();
       } else if (e.key === "p" || e.key === "з") {
@@ -68,7 +69,6 @@ export function useSalonHotkeys({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    onTogglePult,
     onToggleHelp,
     onToggleZen,
     onToggleFullscreen,

@@ -122,11 +122,11 @@ export const SalonExperience: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const motionRef = useRef<SalonMotionEngine | null>(null);
+  const pultButtonRef = useRef<HTMLButtonElement | null>(null);
 
   if (!motionRef.current) motionRef.current = new SalonMotionEngine();
 
   useSalonHotkeys({
-    onTogglePult: () => setIsPultOpen((p) => !p),
     onToggleHelp: () => setIsIntroOpen((p) => !p),
     onToggleZen: () => setIsZen((p) => !p),
     onToggleFullscreen: () => {
@@ -143,7 +143,7 @@ export const SalonExperience: React.FC = () => {
     onTriggerTurn: triggerNextTurn,
     onPass: handlePass,
     onToggleAudio: handleAudioToggle,
-    onToggleSpeech: () => speechRef.current?.toggle(),
+    onToggleSpeech: handleToggleListening,
     onAdvanceTurn: handleAdvanceTurn,
     onSelectPhase: handlePhaseSelect,
     onAdvancePhase: handleAdvancePhase,
@@ -164,7 +164,7 @@ export const SalonExperience: React.FC = () => {
       <PhaseNotice phase={state.phase} onTransition={() => motionRef.current?.pulsePhaseChange()} />
 
       {/* Floating Header & Top Controls */}
-      <div className={cn("fixed top-3 left-4 right-4 z-10 flex items-center justify-between transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>
+      <div inert={isZen} className={cn("fixed top-3 left-4 right-4 z-10 flex items-center justify-between transition-all duration-300 pointer-events-none", isZen && "-translate-y-4 opacity-0")}>
         <SalonHeader />
         <div className="flex items-center gap-2 pointer-events-auto">
           <TechnicalGearPult
@@ -186,13 +186,21 @@ export const SalonExperience: React.FC = () => {
               handleResetCircle();
             }}
           />
+          <button
+            ref={pultButtonRef}
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={isPultOpen}
+            onClick={() => setIsPultOpen(true)}
+            className="shrink-0 rounded-full px-2 h-7 text-[11px] font-mono text-muted-foreground hover:text-foreground focus-visible:outline-1 focus-visible:outline-[var(--ring)]"
+          >пульт</button>
           <CircleRules />
           <GithubRepoLink />
         </div>
       </div>
 
       {/* Floating Bottom HUD */}
-      <div className={cn("fixed bottom-4 left-4 right-4 z-10 flex flex-col items-center gap-2.5 transition-all duration-300", isZen && "translate-y-4 opacity-0 pointer-events-none")}>
+      <div inert={isZen} className={cn("fixed bottom-4 left-4 right-4 z-10 flex flex-col items-center gap-2.5 transition-all duration-300", isZen && "translate-y-4 opacity-0 pointer-events-none")}>
         <VoiceIndicator
           isListening={isListening}
           audioLevel={audioLevel}
@@ -211,6 +219,13 @@ export const SalonExperience: React.FC = () => {
       <SalonModals
         isPultOpen={isPultOpen}
         setIsPultOpen={setIsPultOpen}
+        onPultCloseAutoFocus={(event) => {
+          if (pultButtonRef.current && !isZen) {
+            event.preventDefault();
+            pultButtonRef.current.focus();
+          }
+        }}
+        onToggleListening={handleToggleListening}
         isIntroOpen={isIntroOpen}
         setIsIntroOpen={setIsIntroOpen}
         isAnalyticsOpen={isAnalyticsOpen}

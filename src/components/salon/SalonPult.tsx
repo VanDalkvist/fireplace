@@ -1,4 +1,5 @@
 import React from "react";
+import { Title } from "@radix-ui/react-dialog";
 import {
   Sheet,
   SheetContent,
@@ -12,6 +13,7 @@ import { Play, SkipForward, Ban, Sparkles, Mic, MicOff } from "lucide-react";
 interface SalonPultProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   volume: number;
   onVolumeChange: (vol: number) => void;
   phase: SessionPhase;
@@ -31,6 +33,7 @@ interface SalonPultProps {
 export const SalonPult: React.FC<SalonPultProps> = ({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   volume,
   onVolumeChange,
   phase,
@@ -48,12 +51,12 @@ export const SalonPult: React.FC<SalonPultProps> = ({
 }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent aria-describedby={undefined} onCloseAutoFocus={onCloseAutoFocus} className="overflow-y-auto">
         <SheetHeader>
           <div className="flex items-baseline justify-between border-b border-border/80 pb-3">
-            <h2 className="text-sm font-semibold tracking-wide text-foreground">
+            <Title className="text-sm font-semibold tracking-wide text-foreground">
               пульт сессии
-            </h2>
+            </Title>
             <span className="text-[10px] text-muted uppercase tracking-wider">s1 · salon</span>
           </div>
         </SheetHeader>
@@ -206,7 +209,8 @@ export const SalonPult: React.FC<SalonPultProps> = ({
             <div><kbd className="text-foreground">v</kbd> — микрофон on / off</div>
             <div><kbd className="text-foreground">p</kbd> — передать пас</div>
             <div><kbd className="text-foreground">m</kbd> — включить/выключить звук</div>
-            <div><kbd className="text-foreground">tab</kbd> — открыть/закрыть этот пульт</div>
+            <div><kbd className="text-foreground">tab / shift+tab</kbd> — переход между элементами</div>
+            <div><kbd className="text-foreground">esc</kbd> — закрыть пульт</div>
           </div>
         </div>
       </SheetContent>
