@@ -6,6 +6,7 @@ import { useSalonSpeech } from "@/hooks/useSalonSpeech";
 import { useSalonCanvas } from "@/hooks/useSalonCanvas";
 import { useSalonHotkeys } from "@/hooks/useSalonHotkeys";
 import { SalonHeader } from "./salon/SalonHeader";
+import { SessionPultTrigger } from "./salon/SessionPultTrigger";
 import { TechnicalGearPult } from "./salon/TechnicalGearPult";
 import { CircleRules } from "./salon/CircleRules";
 import { PhaseNotice } from "./salon/PhaseNotice";
@@ -186,14 +187,7 @@ export const SalonExperience: React.FC = () => {
               handleResetCircle();
             }}
           />
-          <button
-            ref={pultButtonRef}
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={isPultOpen}
-            onClick={() => setIsPultOpen(true)}
-            className="shrink-0 rounded-full px-2 h-7 text-[11px] font-mono text-muted-foreground hover:text-foreground focus-visible:outline-1 focus-visible:outline-[var(--ring)]"
-          >пульт</button>
+          <SessionPultTrigger buttonRef={pultButtonRef} isOpen={isPultOpen} onOpen={() => setIsPultOpen(true)} />
           <CircleRules />
           <GithubRepoLink />
         </div>
