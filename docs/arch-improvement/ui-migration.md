@@ -30,3 +30,8 @@ S7 self-review: change confined to UI orchestration; preserve primary canvas/pha
 - Added behavioral shortcut tests; execution, typecheck, build, actual browser focus/zen/demo verification and independent reviews pending. No product completion claim.
 
 - Post-implementation source check: extract the session pult trigger as a focused UI component to retain the 250-line SalonExperience boundary; no domain behavior moved. Pending actual verification.
+
+## Verification checkpoint
+- Code revision `803f6def0b49ee3c7f03086716662ae261fcaf78`. S8 implemented, S9 pending. Source readback confirms global Tab bypass, two inert HUD containers, accessible dialog title, return-focus call and shared guarded speech callback; SalonExperience remains within 250 lines. Added behavioral tests for scene/native keyboard separation. Source evidence only.
+- Existing baseline tests succeeded before the changes. Current code typecheck/test/build and rendered browser evidence pending. No production release.
+- Remaining: independent architecture/product review, actual keyboard navigation, dialog focus return, zen and demo flow in compiled app at narrow/wide widths; verify UI semantic checks and keyboard-shortcut opt-out in subsequent design slice. No provider calls or real recordings used. Next: verify exact working-branch build and address findings. All P1/P2 findings remain verification-pending.
